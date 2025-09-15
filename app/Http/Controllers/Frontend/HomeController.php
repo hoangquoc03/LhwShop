@@ -13,6 +13,7 @@ use  App\Models\ShopOrderDetail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use  App\Models\ShopSetting;
+use  App\Models\ShopOrder;
 
 class HomeController extends Controller
 {
@@ -80,6 +81,26 @@ class HomeController extends Controller
 
         $recentOrders = $orders->take(5);
 
-        return view('frontend.customer.dashboard', compact('customer', 'stats', 'recentOrders', 'categories'));
+        return view('frontend.customer.tongquan', compact('customer', 'stats', 'recentOrders', 'categories'));
+    }
+    public function orders()
+    {
+        $categories = ShopCategory::all();
+        $customer = Auth::guard('customer')->user();
+        $orders = ShopOrder::where('customer_id', $customer->id)
+                    ->latest()
+                    ->paginate(10);
+        $stats = [
+            'total'     => \App\Models\ShopOrder::where('customer_id', $customer->id)->count(),
+            'pending'   => \App\Models\ShopOrder::where('customer_id', $customer->id)->where('order_status', 'Pending')->count(),
+            'delivered' => \App\Models\ShopOrder::where('customer_id', $customer->id)->where('order_status', 'Delivered')->count(),
+            'cancelled' => \App\Models\ShopOrder::where('customer_id', $customer->id)->where('order_status', 'Cancelled')->count(),
+        ];
+         // Lấy tất cả để đưa vào partial recent_orders
+        $recentOrders = \App\Models\ShopOrder::where('customer_id', $customer->id)
+                    ->latest()
+                    ->get();
+
+        return view('frontend.customer.orders', compact('customer', 'orders', 'categories', 'stats', 'recentOrders'));
     }
 }

@@ -22,7 +22,9 @@
         <div class="card-body p-0">
             <ul class="list-group list-group-flush">
                 <li class="list-group-item"><a href="{{ route('customer.dashboard') }}" class="text-decoration-none">Tổng quan</a></li>
-                <li class="list-group-item"><a href="#" class="text-decoration-none">Lịch sử mua hàng</a></li>
+                <li class="list-group-item">
+                    <a href="{{ route('customer.orders') }}" class="text-decoration-none"> Lịch sử mua hàng</a>
+                </li>
                 <li class="list-group-item"><a href="#" class="text-decoration-none">Tra cứu bảo hành</a></li>
                 <li class="list-group-item"><a href="#" class="text-decoration-none">Sản phẩm yêu thích</a></li>
                 <li class="list-group-item"><a href="#" class="text-decoration-none">Thông tin tài khoản</a></li>

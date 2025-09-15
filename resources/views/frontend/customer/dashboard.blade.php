@@ -144,19 +144,9 @@ Tổng quan
 
         {{-- Nội dung chính --}}
         <div class="col-lg-9">
-            <h4 class="mb-4">Tổng quan</h4>
-
-            {{-- Thống kê nhanh --}}
-            
-            @include('frontend.customer.partials.stats')
-
-            {{-- Đơn hàng gần đây --}}
-            
-            @include('frontend.customer.partials.recent_orders')
-            <div class="mt-4">
+            <div class="card shadow-sm rounded-2xl p-4">
                 @yield('content-main')
             </div>
-
         </div>
     </div>
 </div>

@@ -97,8 +97,11 @@ Route::post('/checkout/store', [CartController::class, 'store'])
     ->name('orders.store');
 Route::put('/orders/{id}/cancel', [CartController::class, 'cancel'])->name('orders.cancel');
 
+// dashboard khách hàng
 Route::get('/customer/dashboard', [HomeController::class, 'dashboard'])->name('customer.dashboard');
-
+Route::get('/customer/orders', [HomeController::class, 'orders'])
+    ->name('customer.orders')
+    ->middleware('auth:customer');
 
 Route::post('/cart/update/{id}', [CartController::class, 'update'])->name('cart.update');
 
