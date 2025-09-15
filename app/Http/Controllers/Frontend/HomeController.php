@@ -1,0 +1,66 @@
+<?php
+
+namespace App\Http\Controllers\Frontend;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use  App\Models\ShopProduct;
+use  App\Models\ShopCategory;
+use  App\Models\ShopSupplier;
+use  App\Models\ShopPost;
+use  App\Models\ShopOrderDetail;
+
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use  App\Models\ShopSetting;
+
+class HomeController extends Controller
+{
+    public function index() {
+        $categories = ShopCategory::with([
+            'products' => function($q) {
+                $q->select('id','product_name','category_id','supplier_id','is_featured','is_new')
+                ->orderByDesc('created_at')
+                ->take(6);
+            },
+            'products.supplier:id,supplier_text,image' // ⚡ load supplier theo product
+        ])
+        ->get(['id','categories_text','description','image']);
+
+        $suppliers = ShopSupplier::all(['id', 'supplier_text','image']);
+        
+        $products = ShopProduct::where('is_featured', true)
+        ->take(6)
+        ->get(['id', 'product_name', 'image','short_description', 'is_featured', 'is_new']); 
+
+        $newProducts = ShopProduct::where('is_new', true)
+        ->withAvg('reviews', 'rating')
+        ->with('discount')
+        ->take(8)
+        ->get(['id', 'product_name', 'image','short_description', 'is_featured', 'is_new', 'standard_cost', 'list_price']);
+
+        $specialCategories = ShopCategory::whereIn('categories_code', ['Dt','LTVP','MTB'])
+        ->take(3)
+        ->get(['id','categories_text','image','categories_code']);
+
+        $bestSellers = ShopOrderDetail::select('product_id', DB::raw('SUM(quantity) as total_sold'))
+        ->groupBy('product_id')
+        ->orderByDesc('total_sold')
+        ->with(['product' => function($q) {
+            $q->select('id','product_name','image','list_price','short_description','category_id')
+            ->with('category:id,categories_text')
+            ->with('discount') // ⚡ thêm discount
+            ->withAvg('reviews', 'rating'); // ⚡ thêm rating trung bình
+        }])
+        ->take(8) // số lượng sp hiển thị
+        ->get();
+        $settings = ShopSetting::all()->keyBy('key');
+        $bannerPosts = ShopPost::whereNotNull('post_image')
+        ->orderByDesc('created_at')
+        ->take(5)
+        ->get(['id', 'post_title', 'post_image', 'post_slug']);
+
+        return view('frontend.index',
+         compact('categories', 'suppliers','products', 'specialCategories', 'newProducts', 'bestSellers', 'settings', 'bannerPosts'));
+    }
+}

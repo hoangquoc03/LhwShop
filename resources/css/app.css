@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fonts hoặc custom CSS thêm sau */
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Sans&display=swap");
+
+body {
+    font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+}
