@@ -324,4 +324,16 @@ class CartController extends Controller
         // Hiển thị view thanh toán
         return view('frontend.orders.payment', compact('order', 'categories', 'paymentTypes'));
     }
+    public function cancel($id)
+    {
+        $order = ShopOrder::findOrFail($id);
+
+        if ($order->order_status === 'Pending') {
+            $order->order_status = 'Cancelled';
+            $order->save();
+            return redirect()->back()->with('success', 'Đơn hàng đã được hủy.');
+        }
+
+        return redirect()->back()->with('error', 'Không thể hủy đơn hàng này.');
+    }
 }

@@ -95,6 +95,7 @@ Route::get('/checkout', [CartController::class, 'create'])
 Route::post('/checkout/store', [CartController::class, 'store'])
     ->middleware(['web', 'auth:customer'])
     ->name('orders.store');
+Route::put('/orders/{id}/cancel', [CartController::class, 'cancel'])->name('orders.cancel');
 
 
 Route::post('/cart/update/{id}', [CartController::class, 'update'])->name('cart.update');

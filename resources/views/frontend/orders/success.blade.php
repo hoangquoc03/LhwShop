@@ -178,6 +178,7 @@
                     <table class="table table-borderless mb-3">
                         <thead>
                             <tr>
+                                <th>Hình ảnh</th>
                                 <th>Sản phẩm</th>
                                 <th>Số lượng</th>
                                 <th>Đơn giá</th>
@@ -187,6 +188,12 @@
                         <tbody>
                             @foreach($order->details as $detail)
                                 <tr>
+                                   <td>
+                                      <img src="{{ asset('storage/uploads/products/' . $detail->product->image) }}" 
+                                          alt="{{ $detail->product->product_name }}" 
+                                          width="60" height="60" 
+                                          style="object-fit: cover; border-radius: 5px;">
+                                  </td>
                                     <td>{{ $detail->product->product_name }}</td>
                                     <td>{{ $detail->quantity }}</td>
                                     <td>{{ number_format($detail->unit_price,0,',','.') }}₫</td>
@@ -199,32 +206,76 @@
                         <h5>Tổng tiền: <span class="text-danger">{{ number_format($order->details->sum(fn($d) => $d->quantity * $d->unit_price),0,',','.') }}₫</span></h5>
                     </div>
 
-                    {{-- Trạng thái đơn hàng động --}}
-<div class="d-flex justify-content-between align-items-center mb-4">
+{{-- Trạng thái đơn hàng động dạng tiến trình --}}
+@php
+    $steps = [
+        'Pending'   => ['label' => 'Chờ xử lý', 'icon' => '⏳'],
+        'Shipped'   => ['label' => 'Đã gửi hàng', 'icon' => '📦'],
+        'Delivered' => ['label' => 'Đã giao', 'icon' => '🚚'],
+    ];
 
-    <div class="text-center flex-fill">
-        @if($order->order_status == 'Pending')
-            <div class="mb-1">⏳</div>
-            <small>Chờ xử lý</small>
-        @elseif($order->order_status == 'Cancelled')
-            <div class="mb-1">❌</div>
-            <small>Đã hủy</small>
-        @elseif($order->order_status == 'Delivered')
-            <div class="mb-1">🚚</div>
-            <small>Đã giao</small>
-        @elseif($order->order_status == 'Shipped')
-            <div class="mb-1">📦</div>
-            <small>Đã gửi hàng</small>
-        @else
-            <div class="mb-1">ℹ️</div>
-            <small>Không xác định</small>
-        @endif
+    $orderFlow = ['Pending', 'Shipped', 'Delivered'];
+    $current   = $order->order_status;
+@endphp
+
+@if($current === 'Cancelled')
+    {{-- Nếu đơn bị hủy --}}
+    <div class="text-center mb-4">
+        <div class="mb-1" style="font-size: 30px; color: red;">
+            ❌
+        </div>
+        <div class="font-weight-bold text-danger">Đã hủy</div>
         <div class="text-muted">
             {{ \Carbon\Carbon::parse($order->updated_at ?? $order->created_at)->format('d/m/Y H:i') }}
         </div>
     </div>
+@else
+    <div class="position-relative d-flex justify-content-between align-items-center mb-4" style="max-width: 600px; margin: auto;">
+        {{-- Thanh nối --}}
+        <div class="position-absolute w-100" style="top: 20px; height: 4px; background: #dee2e6; z-index: 1;"></div>
+        <div class="position-absolute" style="top: 20px; height: 4px; background: #28a745; z-index: 2;
+            width: calc({{ (array_search($current, $orderFlow)) / (count($orderFlow)-1) * 100 }}%);"></div>
 
-</div>
+        {{-- Các bước --}}
+        @foreach($orderFlow as $step)
+            @php
+                $isActive = $step === $current;
+                $isCompleted = array_search($step, $orderFlow) < array_search($current, $orderFlow);
+            @endphp
+            <div class="text-center flex-fill" style="z-index: 3;">
+                <div class="rounded-circle d-flex align-items-center justify-content-center mb-2"
+                     style="width: 40px; height: 40px; margin: auto;
+                        @if($isActive) background: #007bff; color: #fff;
+                        @elseif($isCompleted) background: #28a745; color: #fff;
+                        @else background: #adb5bd; color: #fff;
+                        @endif">
+                    {{ $steps[$step]['icon'] }}
+                </div>
+                <small 
+                    @if($isActive) class="font-weight-bold text-primary"
+                    @elseif($isCompleted) class="text-success"
+                    @else class="text-muted"
+                    @endif>
+                    {{ $steps[$step]['label'] }}
+                </small>
+            </div>
+        @endforeach
+    </div>
+
+    {{-- Nút hủy đơn khi còn Pending --}}
+    @if($current === 'Pending')
+        <div class="text-center mt-3">
+            <form action="{{ route('orders.cancel', $order->id) }}" method="POST" 
+                  onsubmit="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này không?');">
+                @csrf
+                @method('PUT')
+                <button type="submit" class="btn btn-sm btn-danger">
+                    Hủy đơn hàng
+                </button>
+            </form>
+        </div>
+    @endif
+@endif
 
                     {{-- Thông tin khách hàng & thanh toán --}}
                     <div class="row">
