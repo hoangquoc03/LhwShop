@@ -63,4 +63,23 @@ class HomeController extends Controller
         return view('frontend.index',
          compact('categories', 'suppliers','products', 'specialCategories', 'newProducts', 'bestSellers', 'settings', 'bannerPosts'));
     }
+    public function dashboard()
+    {
+        $customer = Auth::guard('customer')->user();
+
+        $orders = \App\Models\ShopOrder::where('customer_id', $customer->id)->latest()->get();
+
+        $stats = [
+            'total'     => $orders->count(),
+            'pending'   => $orders->where('order_status', 'Pending')->count(),
+            'shipped'   => $orders->where('order_status', 'Shipped')->count(),
+            'delivered' => $orders->where('order_status', 'Delivered')->count(),
+            'cancelled' => $orders->where('order_status', 'Cancelled')->count(),
+        ];
+        $categories = ShopCategory::all();
+
+        $recentOrders = $orders->take(5);
+
+        return view('frontend.customer.dashboard', compact('customer', 'stats', 'recentOrders', 'categories'));
+    }
 }

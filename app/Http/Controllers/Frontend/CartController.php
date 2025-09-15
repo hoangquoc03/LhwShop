@@ -290,6 +290,7 @@ class CartController extends Controller
                   ->findOrFail($id);
 
         $categories = \App\Models\ShopCategory::all();
+        $customer = Auth::guard('customer')->user();
         $recentOrders = ShopOrder::with('details')
         ->where('customer_id', Auth::guard('customer')->id())
         ->where('id', '!=', $id)
@@ -297,7 +298,7 @@ class CartController extends Controller
         ->take(5)
         ->get();
 
-        return view('frontend.orders.success', compact('order', 'categories', 'recentOrders'));
+        return view('frontend.orders.success', compact('order', 'categories', 'recentOrders', 'customer'));
     }
 
 

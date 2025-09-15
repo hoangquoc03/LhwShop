@@ -97,6 +97,8 @@ Route::post('/checkout/store', [CartController::class, 'store'])
     ->name('orders.store');
 Route::put('/orders/{id}/cancel', [CartController::class, 'cancel'])->name('orders.cancel');
 
+Route::get('/customer/dashboard', [HomeController::class, 'dashboard'])->name('customer.dashboard');
+
 
 Route::post('/cart/update/{id}', [CartController::class, 'update'])->name('cart.update');
 
