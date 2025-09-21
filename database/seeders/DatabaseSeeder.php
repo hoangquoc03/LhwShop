@@ -41,6 +41,7 @@ class DatabaseSeeder extends Seeder
         ShopProductDiscountSeeder::class,
         ShopCustomersSeeder::class,
         ShopProductReviewsSeeder::class,
+        CartFavoriteSeeder::class,
     ]);
 
     // Dữ liệu về kho, cửa hàng
