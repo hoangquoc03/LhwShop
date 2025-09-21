@@ -57,6 +57,10 @@ class ShopCustomer extends Authenticatable
     {
         return $this->hasMany(ShopProductReview::class, 'customer_id','id');
     }
+    public function carts()
+    {
+        return $this->hasMany(ShopCart::class, 'customer_id','id');
+    }
 
     public function vouchers()
     {

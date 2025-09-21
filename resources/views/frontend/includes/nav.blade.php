@@ -167,7 +167,7 @@
                                         <span class="small text-muted">x{{ $item['quantity'] }}</span>
                                     </div>
                                 </div>
-                                <form method="POST" action="{{ route('cart.remove', $id) }}">
+                                <form method="POST" action="">
                                     @csrf
                                     <button type="submit" class="btn btn-sm btn-link text-danger">
                                         <i class="ti-close"></i>

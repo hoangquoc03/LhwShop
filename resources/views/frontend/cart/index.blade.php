@@ -166,7 +166,7 @@ Giỏ hàng của bạn
                                         <button type="button" class="btn btn-outline-secondary btn-qty" data-type="plus" data-id="{{ $id }}">+</button>
                                     </div>
 
-                                    <form method="POST" action="{{ route('cart.remove', $id) }}">
+                                    <form method="POST" action="">
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle shadow-sm btn-remove ripple">
                                             <i class="ti-close"></i>

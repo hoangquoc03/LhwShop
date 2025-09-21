@@ -73,6 +73,10 @@ class ShopProduct extends Model
             'product_id' ,'id'
         );
     }
+    public function carts()
+    {
+        return $this->hasMany(ShopCart::class, 'product_id','id');
+    }
     public function category(){
         return $this->belongsTo(
             ShopCategory::class,
