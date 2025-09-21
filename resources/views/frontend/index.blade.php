@@ -221,7 +221,15 @@ Trang chủ bán hàng
                    alt="{{ $product->product_name }}"
                    style="height:260px;object-fit:cover;transition: transform .3s;">
               <ul class="card-product__imgOverlay list-unstyled d-flex justify-content-center gap-2 position-absolute top-50 start-50 translate-middle opacity-0 transition-icons">
-                <li><button class="btn btn-light rounded-circle shadow-sm"><i class="ti-search"></i></button></li>
+                <li>
+                    <a href="/product/{{ $product->id }}">
+                        <button class="btn btn-light rounded-circle shadow-sm">
+                            <i class="ti-search"></i>
+                        </button>
+                    </a>
+                </li>
+
+
                 <li>
                     <button class="btn btn-light rounded-circle shadow-sm add-to-cart" data-id="{{ $product->id }}">
                         <i class="ti-shopping-cart"></i>

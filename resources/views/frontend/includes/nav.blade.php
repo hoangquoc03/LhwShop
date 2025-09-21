@@ -286,7 +286,7 @@
         </a>
     </li>
     <li class="nav-item">
-        <a href="{{ route('customer.register') }}" class="nav-link">
+        <a href="{{ route('frontend.register.register') }}" class="nav-link">
             <i class="ti-pencil-alt"></i> Đăng ký
         </a>
     </li>

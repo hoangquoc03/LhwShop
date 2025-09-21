@@ -251,4 +251,21 @@ class ProductController extends Controller
 
         return view('frontend.product.partials.product_list', compact('products'))->render();
     }
+
+    public function show($id)
+    {
+        $product = ShopProduct::with([
+            'images',          // shop_product_image
+            'reviews',         // shop_product_review
+            'discounts',        // shop_product_discount
+            'variants'         // shop_product_variants
+        ])->findOrFail($id);
+
+        // Nếu muốn lấy đánh giá
+        $rating = $product->reviews()->count() ? $product->reviews()->avg('rating') : 0;
+
+        $categories = ShopCategory::all();
+        return view('frontend.product.show', compact('product', 'rating','categories'));
+    }
+
 }

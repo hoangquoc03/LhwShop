@@ -62,6 +62,10 @@ Route::post('/login-home', [
     LoginHomeController::class, 'login'
 ])->name('frontend.login.post');
 //            products
+
+Route::get('/product/{id}', [ProductController::class, 'show'])->name('product.show');
+
+
 Route::get('/products/category/{id}', [ProductController::class, 'byCategory'])->name('products.byCategory');
 Route::get('/products/supplier/{id}', [ProductController::class, 'bySupplier'])->name('products.bySupplier');
 Route::get('/products/filter', [ProductController::class, 'filter'])->name('products.filter');
