@@ -33,6 +33,7 @@ class HomeController extends Controller
         $suppliers = ShopSupplier::all(['id', 'supplier_text','image']);
         
         $products = ShopProduct::where('is_featured', true)
+        ->orderBy('updated_at', 'desc')
         ->take(6)
         ->get(['id', 'product_name', 'image','short_description', 'is_featured', 'is_new']); 
 
@@ -72,10 +73,16 @@ class HomeController extends Controller
         ->take(5)
         ->get(['id', 'post_title', 'post_image', 'post_slug']);
 
+        $watch = ShopProduct::with(['category', 'supplier'])
+        ->whereHas('category', function($query) {
+            $query->where('categories_code', 'DHTM');
+        })
+        ->get();
+
         return view('frontend.index',
          compact('categories', 'suppliers','products', 
          'specialCategories', 'newProducts', 'bestSellers',
-          'settings', 'bannerPosts', 'featuredProducts', 'category'));
+          'settings', 'bannerPosts', 'featuredProducts', 'category', 'watch'));
     }
     public function dashboard()
     {

@@ -103,8 +103,8 @@ Trang chủ bán hàng
 </section>
 
 
-<section class="section-margin calc-60px">
-  <div class="container highlight-box" style="margin-top: 200px;">
+<section class="section-margin calc-60px mt-3">
+  <div class="container highlight-box">
     <div class="section-intro pb-4 text-center">
       <h2 class="fw-bold">GỢI Ý CHO BẠN</h2>
     </div>
@@ -385,42 +385,46 @@ Trang chủ bán hàng
   } 
 </style>
 
-<section class="ad-banner py-8 bg-gray-100" style="margin-top: 100px;">
-  <div class="container mx-auto text-center mb-8">
-    <h2 class="text-3xl font-bold text-gray-800 tracking-wide flex items-center justify-center gap-3">
+<section class="ad-banner py-8 bg-gray-100">
+  <div class="container mx-auto text-center mb-8 "style="padding-top: 20px;">
+    <h2 class="text-3xl font-bold text-gray-800 tracking-wide flex items-center justify-center gap-3 ">
       Những sản phẩm nổi bật
     </h2>
   </div>
   <div class="carousel-layout">
     
-<!-- Khung hiển thị thông tin bên trái -->
-<div class="product-info bg-gradient-to-br from-white/30 to-white/10 
-            backdrop-blur-xl border border-white/20 
-            p-8 rounded-3xl shadow-2xl max-w-md mx-auto text-left 
-            transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl">
 
-  <h2 id="product-name" class="text-3xl font-extrabold text-gray-900 drop-shadow-lg mb-4">
-    {{ $products[0]->product_name ?? '' }}
-  </h2>
+  <div class="product-info 
+              bg-white/90 dark:bg-gray-900/70
+              backdrop-blur-lg 
+              border border-gray-200/40 dark:border-white/10
+              p-8 rounded-2xl shadow-lg 
+              max-w-lg mx-auto text-center
+              transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl">
 
-  <p id="product-desc" class="text-gray-800/90 leading-relaxed mb-6">
-    {{ $products[0]->short_description ?? '' }}
-  </p>
+    <h2 id="product-name" 
+        class="text-2xl font-bold text-gray-800 dark:text-white mb-3">
+      {{ $products[0]->product_name ?? '' }}
+    </h2>
 
-  <a id="product-link" 
-    href="" 
-    class="btn-buy inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 
-           text-white font-semibold px-6 py-3 rounded-xl 
-           hover:from-blue-700 hover:to-indigo-700 
-           transition-all duration-300 shadow-md hover:shadow-xl">
-    <i class="fas fa-shopping-cart"></i> 
-    Xem chi tiết
-  </a>
-</div>
+    <p id="product-desc" 
+      class="text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
+      {{ $products[0]->short_description ?? '' }}
+    </p>
+
+    <a id="product-link" 
+      href="" 
+      class="btn-buy inline-flex items-center gap-2 
+            bg-gradient-to-r from-blue-500 to-indigo-500 
+            text-white font-semibold px-6 py-3 rounded-xl 
+            hover:from-blue-600 hover:to-indigo-600 
+            transition-all duration-300 shadow-md hover:shadow-lg">
+      <i class="fas fa-shopping-cart"></i> 
+      Xem chi tiết
+    </a>
+  </div>
 
 
-
-    <!-- Carousel bên phải -->
     <div class="carousel-container">
       <div class="carousel" id="carousel">
         @php
@@ -433,6 +437,7 @@ Trang chủ bán hàng
                data-name="{{ $product->product_name }}"
                data-desc="{{ $product->short_description }}"
                data-link="/product/{{ $product->id }}"
+               data-color="{{ $product->dominant_color ?? '#ffffff' }}"
                style="transform: rotateY({{ $key * $angle }}deg) translateZ({{ $distance }}px)">
             <img src="{{ asset('storage/uploads/products/'.$product->image) }}" alt="{{ $product->product_name }}">
           </div>
@@ -441,9 +446,125 @@ Trang chủ bán hàng
     </div>
   </div>
 </section>
+<style>
+  
+  /* Nền gradient động */
+  @keyframes gradientMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradientMove 12s ease infinite;
+  }
+  .carousel-layout {
+    display: flex;
+    flex-direction: column-reverse;   /* sắp xếp theo chiều dọc */
+    justify-content: center;  /* căn giữa dọc */
+    align-items: center;      /* căn giữa ngang */
+    gap: 30px;                /* khoảng cách giữa carousel và info */
+    padding: 20px;
+    text-align: center;
+  }
 
+  .carousel-container {
+    position: relative;
+    width: 500px;    /* chỉnh theo ý */
+    height: 400px;   /* chỉnh chiều cao khung */
+    perspective: 1500px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 
-<section class="section-margin calc-60px">
+  .carousel {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 1s;
+  }
+
+  .item {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: center center;
+    transform-style: preserve-3d;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .item img {
+    max-width: 250px;
+    max-height: 250px;
+    object-fit: contain;
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  }
+
+  /* Khung thông tin */
+  .product-info {
+    max-width: 600px;
+    text-align: center;   /* căn giữa chữ */
+  }
+
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.2/color-thief.umd.js"></script>
+<script>
+  const banner = document.querySelector(".ad-banner");
+  const items = document.querySelectorAll(".carousel .item img");
+  const colorThief = new ColorThief();
+  let currentColor1 = "#f0f4f8"; 
+  let currentColor2 = "#ffffff"; 
+
+  items.forEach(img => {
+    if (img.complete) {
+      setColor(img);
+    } else {
+      img.addEventListener('load', () => setColor(img));
+    }
+  });
+
+  function setColor(img) {
+    try {
+      const color = colorThief.getColor(img); 
+      const palette = colorThief.getPalette(img, 3);
+      const rgb1 = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+      const rgb2 = palette[1] 
+        ? `rgb(${palette[1][0]}, ${palette[1][1]}, ${palette[1][2]})`
+        : `rgba(255,255,255,0.9)`;
+      img.parentElement.dataset.color = rgb1;
+      img.parentElement.dataset.color2 = rgb2;
+    } catch (e) {
+      console.warn("Color extract failed:", e);
+    }
+  }
+
+  // hover đổi màu nền
+  document.querySelectorAll(".item").forEach(item => {
+    item.addEventListener("mouseenter", () => {
+      const color1 = item.dataset.color || "#ffffff";
+      const color2 = item.dataset.color2 || "#f5f5f5";
+      banner.style.transition = "background 1s ease-in-out";
+      banner.style.background = `linear-gradient(135deg, ${color1} 0%, ${color2} 100%)`;
+
+      // lưu màu cuối cùng
+      currentColor1 = color1;
+      currentColor2 = color2;
+    });
+  });
+
+  // khi rời khỏi carousel -> giữ nguyên màu cuối
+  document.querySelector(".carousel").addEventListener("mouseleave", () => {
+    banner.style.background = `linear-gradient(135deg, ${currentColor1} 0%, ${currentColor2} 100%)`;
+  });
+</script>
+
+<section class="section-margin calc-60px mt-4">
   <div class="container">
     <div class="section-introc pb-4 text-center">
       <p class="text-muted">Mặt hàng mới trên thị trường</p>
@@ -487,7 +608,7 @@ Trang chủ bán hàng
             {{-- Badge % giảm giá --}}
             @if ($hasDiscount && $percentOff > 0)
               <span class="position-absolute top-0 start-0 m-2 badge rounded-pill shadow"
-                    style="background: linear-gradient(135deg,#007bff,#00c6ff); font-size:0.95rem; padding:0.4rem 0.7rem;z-index: 10;">
+                    style="background: linear-gradient(135deg,#007bff,#00c6ff);color: #fff; font-size:0.95rem; padding:0.4rem 0.7rem;z-index: 10;">
                 -{{ $percentOff }}%
               </span>
             @endif      
@@ -591,6 +712,257 @@ Trang chủ bán hàng
     </div>
   </div>
 </section>
+
+<section class="section-margin calc-60px mt-4 pt-4">
+  <div class="container position-relative">
+    <div class="section-introc pb-4 d-flex justify-content-between align-items-center">
+      <h2 class="fw-bold mb-0">ĐỒNG HỒ THÔNG MINH</h2>
+      @php
+          $suppliers = $watch->pluck('supplier')->filter()->unique('id');
+      @endphp
+
+      <div class="fw-bold d-flex flex-wrap gap-3">
+          @foreach($suppliers as $supplier)
+              <span class="chip">
+                  {{ $supplier->supplier_text }}
+              </span>
+          @endforeach
+      </div>
+    </div>
+
+    <style>
+      .chip {
+          display: inline-block;
+          padding: 0.5rem 1rem;
+          border: 1px solid #0d6efd;
+          background-color: #f8f9fa;
+          color: #0d6efd;
+          font-weight: 500;
+          font-size: 0.95rem;
+          transition: all 0.2s ease-in-out;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      }
+      .chip:hover {
+          background-color: #0d6efd;
+          color: #fff;
+          transform: translateY(-2px);
+          cursor: pointer;
+      }
+
+      /* Wrapper 2 hàng */
+      .featured-products-wrapper {
+          display: grid;
+          grid-auto-flow: column;
+          grid-template-rows: repeat(2, 1fr);
+          gap: 1rem;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          padding-bottom: 1rem;
+
+          /* Ngăn bôi đen khi kéo */
+          user-select: none;
+          -webkit-user-drag: none;
+      }
+      .featured-products-wrapper::-webkit-scrollbar {
+          display: none;
+      }
+
+      .card-product {
+          width: 250px;
+          scroll-snap-align: start;
+          display: flex;
+          flex-direction: column;
+      }
+
+      .card-product__img {
+          position: relative;
+          overflow: hidden;
+      }
+      .card-product__imgOverlay {
+          opacity: 0;
+          transition: all 0.3s ease;
+      }
+      .card-product__img:hover .card-product__imgOverlay {
+          opacity: 1;
+      }
+
+      .nav-arrow {
+          position: absolute;
+          top: 40%;
+          transform: translateY(-50%);
+          background: white;
+          border: none;
+          border-radius: 50%;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+          width: 40px;
+          height: 40px;
+          cursor: pointer;
+          z-index: 20;
+      }
+      .nav-arrow.left {
+          left: -20px;
+      }
+      .nav-arrow.right {
+          right: -20px;
+      }
+    </style>
+    <!-- Buttons -->
+    <button class="nav-arrow left" onclick="scrollProducts(-1)">&#8249;</button>
+    <button class="nav-arrow right" onclick="scrollProducts(1)">&#8250;</button>
+
+    <!-- Wrapper -->
+    <div id="productsContainer" class="featured-products-wrapper">
+        @foreach ($watch as $product)
+        @php
+            $avgRating = (float) ($product->reviews_avg_rating ?? 0);
+            $rating    = (int) round($avgRating);
+
+            // Lấy thông tin giảm giá
+            $discount = $product->discount;
+            $listPrice = (float) $product->list_price;
+
+            $discountedPrice = $listPrice;
+            $percentOff = 0;
+            $hasDiscount = false;
+
+            if ($discount && $listPrice > 0) {
+                $discountAmount = (float) ($discount->discount_amount ?? 0);
+                $isPercent = (int) ($discount->is_fixed ?? 0);
+
+                if ($isPercent === 0 && $discountAmount > 0) {
+                    // 0 = giảm theo %
+                    $percentOff = min(100, round($discountAmount));
+                    $discountedPrice = max(0, $listPrice * (1 - $discountAmount / 100));
+                } elseif ($isPercent === 1 && $discountAmount > 0) {
+                    // 1 = giảm theo số tiền cố định
+                    $discountedPrice = max(0, $listPrice - $discountAmount);
+                    $percentOff = min(100, round(($discountAmount / $listPrice) * 100));
+                }
+
+                $hasDiscount = $discountedPrice < $listPrice;
+            }
+        @endphp
+          <div class="card card-product h-100 border-0 shadow-sm rounded-3 overflow-hidden position-relative">
+
+            {{-- Badge % giảm giá --}}
+            @if ($hasDiscount && $percentOff > 0)
+              <span class="position-absolute top-0 start-0 m-2 badge rounded-pill shadow"
+                    style="background: linear-gradient(135deg,#007bff,#00c6ff); font-size:0.95rem; padding:0.4rem 0.7rem;z-index: 10;">
+                -{{ $percentOff }}%
+              </span>
+            @endif      
+            {{-- Ảnh sản phẩm --}}
+            <div class="card-product__img position-relative overflow-hidden">
+              <img class="card-img-top"
+                   src="{{ asset('storage/uploads/products/'.$product->image) }}"
+                   alt="{{ $product->product_name }}"
+                   style="height:260px;object-fit:cover;transition: transform .3s;">
+              <ul class="card-product__imgOverlay list-unstyled d-flex justify-content-center gap-2 position-absolute top-50 start-50 translate-middle opacity-0 transition-icons">
+                <li>
+                    <a href="/product/{{ $product->id }}">
+                        <button class="btn btn-light rounded-circle shadow-sm">
+                            <i class="ti-search"></i>
+                        </button>
+                    </a>
+                </li>
+
+
+                <li>
+                    <button class="btn btn-light rounded-circle shadow-sm add-to-cart" data-id="{{ $product->id }}">
+                        <i class="ti-shopping-cart"></i>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="btn btn-light rounded-circle shadow-sm btn-favorite" data-id="{{ $product->id }}">
+                        <i class="ti-heart {{ in_array($product->id, session('favorites', [])) ? 'text-primary' : '' }}"></i>
+                    </button> 
+                </li>
+              </ul>
+            </div>
+
+            {{-- Thông tin sản phẩm --}}
+            <div class="card-body text-center">
+              <p class="text-muted small mb-1">{{ $product->category->categories_text ?? 'Danh mục' }}</p>
+              <h5 class="card-title fw-semibold">
+                <a href="/product/{{ $product->id }}" class="text-dark text-decoration-none">
+                  {{ $product->product_name }}
+                </a>
+              </h5>
+
+              {{-- Rating --}}
+              <div class="mb-2">
+                @for ($i = 1; $i <= 5; $i++)
+                  @if ($i <= $rating) <i class="fas fa-star text-warning"></i>
+                  @else              <i class="far fa-star text-warning"></i>
+                  @endif
+                @endfor
+                <small class="text-muted">
+                  @if ($avgRating > 0) ({{ number_format($avgRating,1) }}/5) @else (Chưa có đánh giá) @endif
+                </small>
+              </div>
+
+              {{-- Giá --}}
+              <p class="card-product__price mb-0">
+                <span class="fs-5 fw-bold text-danger">
+                  {{ number_format($discountedPrice, 0, ',', '.') }} ₫
+                </span>
+                @if ($hasDiscount)
+                  <span class="text-muted ms-2 text-decoration-line-through small fst-italic"
+                  style="text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #6c757d;">
+                    {{ number_format($listPrice, 0, ',', '.') }} ₫
+                  </span>
+                @endif
+              </p>
+
+            </div>
+          </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const container = document.getElementById('productsContainer');
+
+    // Nút mũi tên
+    window.scrollProducts = function(direction) {
+      const scrollAmount = 270; // rộng 1 card
+      container.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
+    }
+
+    // Kéo chuột PC
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    container.addEventListener('mousedown', (e) => {
+      isDown = true;
+      startX = e.pageX - container.offsetLeft;
+      scrollLeft = container.scrollLeft;
+    });
+    container.addEventListener('mouseleave', () => { isDown = false; });
+    container.addEventListener('mouseup', () => { isDown = false; });
+    container.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const walk = (x - startX) * 1.5; // tốc độ kéo
+      container.scrollLeft = scrollLeft - walk;
+    });
+
+    // Vuốt trên mobile
+    let startTouchX = 0;
+    container.addEventListener('touchstart', (e) => {
+      startTouchX = e.touches[0].pageX;
+      scrollLeft = container.scrollLeft;
+    });
+    container.addEventListener('touchmove', (e) => {
+      const x = e.touches[0].pageX;
+      const walk = (x - startTouchX) * 1.5;
+      container.scrollLeft = scrollLeft - walk;
+    });
+  });
+</script>
 
 
 <div id="floating-buttons">
