@@ -146,11 +146,6 @@ class ShopProductController extends Controller
     {
         //
     }
-
-    /**
-     * Update the specified resource in storage.
-     */
-
     public function update(Request $request, string $id)
     {
         $product = ShopProduct::findOrFail($id);

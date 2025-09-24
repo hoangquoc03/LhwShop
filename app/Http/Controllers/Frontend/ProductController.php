@@ -255,17 +255,103 @@ class ProductController extends Controller
     public function show($id)
     {
         $product = ShopProduct::with([
-            'images',          // shop_product_image
-            'reviews',         // shop_product_review
-            'discounts',        // shop_product_discount
-            'variants'         // shop_product_variants
+            'images',
+            'reviews.customer', // Đảm bảo load user để hiển thị tên người đánh giá
+            'discounts',
+            'variants', // Load discounts cho từng variant
+            'category'
         ])->findOrFail($id);
 
-        // Nếu muốn lấy đánh giá
-        $rating = $product->reviews()->count() ? $product->reviews()->avg('rating') : 0;
+        // Rating trung bình
+        $reviewsCount = $product->reviews->count();
+        $avgRating = $reviewsCount ? $product->reviews->avg('rating') : 0;
+
+        // --- Xử lý giá cho sản phẩm chính ---
+        $listPrice = (float) $product->list_price; // Giá gốc sản phẩm chính
+        $discountedPrice = $listPrice; // Giá sau giảm giá mặc định là giá gốc
+        $percentOff = 0;
+        $hasDiscount = false;
+        $originalProductDiscount = null; // Biến để lưu thông tin discount của sản phẩm chính
+
+        // Lấy discount đang áp dụng cho sản phẩm chính
+        $discount = $product->discounts()
+            ->where('start_date', '<=', now())
+            ->where(function ($q) {
+                $q->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now());
+            })
+            ->orderByDesc('id') // Lấy discount mới nhất hoặc ưu tiên cao nhất
+            ->first();
+
+        if ($discount && $listPrice > 0) {
+            $discountAmount = (float) ($discount->discount_amount ?? 0);
+            $isPercent = (int) ($discount->is_fixed ?? 0);
+
+            if ($isPercent === 0 && $discountAmount > 0) {
+                // Giảm theo %
+                $percentOff = min(100, round($discountAmount));
+                $discountedPrice = max(0, $listPrice * (1 - $discountAmount / 100));
+            } elseif ($isPercent === 1 && $discountAmount > 0) {
+                // Giảm theo số tiền cố định
+                $discountedPrice = max(0, $listPrice - $discountAmount);
+                $percentOff = min(100, round(($discountAmount / $listPrice) * 100));
+            }
+
+            $hasDiscount = $discountedPrice < $listPrice;
+            $originalProductDiscount = $discount; // Lưu thông tin discount của sản phẩm chính
+        }
+
+        // --- Xử lý giá cho từng Variant (để truyền vào Blade data-attributes) ---
+        // Chúng ta sẽ tính toán giá cho mỗi variant ở đây để truyền vào data-attributes
+        // của các option trong select box.
+        foreach ($product->variants as $variant) {
+            $variant->calculated_list_price = (float) $variant->price; // Giá gốc của variant
+            $variant->calculated_discounted_price = $variant->calculated_list_price;
+            $variant->calculated_percent_off = 0;
+            $variant->has_discount = false;
+
+            
+
+            if ($discount && $variant->calculated_list_price > 0) {
+                $discountAmount = (float) ($discount->discount_amount ?? 0);
+                $isPercent = (int) ($discount->is_fixed ?? 0);
+
+                if ($isPercent === 0 && $discountAmount > 0) {
+                    // Giảm theo %
+                    $variant->calculated_percent_off = min(100, round($discountAmount));
+                    $variant->calculated_discounted_price = max(
+                        0,
+                        $variant->calculated_list_price * (1 - $discountAmount / 100)
+                    );
+                } elseif ($isPercent === 1 && $discountAmount > 0) {
+                    // Giảm theo số tiền cố định
+                    $variant->calculated_discounted_price = max(
+                        0,
+                        $variant->calculated_list_price - $discountAmount
+                    );
+                    $variant->calculated_percent_off = min(
+                        100,
+                        round(($discountAmount / $variant->calculated_list_price) * 100)
+                    );
+                }
+
+                $variant->has_discount = $variant->calculated_discounted_price < $variant->calculated_list_price;
+            }
+
+        }
+
 
         $categories = ShopCategory::all();
-        return view('frontend.product.show', compact('product', 'rating','categories'));
-    }
 
+        return view('frontend.product.show', compact(
+            'product',
+            'reviewsCount', // Sửa từ 'rating' sang 'reviewsCount'
+            'avgRating',    // Thêm avgRating
+            'categories',
+            'discountedPrice', // Giá sau giảm của sản phẩm chính
+            'listPrice',       // Giá gốc của sản phẩm chính
+            'hasDiscount',     // Sản phẩm chính có giảm giá không
+            'percentOff'       // Phần trăm giảm giá của sản phẩm chính
+        ));
+    }
 }

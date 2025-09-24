@@ -136,144 +136,97 @@
     }
 
 </style>
-
 <div class="container my-5">
     <div class="row g-4">
 
         {{-- Breadcrumb --}}
         <div class="col-12">
-            <nav aria-label="breadcrumb" class="mb-3">
+            <nav aria-label="breadcrumb" class="mb-4">
                 <ol class="breadcrumb bg-transparent p-0 mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('frontend.home.index') }}" class="text-decoration-none">Trang chủ</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('frontend.home.index') }}" class="text-decoration-none text-muted">Trang chủ</a></li>
                     @if($product->category?->parent?->parent)
                         <li class="breadcrumb-item">
-                            <a href="{{ route('products.byCategory', $product->category->parent->parent->id) }}" class="text-decoration-none">
+                            <a href="{{ route('products.byCategory', $product->category->parent->parent->id) }}" class="text-decoration-none text-muted">
                                 {{ $product->category->parent->parent->categories_text }}
                             </a>
                         </li>
                     @endif
                     @if($product->category?->parent)
                         <li class="breadcrumb-item">
-                            <a href="{{ route('products.byCategory', $product->category->parent->id) }}" class="text-decoration-none">
+                            <a href="{{ route('products.byCategory', $product->category->parent->id) }}" class="text-decoration-none text-muted">
                                 {{ $product->category->parent->categories_text }}
                             </a>
                         </li>
                     @endif
                     @if($product->category)
                         <li class="breadcrumb-item">
-                            <a href="{{ route('products.byCategory', $product->category->id) }}" class="text-decoration-none">
+                            <a href="{{ route('products.byCategory', $product->category->id) }}" class="text-decoration-none text-muted">
                                 {{ $product->category->categories_text }}
                             </a>
                         </li>
                     @endif
-                    <li class="breadcrumb-item active text-truncate" aria-current="page" style="max-width:250px;">
+                    <li class="breadcrumb-item active text-truncate fw-semibold text-dark" aria-current="page" style="max-width:300px;">
                         {{ $product->product_name }}
                     </li>
                 </ol>
             </nav>
         </div>
 
-        {{-- Ảnh sản phẩm --}}
+        {{-- Product Image Gallery --}}
         <div class="col-lg-6">
-            <div class="mb-3">
-                <img id="mainImage" 
-                     src="{{ asset('storage/uploads/products/' . $product->image) }}" 
-                     class="img-fluid rounded-4 shadow-sm main-product-image" 
-                     alt="{{ $product->product_name }}">
-            </div>
-
-            {{-- Thumbnail --}}
-            <div class="d-flex gap-2 flex-wrap">
-                <img src="{{ asset('storage/uploads/products/' . $product->image) }}" 
-                     class="img-thumbnail thumb-image" 
-                     style="width:70px; cursor:pointer;" 
-                     onclick="document.getElementById('mainImage').src=this.src">
-                @foreach($product->images as $img)
-                    @if($img->image)
-                        <img src="{{ asset('storage/uploads/products/img/'.$img->image) }}" 
-                             class="img-thumbnail thumb-image" 
-                             style="width:70px; cursor:pointer;" 
-                             onclick="document.getElementById('mainImage').src=this.src">
+            <div class="product-gallery">
+                <div class="main-image-display position-relative mb-3 rounded-4 overflow-hidden shadow-sm">
+                    <img id="mainImage"
+                         src="{{ asset('storage/uploads/products/' . $product->image) }}"
+                         class="img-fluid w-100 h-100 object-fit-contain"
+                         alt="{{ $product->product_name }}"
+                         loading="lazy">
+                    @if ($hasDiscount && $percentOff > 0)
+                        <span class="badge bg-danger position-absolute top-0 end-0 translate-middle-x rounded-pill px-3 py-2 fw-bold me-2 mt-2" style="z-index: 10;style="background: linear-gradient(135deg,#007bff,#00c6ff);">
+                            -{{ $percentOff }}%
+                        </span>
                     @endif
-                @endforeach
+                </div>
+
+                {{-- Thumbnails --}}
+                <div class="d-flex gap-2 flex-wrap justify-content-center justify-content-lg-start product-thumbnails">
+                    <img src="{{ asset('storage/uploads/products/' . $product->image) }}"
+                         class="img-thumbnail thumb-image active"
+                         data-src="{{ asset('storage/uploads/products/' . $product->image) }}"
+                         alt="{{ $product->product_name }}"
+                         loading="lazy">
+                    @foreach($product->images as $img)
+                        @if($img->image)
+                            <img src="{{ asset('storage/uploads/products/img/'.$img->image) }}"
+                                 class="img-thumbnail thumb-image"
+                                 data-src="{{ asset('storage/uploads/products/img/'.$img->image) }}"
+                                 alt="{{ $product->product_name }} additional image"
+                                 loading="lazy">
+                        @endif
+                    @endforeach
+                </div>
             </div>
         </div>
 
-        {{-- Thông tin sản phẩm --}}
-        <div class="col-lg-6 d-flex flex-column justify-content-between">
-            <div>
-                <h2 class="fw-bold">{{ $product->product_name }}</h2>
-                <p class="text-secondary mb-3">{{ $product->category->categories_text ?? 'Danh mục' }}</p>
-
-                @php
-                    $avgRating = (float) ($product->reviews_avg_rating ?? 0);
-                    $rating    = (int) round($avgRating);
-
-                    // Lấy thông tin giảm giá
-                    $discount = $product->discount;
-                    $listPrice = (float) $product->list_price;
-
-                    $discountedPrice = $listPrice;
-                    $percentOff = 0;
-                    $hasDiscount = false;
-
-                    if ($discount && $listPrice > 0) {
-                        $discountAmount = (float) ($discount->discount_amount ?? 0);
-                        $isPercent = (int) ($discount->is_fixed ?? 0);
-
-                        if ($isPercent === 0 && $discountAmount > 0) {
-                            // 0 = giảm theo %
-                            $percentOff = min(100, round($discountAmount));
-                            $discountedPrice = max(0, $listPrice * (1 - $discountAmount / 100));
-                        } elseif ($isPercent === 1 && $discountAmount > 0) {
-                            // 1 = giảm theo số tiền cố định
-                            $discountedPrice = max(0, $listPrice - $discountAmount);
-                            $percentOff = min(100, round(($discountAmount / $listPrice) * 100));
-                        }
-
-                        $hasDiscount = $discountedPrice < $listPrice;
-                    }
-                @endphp
-                {{-- Giá --}}
-                <p class="card-product__price mb-0">
-                    <span class="fs-5 fw-bold text-danger">
-                    {{ number_format($discountedPrice, 0, ',', '.') }} ₫
-                    </span>
-                    @if ($hasDiscount)
-                    <span class="text-muted ms-2 text-decoration-line-through small fst-italic"
-                    style="text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #6c757d;">
-                        {{ number_format($listPrice, 0, ',', '.') }} ₫
-                    </span>
-                    @endif
+        {{-- Product Details --}}
+        <div class="col-lg-6 d-flex flex-column">
+            <div class="product-info-wrapper">
+                <h1 class="fw-bold mb-2 text-dark">{{ $product->product_name }}</h1>
+                <p class="text-primary fs-6 fw-semibold mb-3">
+                    {{ $product->category->categories_text ?? 'Danh mục' }}
                 </p>
-
-                {{-- Chọn variant --}}
-                @if($product->variants->count() > 0)
-                    <div class="mb-3">
-                        <label for="variantSelect" class="form-label fw-semibold">Chọn phiên bản:</label>
-                        <select class="form-select" id="variantSelect">
-                            @foreach($product->variants as $variant)
-                                @php
-                                    $variantDiscount = $variant->discount ?? 0;
-                                    $variantPriceDiscounted = $variantDiscount > 0 ? $variant->price*(1-$variantDiscount/100) : $variant->price;
-                                @endphp
-                                <option value="{{ $variant->id }}" data-price="{{ $variantPriceDiscounted }}">
-                                    {{ $variant->variant_name }} - {{ number_format($variantPriceDiscounted,0,',','.') }} ₫
-                                    @if($variantDiscount>0) ({{ $variantDiscount }}% OFF) @endif
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endif
-
+<div class="d-flex align-items-baseline mb-3">
+    <span class="fs-3 fw-bold text-danger me-2 product-price"></span>
+    <span class="text-muted text-decoration-line-through small fst-italic original-price"
+          style="text-decoration-thickness: 2px; text-decoration-color: #6c757d; display:none;text-decoration: line-through;"></span>
+</div>
+                {{-- Star Rating & Review Count --}}
                 @php
-                    $reviews = $product->reviews;
-                    $avgRating = $reviews->count() ? $reviews->avg('rating') : 0;
+                    $reviewsCount = $product->reviews->count();
+                    $avgRating = $reviewsCount ? $product->reviews->avg('rating') : 0;
                     $rating = round($avgRating);
                 @endphp
-
-
-                <div class="mb-2 d-flex align-items-center gap-1">
+                <div class="mb-4 d-flex align-items-center gap-1">
                     @for ($i = 1; $i <= 5; $i++)
                         @if ($i <= $rating)
                             <i class="fas fa-star text-warning"></i>
@@ -281,105 +234,576 @@
                             <i class="far fa-star text-warning"></i>
                         @endif
                     @endfor
-                    <small class="text-muted">
-                        @if ($avgRating > 0)
-                            ({{ number_format($avgRating,1) }}/5)
+                    <small class="text-muted ms-1">
+                        @if ($reviewsCount > 0)
+                            ({{ number_format($avgRating,1) }}/5) - <a href="#reviews-tab" class="text-decoration-none text-muted reviews-link">{{ $reviewsCount }} đánh giá</a>
                         @else
                             (Chưa có đánh giá)
                         @endif
                     </small>
                 </div>
 
+                <hr class="my-4">
 
-                {{-- Short description --}}
-                <p class="text-secondary">{{ $product->short_description }}</p>
+                {{-- Short Description --}}
+                @if ($product->short_description)
+                    <p class="text-secondary lh-base mb-4">{{ $product->short_description }}</p>
+                    <hr class="my-4 d-lg-none"> {{-- Divider for mobile view --}}
+                @endif
+
+
+
+{{-- Variant Select --}}
+@if($product->variants->count() > 0)
+    <div class="mb-4">
+        <label for="variantSelect" class="form-label fw-semibold text-dark">Chọn phiên bản:</label>
+        <select class="form-select form-select-lg" id="variantSelect">
+            @foreach($product->variants as $variant)
+                <option value="{{ $variant->id }}"
+        data-price="{{ $variant->calculated_list_price }}" {{-- số thô --}}
+        data-discounted-price="{{ $variant->calculated_discounted_price }}" {{-- số thô --}}
+        data-has-discount="{{ $variant->has_discount ? 1 : 0 }}"
+        data-percent-off="{{ $variant->calculated_percent_off }}">
+    {{ $variant->variant_name }}
+    @if($variant->has_discount)
+        - {{ number_format($variant->calculated_discounted_price, 0, ',', '.') }}đ
+        (Giảm {{ $variant->calculated_percent_off }}%)
+    @else
+        - {{ number_format($variant->calculated_list_price, 0, ',', '.') }}đ
+    @endif
+</option>
+
+            @endforeach
+        </select>
+    </div>
+@endif     
+
+                {{-- Quantity Control --}}
+                <div class="mb-4">
+                    <label for="quantityInput" class="form-label fw-semibold text-dark">Số lượng:</label>
+                    <div class="input-group quantity-control" style="width: 150px;">
+                        <button class="btn btn-outline-secondary border-end-0" type="button" id="minusBtn">-</button>
+                        <input type="text" class="form-control text-center border-start-0 border-end-0" value="1" id="quantityInput"
+                              aria-label="Số lượng" readonly>
+                        <button class="btn btn-outline-secondary border-start-0" type="button" id="plusBtn">+</button>
+                    </div>
+                </div>
             </div>
 
-            {{-- Button thêm giỏ hàng --}}
-            <a href="#" class="btn btn-gradient-primary btn-lg w-100 mt-3 add-to-cart" data-id="{{ $product->id }}">
-                <i class="fas fa-cart-plus me-2"></i> Thêm vào giỏ
-            </a>
+            {{-- Add to Cart Button --}}
+            <button type="button" class="btn btn-primary btn-lg w-100 mt-auto py-3 add-to-cart-btn" data-id="{{ $product->id }}">
+                <i class="fas fa-cart-plus me-2"></i> Thêm vào giỏ hàng
+            </button>
         </div>
 
-        {{-- Reviews --}}
+
+        {{-- Product Tabs (Description & Reviews) --}}
         <div class="col-12 mt-5">
-            <h4 class="mb-4">Đánh giá sản phẩm</h4>
-            @forelse($product->reviews as $review)
-                <div class="border-bottom py-3 d-flex flex-column gap-1">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <strong>{{ $review->user->name ?? 'Khách' }}</strong>
-                        <span class="text-warning">
-                            @for($i=1;$i<=5;$i++)
-                                @if($i <= $review->rating)<i class="fas fa-star"></i>
-                                @else<i class="far fa-star"></i>@endif
-                            @endfor
-                        </span>
+            <ul class="nav nav-tabs nav-fill flex-column flex-sm-row mb-4" id="productTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold text-uppercase" id="description-tab" data-bs-toggle="tab" data-bs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">Mô tả chi tiết</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold text-uppercase" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button" role="tab" aria-controls="reviews" aria-selected="false">Đánh giá ({{ $reviewsCount }})</button>
+                </li>
+            </ul>
+            <div class="tab-content border-top pt-4" id="productTabsContent">
+                {{-- Description Tab --}}
+                <div class="tab-pane fade show active" id="description" role="tabpanel" aria-labelledby="description-tab">
+                    <div class="product-description-content text-secondary lh-lg">
+                        {!! $product->description !!}
                     </div>
-                    <p class="text-secondary">{{ $review->comment }}</p>
                 </div>
-            @empty
-                <p class="text-muted">Chưa có đánh giá nào.</p>
-            @endforelse
+
+                {{-- Reviews Tab --}}
+                <div class="tab-pane fade" id="reviews" role="tabpanel" aria-labelledby="reviews-tab">
+                    <div class="reviews-list">
+                        @forelse($product->reviews as $review)
+                            <div class="card mb-3 shadow-sm border-0 review-card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="card-title mb-0 fw-bold text-dark">{{ $review->user->name ?? 'Khách' }}</h6>
+                                        <small class="text-muted">{{ $review->created_at->format('d/m/Y') }}</small>
+                                    </div>
+                                    <div class="text-warning mb-2">
+                                        @for($i=1;$i<=5;$i++)
+                                            @if($i <= $review->rating)<i class="fas fa-star"></i>
+                                            @else<i class="far fa-star"></i>@endif
+                                        @endfor
+                                    </div>
+                                    <p class="card-text text-secondary">{{ $review->comment }}</p>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="alert alert-info text-center py-4" role="alert">
+                                <i class="fas fa-info-circle me-2"></i> Chưa có đánh giá nào cho sản phẩm này. Hãy là người đầu tiên!
+                            </div>
+                        @endforelse
+                    </div>
+
+                    {{-- Review Form --}}
+                    <div class="mt-5 p-4 border rounded-3 bg-light">
+                        <h5 class="mb-3 text-dark fw-bold">Viết đánh giá của bạn</h5>
+                        <form action="" method="POST" id="reviewForm"> {{-- Cần cập nhật action --}}
+                            @csrf
+                            <input type="hidden" name="product_id" value="{{ $product->id }}">
+                            <div class="mb-3">
+                                <label for="rating" class="form-label fw-semibold">Xếp hạng:</label>
+                                <div class="d-flex gap-1 rating-stars-interactive" id="ratingStars">
+                                    <i class="far fa-star text-warning fa-lg" data-rating="1"></i>
+                                    <i class="far fa-star text-warning fa-lg" data-rating="2"></i>
+                                    <i class="far fa-star text-warning fa-lg" data-rating="3"></i>
+                                    <i class="far fa-star text-warning fa-lg" data-rating="4"></i>
+                                    <i class="far fa-star text-warning fa-lg" data-rating="5"></i>
+                                    <input type="hidden" name="rating" id="selectedRating" value="0" required>
+                                </div>
+                                <div class="invalid-feedback">Vui lòng chọn số sao.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="comment" class="form-label fw-semibold">Bình luận:</label>
+                                <textarea class="form-control" name="comment" id="comment" rows="5" placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..." required></textarea>
+                                <div class="invalid-feedback">Vui lòng nhập bình luận.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg mt-3">Gửi đánh giá</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-{{-- JS cập nhật giá variant --}}
-<script>
-const variantSelect = document.getElementById('variantSelect');
-if(variantSelect){
-    variantSelect.addEventListener('change', function(){
-        const selectedOption = this.options[this.selectedIndex];
-        const price = selectedOption.dataset.price;
-        document.querySelector('.text-danger').textContent = parseInt(price).toLocaleString('vi-VN') + ' ₫';
-    });
-}
-</script>
-
+{{-- Dynamic CSS (can be moved to a separate file) --}}
 <style>
-/* Breadcrumb hiện đại */
-.breadcrumb a {
-    color: #6c757d;
-    transition: color 0.2s;
-}
-.breadcrumb a:hover {
-    color: #ff4b2b;
-    text-decoration: none;
-}
-.breadcrumb-item + .breadcrumb-item::before {
-    content: " / ";
-    color: #6c757d;
-}
+    :root {
+        --bs-primary: #007bff; /* Example primary color */
+        --bs-secondary: #6c757d;
+        --bs-danger: #dc3545;
+        --bs-warning: #ffc107;
+        --bs-light: #f8f9fa;
+        --bs-dark: #212529;
+    }
 
-/* Ảnh chính */
-.main-product-image {
-    width: 100%;
-    max-width: 500px;
-    height: auto;
-    object-fit: cover;
-    border-radius: 12px;
-}
+    /* General improvements */
+    body {
+        font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        color: var(--bs-dark);
+    }
 
-/* Thumbnail hover */
-.thumb-image:hover {
-    transform: scale(1.15);
-    transition: transform 0.3s ease;
-}
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--bs-dark);
+    }
 
-/* Button gradient */
-.btn-gradient-primary {
-    background: linear-gradient(90deg, #ff416c, #ff4b2b);
-    color: #fff;
-    border: none;
-    transition: all 0.3s ease;
-}
-.btn-gradient-primary:hover {
-    background: linear-gradient(90deg, #ff4b2b, #ff416c);
-    box-shadow: 0 8px 20px rgba(255,75,43,0.5);
-}
+    .container {
+        max-width: 1300px; /* Wider container for a more spacious feel */
+    }
+
+    /* Breadcrumb styling */
+    .breadcrumb-item a {
+        color: var(--bs-secondary) !important;
+        transition: color 0.3s ease;
+    }
+    .breadcrumb-item a:hover {
+        color: var(--bs-primary) !important;
+    }
+    .breadcrumb-item.active {
+        color: var(--bs-dark) !important;
+    }
+
+    /* Product Gallery */
+    .main-image-display {
+        height: 500px; /* Consistent height for main image */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f0f2f5; /* Light background for images with transparency */
+        border: 1px solid #e9ecef;
+    }
+    .main-image-display img {
+        transition: transform 0.3s ease-in-out;
+    }
+
+    .thumb-image {
+        width: 90px;
+        height: 90px;
+        object-fit: cover;
+        cursor: pointer;
+        border: 2px solid #e9ecef; /* Lighter default border */
+        border-radius: 8px; /* Slightly more rounded thumbnails */
+        transition: all 0.2s ease-in-out;
+        padding: 2px; /* Small padding inside border */
+    }
+
+    .thumb-image.active,
+    .thumb-image:hover {
+        border-color: var(--bs-primary);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* More subtle shadow */
+        transform: scale(1.03); /* Slight zoom on hover/active */
+    }
+
+    /* Product Info */
+    .product-info-wrapper {
+        padding: 1rem 0;
+    }
+
+    .product-price {
+        font-size: 2.5rem !important; /* Even larger price */
+        letter-spacing: -0.5px; /* Tighter letter spacing */
+    }
+
+    .discounted-price {
+        font-size: 1.1rem; /* Slightly larger strikethrough price */
+    }
+
+    .reviews-link {
+        font-weight: 500;
+        color: var(--bs-dark) !important;
+    }
+    .reviews-link:hover {
+        color: var(--bs-primary) !important;
+        text-decoration: underline !important;
+    }
+
+    .quantity-control .btn {
+        border-radius: 0.25rem; /* Standard Bootstrap border-radius */
+    }
+    .quantity-control .form-control {
+        border-radius: 0; /* Remove border radius for input in group */
+    }
+
+    /* Add to cart button */
+    .add-to-cart-btn {
+        border-radius: 0.75rem; /* More rounded button */
+        font-size: 1.25rem;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+    }
+    .add-to-cart-btn:hover {
+        background-color: #0056b3; /* Darker primary on hover */
+        border-color: #0056b3;
+        transform: translateY(-2px); /* Slight lift */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Tabs Styling */
+    .nav-tabs {
+        border-bottom: 2px solid #e9ecef; /* Thicker, lighter bottom border */
+    }
+    .nav-tabs .nav-link {
+        border: none;
+        border-bottom: 3px solid transparent; /* Highlight active tab with thicker border */
+        color: var(--bs-secondary);
+        padding: 1rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+    .nav-tabs .nav-link:hover {
+        color: var(--bs-primary);
+        border-color: #ced4da; /* Subtle hover border */
+    }
+    .nav-tabs .nav-link.active {
+        color: var(--bs-primary);
+        border-color: var(--bs-primary); /* Active tab highlight */
+        background-color: transparent;
+    }
+    .tab-content {
+        background-color: #fff;
+        padding: 1.5rem 0;
+    }
+    .product-description-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+    .product-description-content p {
+        margin-bottom: 1rem;
+    }
+
+    /* Review Cards */
+    .review-card {
+        border-radius: 0.75rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .review-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+
+    /* Review Form */
+    #reviewForm .form-control:focus {
+        border-color: var(--bs-primary);
+        box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+    }
+    .rating-stars-interactive i {
+        cursor: pointer;
+        transition: color 0.15s ease, transform 0.15s ease;
+    }
+    .rating-stars-interactive i:hover {
+        transform: scale(1.1);
+    }
+    .rating-stars-interactive i.fas {
+        color: var(--bs-warning);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 991.98px) {
+        .main-image-display {
+            height: 350px;
+        }
+        .thumb-image {
+            width: 70px;
+            height: 70px;
+        }
+        .product-price {
+            font-size: 2rem !important;
+        }
+        .add-to-cart-btn {
+            font-size: 1.1rem;
+            padding-top: 0.8rem;
+            padding-bottom: 0.8rem;
+        }
+        .nav-tabs .nav-link {
+            padding: 0.75rem 1rem;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .main-image-display {
+            height: 300px;
+        }
+        .thumb-image {
+            width: 60px;
+            height: 60px;
+        }
+        .product-price {
+            font-size: 1.8rem !important;
+        }
+        .nav-tabs.flex-column {
+            flex-direction: row !important; /* Keep tabs horizontal on smaller screens too */
+        }
+        .nav-tabs .nav-item {
+            flex: 1 1 auto; /* Distribute items evenly */
+            text-align: center;
+        }
+    }
 </style>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const select = document.getElementById("variantSelect");
+    const priceEl = document.querySelector(".product-price");
+    const originalPriceEl = document.querySelector(".original-price");
+    const percentOffEl = document.querySelector(".percent-off");
 
+    if (select) {
+        function updatePrice() {
+            const option = select.options[select.selectedIndex];
+            const price = Number(option.dataset.price); // giá gốc (số thô)
+            const discountedPrice = Number(option.dataset.discountedPrice); // giá sau giảm
+            const hasDiscount = option.dataset.hasDiscount === "1";
+            const percentOff = Number(option.dataset.percentOff);
 
+            if (hasDiscount && discountedPrice < price) {
+                priceEl.textContent = discountedPrice.toLocaleString("vi-VN") + " ₫";
+                originalPriceEl.textContent = price.toLocaleString("vi-VN") + " ₫";
+                originalPriceEl.style.display = "inline";
+                percentOffEl.textContent = `- ${percentOff}%`;
+                percentOffEl.style.display = "inline-block";
+            } else {
+                priceEl.textContent = price.toLocaleString("vi-VN") + " ₫";
+                originalPriceEl.style.display = "none";
+                percentOffEl.style.display = "none";
+            }
+        }
+
+        select.addEventListener("change", updatePrice);
+        updatePrice(); // chạy ngay khi load
+    }
+});
+
+</script>
+{{-- JavaScript --}}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const variantSelect = document.getElementById('variantSelect');
+        const productPriceSpan = document.querySelector('.product-price');
+        const discountedPriceSpan = document.querySelector('.discounted-price');
+        const mainImage = document.getElementById('mainImage');
+        const thumbImages = document.querySelectorAll('.thumb-image');
+        const quantityInput = document.getElementById('quantityInput');
+        const minusBtn = document.getElementById('minusBtn');
+        const plusBtn = document.getElementById('plusBtn');
+        const addToCartBtn = document.querySelector('.add-to-cart-btn');
+        const productTabs = new bootstrap.Tab(document.getElementById('description-tab')); // Initialize Bootstrap Tab
+
+        // --- Image Gallery Logic ---
+        // Set initial active thumbnail
+        if (thumbImages.length > 0) {
+            thumbImages[0].classList.add('active');
+        }
+
+        // Thumbnail click event
+        thumbImages.forEach(thumb => {
+            thumb.addEventListener('click', function() {
+                // Update main image source
+                mainImage.src = this.dataset.src;
+
+                // Remove active class from all thumbnails
+                thumbImages.forEach(t => t.classList.remove('active'));
+                // Add active class to clicked thumbnail
+                this.classList.add('active');
+            });
+        });
+
+        // --- Price & Variant Logic ---
+        if (variantSelect) {
+            variantSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const price = parseFloat(selectedOption.dataset.price);
+                const originalListPrice = parseFloat("{{ $listPrice }}"); // From controller
+                let displayedListPrice = originalListPrice; // Base for comparison
+
+                // If the selected variant itself has an original price (not just a discounted one)
+                // you would need another data attribute for that variant's original price.
+                // For now, we're assuming product's $listPrice is the general reference.
+
+                productPriceSpan.textContent = price.toLocaleString('vi-VN') + ' ₫';
+
+                if (discountedPriceSpan) {
+                    // This logic assumes $listPrice is the *product's* original price
+                    // If variants have distinct original prices, you'd need `data-original-price` on each option
+                    if (price < originalListPrice) { // Compare variant's discounted price with product's list price
+                        discountedPriceSpan.style.display = 'inline';
+                        discountedPriceSpan.textContent = originalListPrice.toLocaleString('vi-VN') + ' ₫';
+                    } else {
+                        // If variant price is not lower than product's general list price, hide strikethrough
+                        discountedPriceSpan.style.display = 'none';
+                    }
+                }
+            });
+            // Trigger change on load to set initial price correctly if variants exist
+            variantSelect.dispatchEvent(new Event('change'));
+        }
+
+        // --- Quantity Controls ---
+        minusBtn.addEventListener('click', function() {
+            let quantity = parseInt(quantityInput.value);
+            if (quantity > 1) {
+                quantityInput.value = quantity - 1;
+            }
+        });
+
+        plusBtn.addEventListener('click', function() {
+            let quantity = parseInt(quantityInput.value);
+            quantityInput.value = quantity + 1;
+        });
+
+        // --- Add to Cart Functionality (AJAX placeholder) ---
+        addToCartBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const productId = this.dataset.id;
+            const selectedVariantId = variantSelect ? variantSelect.value : null;
+            const quantity = quantityInput.value;
+
+            // In a real application, you'd send an AJAX request here
+            console.log(`Adding Product ID: ${productId}, Variant ID: ${selectedVariantId}, Quantity: ${quantity} to cart.`);
+
+            // Example using Fetch API
+            /*
+            fetch('/api/cart/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') // If using CSRF token
+                },
+                body: JSON.stringify({
+                    product_id: productId,
+                    variant_id: selectedVariantId,
+                    quantity: quantity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Sản phẩm đã được thêm vào giỏ hàng!'); // Replace with a more elegant notification (e.g., Toast)
+                    // Update cart count on the page
+                } else {
+                    alert('Có lỗi xảy ra: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error adding to cart:', error);
+                alert('Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng.');
+            });
+            */
+            alert(`Đã thêm ${quantity} sản phẩm vào giỏ hàng!`); // Placeholder for demonstration
+        });
+
+        // --- Rating Stars Interaction (for review form) ---
+        const ratingStarsContainer = document.getElementById('ratingStars');
+        const selectedRatingInput = document.getElementById('selectedRating');
+
+        if (ratingStarsContainer) {
+            const stars = ratingStarsContainer.querySelectorAll('i');
+
+            stars.forEach(star => {
+                star.addEventListener('mouseover', function() {
+                    const currentRating = parseInt(this.dataset.rating);
+                    highlightStars(currentRating);
+                });
+
+                star.addEventListener('click', function() {
+                    const clickedRating = parseInt(this.dataset.rating);
+                    selectedRatingInput.value = clickedRating;
+                    highlightStars(clickedRating); // Persist selection
+                    ratingStarsContainer.classList.add('rated'); // Add a class to indicate it's rated
+                });
+            });
+
+            ratingStarsContainer.addEventListener('mouseleave', function() {
+                if (!ratingStarsContainer.classList.contains('rated')) {
+                    highlightStars(0); // Reset if not yet rated
+                } else {
+                    highlightStars(parseInt(selectedRatingInput.value)); // Restore selected rating
+                }
+            });
+
+            function highlightStars(rating) {
+                stars.forEach(s => {
+                    if (parseInt(s.dataset.rating) <= rating) {
+                        s.classList.remove('far');
+                        s.classList.add('fas');
+                    } else {
+                        s.classList.remove('fas');
+                        s.classList.add('far');
+                    }
+                });
+            }
+
+            // Initial state based on hidden input value (if form pre-filled)
+            highlightStars(parseInt(selectedRatingInput.value));
+        }
+
+        // --- Scroll to Reviews Tab ---
+        const reviewsLink = document.querySelector('.reviews-link');
+        if (reviewsLink) {
+            reviewsLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                // Activate the reviews tab
+                const reviewsTabButton = document.getElementById('reviews-tab');
+                const bsReviewsTab = new bootstrap.Tab(reviewsTabButton);
+                bsReviewsTab.show();
+
+                // Scroll to the tab content
+                document.getElementById('productTabs').scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            });
+        }
+    });
+</script>
 
 
 <div id="floating-buttons">

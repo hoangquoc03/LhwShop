@@ -5,126 +5,420 @@ Trang chủ bán hàng
 
 @section('page-style')
 <style>
-/* Ảnh full width hiện đại */
-.banner-img {
-  width: 100%;
-  height: 100vh;
-  object-fit: cover;
-  border-radius: 20px;
-  transition: transform 6s ease;
-}
-.swiper-slide-active .banner-img {
-  transform: scale(1.05); /* Zoom nhẹ */
-}
+  /* Ảnh full width hiện đại */
+  .banner-img {
+    width: 100%;
+    height: 100vh;
+    object-fit: cover;
+    border-radius: 20px;
+    transition: transform 6s ease;
+  }
+  .swiper-slide-active .banner-img {
+    transform: scale(1.05); /* Zoom nhẹ */
+  }
 
-/* Overlay gradient đẹp */
-.banner-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 40px;
-  background: linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0));
-  border-radius: 0 0 20px 20px;
-  color: white;
-}
-.banner-overlay h2 {
-  font-size: 2.2rem;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-}
+  /* Overlay gradient đẹp */
+  .banner-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 40px;
+    background: linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0));
+    border-radius: 0 0 20px 20px;
+    color: white;
+  }
+  .banner-overlay h2 {
+    font-size: 2.2rem;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  }
 
-/* Nút CTA gradient */
-.btn-gradient {
-  background: linear-gradient(135deg,#007bff,#00c6ff);
-  color: #fff;
-  border: none;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-  transition: all 0.3s ease;
-}
-.btn-gradient:hover {
-  background: linear-gradient(135deg,#007bff,#00c6ff);
-  transform: translateY(-2px);
-}
+  /* Nút CTA gradient */
+  .btn-gradient {
+    background: linear-gradient(135deg,#007bff,#00c6ff);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+  }
+  .btn-gradient:hover {
+    background: linear-gradient(135deg,#007bff,#00c6ff);
+    transform: translateY(-2px);
+  }
 
-/* Navigation buttons */
-.swiper-button-next,
-.swiper-button-prev {
-  width: 50px;
-  height: 50px;
-  background: rgba(255,255,255,0.7);
-  border-radius: 50%;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-  color: #333;
-  transition: all 0.3s ease;
-}
-.swiper-button-next:hover,
-.swiper-button-prev:hover {
-  background: linear-gradient(135deg,#007bff,#00c6ff);
-  color: #fff;
-}
-.swiper-button-next::after,
-.swiper-button-prev::after {
-  font-size: 20px;
-  font-weight: bold;
-}
+  /* Navigation buttons */
+  .swiper-button-next,
+  .swiper-button-prev {
+    width: 50px;
+    height: 50px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 50%;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    color: #333;
+    transition: all 0.3s ease;
+  }
+  .swiper-button-next:hover,
+  .swiper-button-prev:hover {
+    background: linear-gradient(135deg,#007bff,#00c6ff);
+    color: #fff;
+  }
+  .swiper-button-next::after,
+  .swiper-button-prev::after {
+    font-size: 20px;
+    font-weight: bold;
+  }
 </style>
 
-<section class="container-fluid px-0 my-4">
-    <div class="swiper mySwiper position-relative">
-        <div class="swiper-wrapper">
-            @foreach($bannerPosts as $post)
-                <div class="swiper-slide">
-                    <a href=""
-                       class="d-block position-relative">
-                        <img src="{{ asset('storage/uploads/posts/images/' . $post->post_image) }}"
-                             class="banner-img"
-                             alt="{{ $post->post_title }}">
-
-                        <!-- Overlay gradient + text -->
-                        <div class="banner-overlay">
-                            <h2 class="fw-bold mb-2">{{ $post->post_title }}</h2>
-                            <button class="btn btn-gradient btn-lg rounded-pill px-4">
-                                Khám phá ngay
-                            </button>
+<section class="container my-5 mt-6" style="margin-top: 200px;">
+    <div class="row g-3">
+        <!-- Banner lớn trên -->
+        <div class="col-12 mb-4 mt-5">
+            <div class="swiper mySwiperTop rounded-4 shadow-lg overflow-hidden">
+                <div class="swiper-wrapper">
+                    @foreach($bannerPosts->take(1) as $post)
+                        <div class="swiper-slide">
+                            <a href="#" class="d-block position-relative">
+                                <img src="{{ asset('storage/uploads/posts/images/' . $post->post_image) }}"
+                                     class="banner-img-lg"
+                                     alt="{{ $post->post_title }}">
+                                
+                            </a>
                         </div>
-                    </a>
+                    @endforeach
                 </div>
-            @endforeach
+            </div>
         </div>
 
-        <!-- Navigation -->
-        <div class="swiper-button-prev"></div>
-        <div class="swiper-button-next"></div>
+        <!-- 2 Banner nhỏ dưới -->
+        @foreach($bannerPosts->skip(1)->take(2) as $post)
+            <div class="col-md-6">
+                <a href="#" class="d-block position-relative rounded-4 shadow-sm overflow-hidden">
+                    <img src="{{ asset('storage/uploads/posts/images/' . $post->post_image) }}"
+                         class="banner-img-sm"
+                         alt="{{ $post->post_title }}">
+                </a>
+            </div>
+        @endforeach
     </div>
 </section>
+
+
+<section class="section-margin calc-60px">
+  <div class="container highlight-box" style="margin-top: 200px;">
+    <div class="section-intro pb-4 text-center">
+      <h2 class="fw-bold">GỢI Ý CHO BẠN</h2>
+    </div>
+
+    <div class="featured-products-wrapper" style="display:flex; overflow-x:auto; gap:1rem; scroll-snap-type:x mandatory; padding-bottom:1rem;">
+        @foreach ($featuredProducts as $product)
+            @php
+                $avgRating = (float) ($product->reviews_avg_rating ?? 0);
+                $rating    = (int) round($avgRating);
+
+                $discount = $product->discount;
+                $listPrice = (float) $product->list_price;
+
+                $discountedPrice = $listPrice;
+                $percentOff = 0;
+                $hasDiscount = false;
+
+                if ($discount && $listPrice > 0) {
+                    $discountAmount = (float) ($discount->discount_amount ?? 0);
+                    $isPercent = (int) ($discount->is_fixed ?? 0);
+
+                    if ($isPercent === 0 && $discountAmount > 0) {
+                        $percentOff = min(100, round($discountAmount));
+                        $discountedPrice = max(0, $listPrice * (1 - $discountAmount / 100));
+                    } elseif ($isPercent === 1 && $discountAmount > 0) {
+                        $discountedPrice = max(0, $listPrice - $discountAmount);
+                        $percentOff = min(100, round(($discountAmount / $listPrice) * 100));
+                    }
+
+                    $hasDiscount = $discountedPrice < $listPrice;
+                }
+            @endphp
+
+            <div class="card card-product h-100 border-0 shadow-sm rounded-3 overflow-hidden position-relative"
+                 style="flex:0 0 auto; width:250px; scroll-snap-align:start;">
+                 
+                {{-- Badge % giảm giá --}}
+                @if ($hasDiscount && $percentOff > 0)
+                  <span class="position-absolute top-0 start-0 m-2 badge rounded-pill shadow"
+                        style="background: linear-gradient(135deg,#007bff,#00c6ff); font-size:0.95rem; padding:0.4rem 0.7rem;z-index: 10;">
+                    -{{ $percentOff }}%
+                  </span>
+                @endif      
+
+                {{-- Ảnh sản phẩm --}}
+                <div class="card-product__img position-relative overflow-hidden">
+                  <img class="card-img-top"
+                       src="{{ asset('storage/uploads/products/'.$product->image) }}"
+                       alt="{{ $product->product_name }}"
+                       style="height:200px; object-fit:cover; transition: transform .3s;">
+                  <ul class="card-product__imgOverlay list-unstyled d-flex justify-content-center gap-2 position-absolute top-50 start-50 translate-middle opacity-0 transition-icons">
+                    <li>
+                        <a href="/product/{{ $product->id }}">
+                            <button class="btn btn-light rounded-circle shadow-sm">
+                                <i class="ti-search"></i>
+                            </button>
+                        </a>
+                    </li>
+                    <li>
+                        <button class="btn btn-light rounded-circle shadow-sm add-to-cart" data-id="{{ $product->id }}">
+                            <i class="ti-shopping-cart"></i>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-light rounded-circle shadow-sm btn-favorite" data-id="{{ $product->id }}">
+                            <i class="ti-heart {{ in_array($product->id, session('favorites', [])) ? 'text-primary' : '' }}"></i>
+                        </button> 
+                    </li>
+                  </ul>
+                </div>
+
+                {{-- Thông tin sản phẩm --}}
+                <div class="card-body text-center">
+                  <p class="text-muted small mb-1">{{ $product->category->categories_text ?? 'Danh mục' }}</p>
+                  <h5 class="card-title fw-semibold">
+                    <a href="/product/{{ $product->id }}" class="text-dark text-decoration-none">
+                      {{ $product->product_name }}
+                    </a>
+                  </h5>
+
+                  {{-- Rating --}}
+                  <div class="mb-2">
+                    @for ($i = 1; $i <= 5; $i++)
+                      @if ($i <= $rating) <i class="fas fa-star text-warning"></i>
+                      @else              <i class="far fa-star text-warning"></i>
+                      @endif
+                    @endfor
+                    <small class="text-muted">
+                      @if ($avgRating > 0) ({{ number_format($avgRating,1) }}/5) @else (Chưa có đánh giá) @endif
+                    </small>
+                  </div>
+
+                  {{-- Giá --}}
+                  <p class="card-product__price mb-0">
+                    <span class="fs-5 fw-bold text-danger">
+                      {{ number_format($discountedPrice, 0, ',', '.') }} ₫
+                    </span>
+                    @if ($hasDiscount)
+                      <span class="text-muted ms-2 text-decoration-line-through small fst-italic"
+                      style="text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #6c757d;">
+                        {{ number_format($listPrice, 0, ',', '.') }} ₫
+                      </span>
+                    @endif
+                  </p>
+
+                </div>
+            </div>
+        @endforeach
+    </div>
+  </div>
+</section>
+
+<script>
+  const slider = document.querySelector('.featured-products-wrapper'); // khai báo slider
+  let isDown = false;
+  let startX;
+  let scrollLeft;
+
+  // Khi nhấn chuột
+  slider.addEventListener('mousedown', (e) => {
+    isDown = true;
+    slider.classList.add('active');
+    startX = e.pageX - slider.offsetLeft;
+    scrollLeft = slider.scrollLeft;
+    slider.style.userSelect = 'none'; // tắt chọn text
+  });
+
+  // Khi nhả chuột
+  slider.addEventListener('mouseup', () => {
+    isDown = false;
+    slider.classList.remove('active');
+    slider.style.userSelect = 'auto'; // bật lại chọn text
+  });
+
+  // Khi chuột rời slider
+  slider.addEventListener('mouseleave', () => {
+    isDown = false;
+    slider.classList.remove('active');
+    slider.style.userSelect = 'auto';
+  });
+
+  // Khi di chuyển chuột
+  slider.addEventListener('mousemove', (e) => {
+    if(!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - slider.offsetLeft;
+    const walk = (x - startX) * 2; // tốc độ kéo
+    slider.scrollLeft = scrollLeft - walk;
+  });
+</script>
+
+<style>
+  .featured-products-wrapper {
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    display: flex;
+    gap: 1rem;
+    scroll-snap-type: x mandatory;
+
+    /* Ẩn scrollbar */
+    -ms-overflow-style: none;  /* IE 10+ */
+    scrollbar-width: none;     /* Firefox */
+  }
+
+  .featured-products-wrapper::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+
+  .featured-products-wrapper.active {
+    cursor: grabbing;
+  }
+
+  .section-intro h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #007bff, #00c6ff);
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  }
+
+
+    /* Box nổi bật */
+  .highlight-box {
+    background: linear-gradient(135deg, #007bff, #00c6ff); /* xanh dương gradient */
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+  }
+
+  /* Chữ trong khung */
+  .highlight-box h2 {
+    color: #fff;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+    /* Reset chiều cao Swiper wrapper */
+  .featuredSwiper {
+    height: auto !important;
+    padding-bottom: 1rem; /* tạo khoảng cách nhỏ đẹp mắt, không bị to */
+  }
+
+  /* Swiper wrapper auto fit */
+  .featuredSwiper .swiper-wrapper {
+    height: auto !important;
+    align-items: stretch; /* các card bằng nhau theo chiều cao lớn nhất */
+  }
+
+  /* Slide cũng auto */
+  .featuredSwiper .swiper-slide {
+    height: auto !important;
+    display: flex;
+    justify-content: center;
+  }
+  /* Slide giữ căn giữa */
+  .featuredSwiper .swiper-slide {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* không stretch nữa */
+    height: auto !important;
+  }
+
+  /* Card gọn gàng */
+  .featuredSwiper .card-product {
+    max-width: 260px;
+    height: auto;        /* không kéo giãn */
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px;
+    transition: transform .3s ease, box-shadow .3s ease;
+  }
+
+  /* Ảnh đồng bộ */
+  .featuredSwiper .card-product__img img {
+    height: 220px;
+    object-fit: contain;
+    background: #f8f9fa;
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+  }
+
+  /* Body giữ cân bằng */
+  .featuredSwiper .card-body {
+    flex: 1 1 auto;
+    min-height: 160px; /* để card đều nhau */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .swiper-slide {
+    display: flex;
+    justify-content: center;
+  }
+  .card-product {
+    border: 2px solid #007bff;   /* viền xanh dương */
+  border-radius: 12px;         /* bo góc mềm */
+  overflow: hidden;            /* giữ nội dung không tràn */
+  background: #fff;            /* nền trắng gọn gàng */
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  .card-product:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 10px 20px rgba(0,123,255,.2);
+  }
+  .transition-icons { opacity: 0; transform: scale(0.8); transition: all .3s; }
+  .card-product:hover .transition-icons { opacity: 1; transform: scale(1); }
+ .card-title a {
+    display: block;
+    white-space: nowrap;       /* chỉ 1 dòng */
+    overflow: hidden;          /* ẩn phần dư */
+    text-overflow: ellipsis;   /* hiện ... */
+  } 
+</style>
 
 <section class="ad-banner py-8 bg-gray-100" style="margin-top: 100px;">
   <div class="container mx-auto text-center mb-8">
     <h2 class="text-3xl font-bold text-gray-800 tracking-wide flex items-center justify-center gap-3">
-      <i class="fas fa-fire text-red-500"></i>
       Những sản phẩm nổi bật
-      <i class="fas fa-fire text-red-500"></i>
     </h2>
-    <p class="text-gray-600 mt-2">Khám phá các sản phẩm tiêu biểu được nhiều khách hàng yêu thích</p>
   </div>
   <div class="carousel-layout">
     
-  <!-- Khung hiển thị thông tin bên trái -->
-  <div class="product-info bg-white p-6 rounded-2xl shadow-lg max-w-md mx-auto text-left">
-    <h2 id="product-name" class="text-2xl font-bold text-gray-800 mb-3">
-      {{ $products[0]->product_name ?? '' }}
-    </h2>
+<!-- Khung hiển thị thông tin bên trái -->
+<div class="product-info bg-gradient-to-br from-white/30 to-white/10 
+            backdrop-blur-xl border border-white/20 
+            p-8 rounded-3xl shadow-2xl max-w-md mx-auto text-left 
+            transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl">
 
-    <p id="product-desc" class="text-gray-600 leading-relaxed mb-5">
-      {{ $products[0]->short_description ?? 'Mô tả sản phẩm đang được cập nhật...' }}
-    </p>
+  <h2 id="product-name" class="text-3xl font-extrabold text-gray-900 drop-shadow-lg mb-4">
+    {{ $products[0]->product_name ?? '' }}
+  </h2>
 
-    <a id="product-link" 
-      href="" 
-      class="btn-buy inline-block bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition">
-      <i class="fas fa-shopping-cart mr-2"></i> Xem chi tiết
-    </a>
-  </div>
+  <p id="product-desc" class="text-gray-800/90 leading-relaxed mb-6">
+    {{ $products[0]->short_description ?? '' }}
+  </p>
+
+  <a id="product-link" 
+    href="" 
+    class="btn-buy inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 
+           text-white font-semibold px-6 py-3 rounded-xl 
+           hover:from-blue-700 hover:to-indigo-700 
+           transition-all duration-300 shadow-md hover:shadow-xl">
+    <i class="fas fa-shopping-cart"></i> 
+    Xem chi tiết
+  </a>
+</div>
+
+
 
     <!-- Carousel bên phải -->
     <div class="carousel-container">
@@ -137,7 +431,7 @@ Trang chủ bán hàng
         @foreach($products as $key => $product)
           <div class="item" 
                data-name="{{ $product->product_name }}"
-               data-desc="{{ $product->description ?? 'Mô tả đang cập nhật' }}"
+               data-desc="{{ $product->short_description }}"
                data-link="/product/{{ $product->id }}"
                style="transform: rotateY({{ $key * $angle }}deg) translateZ({{ $distance }}px)">
             <img src="{{ asset('storage/uploads/products/'.$product->image) }}" alt="{{ $product->product_name }}">
@@ -149,26 +443,9 @@ Trang chủ bán hàng
 </section>
 
 
-    <!--================ Hero Carousel start =================-->
-<section class="section-margin mt-0">
-  <div class="owl-carousel owl-theme hero-carousel">
-    @foreach($specialCategories as $category)
-      <div class="hero-carousel__slide">
-        <div class="hero-image-wrapper">
-          <img src="{{ asset('storage/uploads/categories/logo/'.$category->image) }}" alt="{{ $category->categories_text }}">
-          <a href="/category/{{ $category->categories_code }}" class="hero-carousel__slideOverlay">
-            <h3>{{ $category->categories_text }}</h3>
-            <p>Khám phá ngay</p>
-          </a>
-        </div>
-      </div>
-    @endforeach
-  </div>
-</section>
-
 <section class="section-margin calc-60px">
   <div class="container">
-    <div class="section-intro pb-4 text-center">
+    <div class="section-introc pb-4 text-center">
       <p class="text-muted">Mặt hàng mới trên thị trường</p>
       <h2 class="fw-bold">Sản phẩm <span class="section-intro__style">Mới</span></h2>
     </div>
@@ -287,12 +564,6 @@ Trang chủ bán hàng
 
 
 
-
-
-    <!-- ================ trending product section end ================= -->  
-
-
-    <!-- ================ offer section start ================= --> 
 <section class="py-5 bg-white relative">
   <div class="container">
     <div class="logo-slider-wrapper">
@@ -321,123 +592,7 @@ Trang chủ bán hàng
   </div>
 </section>
 
-    <!-- ================ offer section end ================= --> 
 
-    <!-- ================ Best Selling item  carousel ================= --> 
-<section class="section-margin calc-60px">
-  <div class="container">
-    <div class="section-intro pb-60px text-center">
-      <p>Sản phẩm bán chạy nhất</p>
-      <h2>Best <span class="section-intro__style">Sellers</span></h2>
-    </div>
-
-    <div class="owl-carousel owl-theme" id="bestSellerCarousel">
-      @foreach ($bestSellers as $item)
-        @php
-          $product    = $item->product;
-          if (!$product) continue;
-          // Rating
-          $avgRating  = (float) ($product->reviews_avg_rating ?? 0);
-          $rating     = (int) round($avgRating);
-
-          // Giảm giá
-          $discount        = $product->discount ?? null;
-          $discountAmount  = (float) ($discount->discount_amount ?? 0);
-          $isPercent       = (int) ($discount->is_fixed ?? 0); // 0 = %, 1 = số tiền
-          $listPrice       = (float) $product->list_price;
-
-          $discountedPrice = $listPrice;
-          $percentOff      = 0;
-
-          if ($discount && $discountAmount > 0 && $listPrice > 0) {
-              if ($isPercent === 0) {
-                  // giảm theo %
-                  $percentOff      = (int) min(100, round($discountAmount));
-                  $discountedPrice = max(0, $listPrice * (1 - $discountAmount / 100));
-              } else {
-                  // giảm theo số tiền
-                  $discountedPrice = max(0, $listPrice - $discountAmount);
-                  $percentOff      = (int) min(100, round(($discountAmount / $listPrice) * 100));
-              }
-          }
-
-          $hasDiscount = $discountedPrice < $listPrice;
-        @endphp
-
-        {{-- Card sản phẩm --}}
-        <div class="card card-product h-100 border-0 shadow-sm rounded-3 overflow-hidden position-relative">
-
-          {{-- Badge % giảm giá --}}
-          @if ($hasDiscount && $percentOff > 0)
-            <span class="position-absolute top-0 start-0 m-2 badge rounded-pill shadow"
-                  style="background-color:#dc3545; color:#fff; font-size:0.95rem; padding:0.4rem 0.7rem;">
-              -{{ $percentOff }}%
-            </span>
-          @endif
-
-          {{-- Ảnh sản phẩm --}}
-          <div class="card-product__img position-relative overflow-hidden">
-            <img class="card-img-top"
-                 src="{{ asset('storage/uploads/products/'.$product->image) }}"
-                 alt="{{ $product->product_name }}"
-                 style="height:260px;object-fit:cover;transition: transform .3s;">
-            <ul class="card-product__imgOverlay list-unstyled d-flex justify-content-center gap-2 position-absolute top-50 start-50 translate-middle">
-              <li><button class="btn btn-light rounded-circle shadow-sm"><i class="ti-search"></i></button></li>
-              <li><button class="btn btn-light rounded-circle shadow-sm"><i class="ti-shopping-cart"></i></button></li>
-              <li class="nav-item">
-                    <button class="btn btn-light rounded-circle shadow-sm btn-favorite" data-id="{{ $product->id }}">
-                        <i class="ti-heart {{ in_array($product->id, session('favorites', [])) ? 'text-primary' : '' }}"></i>
-                    </button> 
-                </li>
-            </ul>
-          </div>
-
-          {{-- Thông tin sản phẩm --}}
-          <div class="card-body text-center">
-            <p class="text-muted small mb-1">{{ $product->category->categories_text ?? 'Danh mục' }}</p>
-            <h5 class="card-title fw-semibold">
-              <a href="/product/{{ $product->id }}" class="text-dark text-decoration-none">
-                {{ $product->product_name }}
-              </a>
-            </h5>
-
-            {{-- Rating --}}
-            <div class="mb-2">
-              @for ($i = 1; $i <= 5; $i++)
-                @if ($i <= $rating) <i class="fas fa-star text-warning"></i>
-                @else              <i class="far fa-star text-warning"></i>
-                @endif
-              @endfor
-              <small class="text-muted">
-                @if ($avgRating > 0) ({{ number_format($avgRating,1) }}/5) @else (Chưa có đánh giá) @endif
-              </small>
-            </div>
-
-            {{-- Giá --}}
-            <p class="card-product__price mb-0">
-              <span class="fs-5 fw-bold text-danger">
-                {{ number_format($discountedPrice, 0, ',', '.') }} ₫
-              </span>
-              @if ($hasDiscount)
-                <span class="text-muted ms-2 text-decoration-line-through small fst-italic"
-                style="text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #6c757d;">
-                  {{ number_format($listPrice, 0, ',', '.') }} ₫
-                </span>
-              @endif
-            </p>
-
-          </div>
-        </div>
-      @endforeach
-    </div>
-  </div>
-</section>
-
-
-    <!-- ================ Subscribe section start ================= --> 
-
-
-    <!-- ================ Subscribe section end ================= --> 
 <div id="floating-buttons">
   <!-- Nút Back to Top -->
   <button id="back-to-top" 
@@ -504,6 +659,7 @@ document.querySelectorAll('.add-to-cart').forEach(btn => {
     });
 });
 </script>
+
 <script>
     $(document).ready(function(){
         $('.btn-favorite').on('click', function(){
@@ -570,6 +726,7 @@ document.querySelectorAll('.add-to-cart').forEach(btn => {
     });
 
 </script>
+
 <script>
     function showSpinner() {
       document.getElementById("loading-overlay").style.display = "flex";
@@ -605,6 +762,7 @@ document.querySelectorAll('.add-to-cart').forEach(btn => {
     });
 </script>
 
+
   <!-- Spinner Overlay -->
 <div id="loading-overlay" 
     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
@@ -617,6 +775,141 @@ document.querySelectorAll('.add-to-cart').forEach(btn => {
 @endsection
 
 <style>
+
+  /* Ảnh lớn */
+  .banner-img-lg {
+      width: 100%;
+      height: 420px;
+      object-fit: cover;
+      border-radius: 16px;
+      transition: transform 0.4s ease;
+  }
+  .banner-img-lg:hover {
+      transform: scale(1.02);
+  }
+
+  /* Ảnh nhỏ */
+  .banner-img-sm {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      transition: transform 0.4s ease;
+  }
+  .banner-img-sm:hover {
+      transform: scale(1.03);
+  }
+
+  /* Overlay dưới cho ảnh lớn */
+  .banner-overlay-bottom {
+      position: absolute;
+      bottom: 25px;
+      left: 25px;
+      color: #fff;
+      text-shadow: 0 4px 10px rgba(0,0,0,0.6);
+  }
+  .banner-overlay-bottom h2 {
+      font-size: 2rem;
+      font-weight: 700;
+  }
+
+  /* Overlay giữa cho ảnh nhỏ */
+  .banner-overlay-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      text-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      opacity: 0;
+      background: rgba(0,0,0,0.3);
+      transition: opacity 0.3s ease;
+  }
+  .banner-wrapper-sm:hover .banner-overlay-center {
+      opacity: 1;
+  }
+
+  /* Nút gradient */
+  .btn-gradient {
+      background: linear-gradient(45deg, #ff6b6b, #ff922b);
+      color: #fff;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 30px;
+      transition: all 0.3s ease;
+  }
+  .btn-gradient:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  }
+
+
+
+  /* Container bọc ảnh để làm border */
+  .banner-wrapper {
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      display: inline-block;
+  }
+
+  /* Hiệu ứng border gradient động */
+  .banner-wrapper::before {
+      content: "";
+      position: absolute;
+      inset: -2px; /* viền bao quanh */
+      border-radius: 20px;
+      padding: 2px;
+      background: linear-gradient(45deg, #ff6b6b, #ff922b, #4facfe, #00f2fe);
+      background-size: 300% 300%;
+      animation: gradientBorder 6s ease infinite;
+      -webkit-mask: 
+          linear-gradient(#fff 0 0) content-box, 
+          linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      pointer-events: none;
+      opacity: 0; /* ẩn khi chưa hover */
+      transition: opacity 0.4s ease;
+  }
+
+  .banner-wrapper:hover::before {
+      opacity: 1; /* hiện khi hover */
+  }
+
+  /* Animation gradient */
+  @keyframes gradientBorder {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+  }
+
+  /* Ảnh lớn */
+  .banner-img-lg {
+      width: 100%;
+      height: 420px;
+      object-fit: cover;
+      transition: transform 0.6s ease;
+      border-radius: 20px;
+  }
+  .banner-wrapper:hover .banner-img-lg {
+      transform: scale(1.05);
+  }
+
+  /* Ảnh nhỏ */
+  .banner-img-sm {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      transition: transform 0.6s ease;
+      border-radius: 20px;
+  }
+  .banner-wrapper:hover .banner-img-sm {
+      transform: scale(1.05);
+  }
+
+
   .contact-item::after {
     content: attr(data-label); /* Lấy text từ attribute */
     position: absolute;
@@ -1054,111 +1347,82 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 </script>
+
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const carousel = document.querySelector(".carousel");
-    let currdeg = 0;
-    let startX = 0;
+document.addEventListener("DOMContentLoaded", function () {
+  const carousel = document.getElementById("carousel");
+  const items = carousel.querySelectorAll(".item");
+  const total = items.length;
+  const angle = 360 / total;
 
-    function rotate(direction) {
-      if (direction === "next") {
-        currdeg -= 360 / {{ max(1, $products->count()) }};
-      } else {
-        currdeg += 360 / {{ max(1, $products->count()) }};
-      }
-      carousel.style.transform = `rotateY(${currdeg}deg)`;
-    }
-
-    // Vuốt mobile
-    carousel.addEventListener("touchstart", e => {
-      startX = e.touches[0].clientX;
-    });
-
-    carousel.addEventListener("touchend", e => {
-      let endX = e.changedTouches[0].clientX;
-      if (startX > endX + 50) {
-        rotate("next");
-      } else if (startX < endX - 50) {
-        rotate("prev");
-      }
-    });
-
-    // Kéo chuột desktop
-    let isDragging = false;
-    carousel.addEventListener("mousedown", e => {
-      isDragging = true;
-      startX = e.clientX;
-      e.preventDefault(); // chặn bôi đen
-    });
-    window.addEventListener("mouseup", e => {
-      if (isDragging) {
-        let endX = e.clientX;
-        if (startX > endX + 50) rotate("next");
-        else if (startX < endX - 50) rotate("prev");
-        isDragging = false;
-      }
-    });
-  });
-  let carousel = document.getElementById("carousel");
   let currdeg = 0;
   let currentIndex = 0;
-  let items = document.querySelectorAll(".carousel .item");
-  let total = items.length;
-  let angle = 360 / total;
+  let startX = 0;
+  let isDragging = false;
 
-  // cập nhật thông tin sản phẩm
+  const productName = document.getElementById("product-name");
+  const productDesc = document.getElementById("product-desc");
+  const productLink = document.getElementById("product-link");
+
   function updateInfo(index) {
-    let item = items[index % total];
-    document.getElementById("product-name").innerText = item.dataset.name;
-    document.getElementById("product-desc").innerText = item.dataset.desc;
-    document.getElementById("product-link").setAttribute("href", item.dataset.link);
+    const item = items[index % total];
+    productName.innerText = item.dataset.name;
+    productDesc.innerText = item.dataset.desc;
+    productLink.href = item.dataset.link;
   }
 
-  // lướt trái/phải bằng chuột
-  let startX = 0;
-  carousel.addEventListener("mousedown", e => startX = e.pageX);
-  carousel.addEventListener("mouseup", e => {
-    if (e.pageX < startX - 50) { // vuốt trái
+  // Desktop - kéo chuột
+  carousel.addEventListener("mousedown", e => {
+    isDragging = true;
+    startX = e.clientX;
+    e.preventDefault();
+  });
+
+  window.addEventListener("mouseup", e => {
+    if (!isDragging) return;
+    const endX = e.clientX;
+    if (startX > endX + 50) { // kéo sang trái
       currdeg -= angle;
       currentIndex = (currentIndex + 1) % total;
-    } else if (e.pageX > startX + 50) { // vuốt phải
+    } else if (startX < endX - 50) { // kéo sang phải
       currdeg += angle;
       currentIndex = (currentIndex - 1 + total) % total;
     }
-    carousel.style.transform = `rotateY(${currdeg}deg)`;
+    carousel.style.transform = `translateZ(-700px) rotateY(${currdeg}deg)`;
     updateInfo(currentIndex);
+    isDragging = false;
   });
 
-  // hỗ trợ touch mobile
-  carousel.addEventListener("touchstart", e => startX = e.touches[0].pageX);
+  // Mobile - touch
+  carousel.addEventListener("touchstart", e => startX = e.touches[0].clientX);
   carousel.addEventListener("touchend", e => {
-    let endX = e.changedTouches[0].pageX;
-    if (endX < startX - 50) {
+    const endX = e.changedTouches[0].clientX;
+    if (startX > endX + 50) {
       currdeg -= angle;
       currentIndex = (currentIndex + 1) % total;
-    } else if (endX > startX + 50) {
+    } else if (startX < endX - 50) {
       currdeg += angle;
       currentIndex = (currentIndex - 1 + total) % total;
     }
-    carousel.style.transform = `rotateY(${currdeg}deg)`;
+    carousel.style.transform = `translateZ(-700px) rotateY(${currdeg}deg)`;
     updateInfo(currentIndex);
   });
-  $('#bestSellerCarousel').owlCarousel({
-    loop: true,
-    margin: 20,
-    nav: true,
-    dots: false,
-    autoplay: true,
-    autoplayTimeout: 3000,
-    responsive: {
-      0:   { items: 1 },
-      576: { items: 2 },
-      768: { items: 3 },
-      992: { items: 4 }
-    }
+
+  // Click vào item cập nhật thông tin luôn
+  items.forEach((item, idx) => {
+    item.addEventListener("click", () => {
+      currentIndex = idx;
+      currdeg = -angle * idx;
+      carousel.style.transform = `translateZ(-700px) rotateY(${currdeg}deg)`;
+      updateInfo(currentIndex);
+    });
   });
 
+  // Khởi tạo thông tin ban đầu
+  updateInfo(0);
+});
 </script>
+
 <script>
 $(document).ready(function(){
   var $carousel = $(".hero-carousel");
@@ -1187,20 +1451,16 @@ $(document).ready(function(){
 </script>
 
 <script>
-  new Swiper(".mySwiper", {
-    loop: true,
-    autoplay: {
-      delay: 4000,
-      disableOnInteraction: false,
-    },
-    navigation: {
-      nextEl: ".swiper-button-next",
-      prevEl: ".swiper-button-prev",
-    },
-    effect: "fade",
-    speed: 1200
-  });
+    var swiperTop = new Swiper(".mySwiperTop", {
+        loop: true,
+        autoplay: {
+            delay: 4000,
+            disableOnInteraction: false,
+        },
+        effect: "fade",
+    });
 </script>
+
 <script>
 
   $(document).ready(function(){

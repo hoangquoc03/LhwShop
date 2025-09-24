@@ -1,7 +1,7 @@
 
 
 <!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-light fixed-top transparent-navbar">
     <div class="container">
         <!-- Logo -->
         <a class="navbar-brand logo_h" href="{{ route('frontend.home.index') }}">
@@ -297,6 +297,7 @@
         </div>
     </div>
 </nav>
+
 <style>
 
     .dropdown-hover:hover .dropdown-menu {
@@ -478,9 +479,35 @@
     .dropdown-toggle::after {
         display: none !important;
     }
+    /* Navbar trong suốt */
+
+/* Khi cuộn xuống => đổi thành nền trắng mờ */
+.transparent-navbar.scrolled {
+    background: rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+}
+
+
+.transparent-navbar.scrolled .nav-link {
+    color: #333; /* chữ đen khi cuộn xuống */
+}
+.transparent-navbar .nav-link:hover {
+    color: #ff6b6b;
+}
+
 
 </style>
+
 <script>
+    window.addEventListener("scroll", function() {
+    const navbar = document.querySelector(".transparent-navbar");
+    if (window.scrollY > 50) {
+        navbar.classList.add("scrolled");
+    } else {
+        navbar.classList.remove("scrolled");
+    }
+});
+
 $(document).ready(function(){
     let typingTimer;
 

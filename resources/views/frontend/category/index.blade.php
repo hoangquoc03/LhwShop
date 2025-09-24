@@ -67,8 +67,8 @@
             @endphp
   
             <div class="swiper-slide">
-              <div class="card card-product border-0 shadow-sm rounded-3 overflow-hidden position-relative">
-  
+              <div class="card card-product border-0 shadow-sm rounded-3 overflow-hidden position-relative h-100 d-flex flex-column">
+
                 {{-- Badge giảm giá --}}
                 @if ($hasDiscount && $percentOff > 0)
                   <span class="position-absolute top-0 start-0 m-2 badge rounded-pill shadow"
@@ -76,29 +76,29 @@
                     -{{ $percentOff }}%
                   </span>
                 @endif
-  
+
                 {{-- Ảnh sản phẩm --}}
-                <div class="card-product__img position-relative overflow-hidden">
+                <div class="card-product__img position-relative overflow-hidden d-flex align-items-center justify-content-center" style="height:220px;">
                   <img class="card-img-top"
-                       src="{{ asset('storage/uploads/products/'.$product->image) }}"
-                       alt="{{ $product->product_name }}"
-                       style="height:220px;object-fit:contain;transition: transform .3s;">
+                      src="{{ asset('storage/uploads/products/'.$product->image) }}"
+                      alt="{{ $product->product_name }}"
+                      style="max-height:100%;object-fit:contain;transition: transform .3s;">
                   <ul class="card-product__imgOverlay list-unstyled d-flex justify-content-center gap-2 position-absolute top-50 start-50 translate-middle opacity-0 transition-icons">
                     <li><button class="btn btn-primary rounded-circle shadow-sm"><i class="ti-search"></i></button></li>
                     <li><button class="btn btn-primary rounded-circle shadow-sm"><i class="ti-shopping-cart"></i></button></li>
                     <li><button class="btn btn-primary rounded-circle shadow-sm"><i class="ti-heart"></i></button></li>
                   </ul>
                 </div>
-  
+
                 {{-- Thông tin sản phẩm --}}
-                <div class="card-body text-center">
+                <div class="card-body text-center d-flex flex-column justify-content-between" style="flex-grow:1;min-height:180px;">
                   <p class="text-muted small mb-1">{{ $product->category->categories_text ?? 'Danh mục' }}</p>
                   <h5 class="card-title fw-semibold">
                     <a href="/product/{{ $product->id }}" class="text-dark text-decoration-none">
                       {{ $product->product_name }}
                     </a>
                   </h5>
-  
+
                   {{-- Rating --}}
                   <div class="mb-2">
                     @for ($i = 1; $i <= 5; $i++)
@@ -110,7 +110,7 @@
                       @if ($avgRating > 0) ({{ number_format($avgRating,1) }}/5) @else (Chưa có đánh giá) @endif
                     </small>
                   </div>
-  
+
                   {{-- Giá --}}
                   <p class="card-product__price mb-0">
                     <span class="fs-5 fw-bold text-danger">
@@ -125,6 +125,7 @@
                 </div>
               </div>
             </div>
+
           @endforeach
         </div>
       </div>

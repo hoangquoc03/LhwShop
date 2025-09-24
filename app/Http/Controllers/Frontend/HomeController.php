@@ -18,6 +18,7 @@ use  App\Models\ShopOrder;
 class HomeController extends Controller
 {
     public function index() {
+        
         $categories = ShopCategory::with([
             'products' => function($q) {
                 $q->select('id','product_name','category_id','supplier_id','is_featured','is_new')
@@ -27,6 +28,7 @@ class HomeController extends Controller
             'products.supplier:id,supplier_text,image' // ⚡ load supplier theo product
         ])
         ->get(['id','categories_text','description','image']);
+        $category = $categories->first(); 
 
         $suppliers = ShopSupplier::all(['id', 'supplier_text','image']);
         
@@ -40,10 +42,17 @@ class HomeController extends Controller
         ->take(8)
         ->get(['id', 'product_name', 'image','short_description', 'is_featured', 'is_new', 'standard_cost', 'list_price']);
 
-        $specialCategories = ShopCategory::whereIn('categories_code', ['Dt','LTVP','MTB'])
+        $featuredProducts = ShopProduct::where('is_featured', true)
+        ->where('is_new', true) 
+        ->withAvg('reviews', 'rating')
+        ->with('discount', 'category')
+        ->get(['id', 'product_name', 'image','short_description', 'is_featured', 'is_new', 'standard_cost', 'list_price']);
+
+        $specialCategories = ShopCategory::whereIn('categories_code', ['PHONE','LTVP','MTB'])
         ->take(3)
         ->get(['id','categories_text','image','categories_code']);
 
+        
         $bestSellers = ShopOrderDetail::select('product_id', DB::raw('SUM(quantity) as total_sold'))
         ->groupBy('product_id')
         ->orderByDesc('total_sold')
@@ -55,6 +64,8 @@ class HomeController extends Controller
         }])
         ->take(8) // số lượng sp hiển thị
         ->get();
+
+        
         $settings = ShopSetting::all()->keyBy('key');
         $bannerPosts = ShopPost::whereNotNull('post_image')
         ->orderByDesc('created_at')
@@ -62,7 +73,9 @@ class HomeController extends Controller
         ->get(['id', 'post_title', 'post_image', 'post_slug']);
 
         return view('frontend.index',
-         compact('categories', 'suppliers','products', 'specialCategories', 'newProducts', 'bestSellers', 'settings', 'bannerPosts'));
+         compact('categories', 'suppliers','products', 
+         'specialCategories', 'newProducts', 'bestSellers',
+          'settings', 'bannerPosts', 'featuredProducts', 'category'));
     }
     public function dashboard()
     {
