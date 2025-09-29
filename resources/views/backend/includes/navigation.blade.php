@@ -45,7 +45,7 @@
                         </button>
                         <a href="/" class="flex ml-2 md:mr-24">
                             <img
-                                src="https://flowbite-admin-dashboard.vercel.app/images/logo.svg"
+                                src="{{ asset('FaviconSHOP.png') }}"
                                 class="h-8 mr-3"
                                 alt="FlowBite Logo"
                             />

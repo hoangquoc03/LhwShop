@@ -49,6 +49,12 @@ class ShopProduct extends Model
             'product_id' ,'id'
         );
     }
+    public function posts(){
+        return $this->hasMany(
+            ShopProductPost::class,
+            'product_id' ,'id'
+        );
+    }
     public function discounts(){
         return $this->hasMany(
             ShopProductDiscount::class,

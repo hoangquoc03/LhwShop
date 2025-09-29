@@ -37,6 +37,7 @@ use App\Http\Controllers\Backend\AclRoleController;
 use App\Http\Controllers\Backend\ShopProductVoucherController;
 use App\Http\Controllers\Backend\ShopOrderController;
 use App\Http\Controllers\Backend\AclUserController;
+use App\Http\Controllers\Backend\ShopProductPostController;
 use App\Http\Controllers\Backend\ShopProductReviewController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ErrorController;
@@ -404,6 +405,18 @@ Route::controller(ShopOrderDetailController::class)->prefix('backend/ShopOrderDe
 
 //                Product Variant
 Route::controller(ProductProVariantController::class)->prefix('backend/ProductVariant')->name('backend.ProductVariant.')->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::get('/create', 'create')->name('create');
+    Route::post('/store', 'store')->name('store');
+    Route::get('/{id}/edit', 'edit')->name('edit');
+    Route::put('/{id}', 'update')->name('update');
+    Route::delete('/{id}', 'destroy')->name('destroy');
+    Route::post('/batch-delete', 'batchDelete')->name('batchDelete');
+});
+
+
+//                Product Variant
+Route::controller(ShopProductPostController::class)->prefix('backend/ProductPost')->name('backend.ProductPost.')->group(function () {
     Route::get('/', 'index')->name('index');
     Route::get('/create', 'create')->name('create');
     Route::post('/store', 'store')->name('store');
