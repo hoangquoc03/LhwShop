@@ -28,6 +28,136 @@
     @endforeach
   </div>
 </div>
+
+<style>
+  .featured-products-wrapper {
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    display: flex;
+    gap: 1rem;
+    scroll-snap-type: x mandatory;
+
+    /* Ẩn scrollbar */
+    -ms-overflow-style: none;  /* IE 10+ */
+    scrollbar-width: none;     /* Firefox */
+  }
+
+  .featured-products-wrapper::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+
+  .featured-products-wrapper.active {
+    cursor: grabbing;
+  }
+
+  .section-intro h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #007bff, #00c6ff);
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  }
+
+
+    /* Box nổi bật */
+  .highlight-box {
+    background: linear-gradient(135deg, #007bff, #00c6ff); /* xanh dương gradient */
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+  }
+
+  /* Chữ trong khung */
+  .highlight-box h2 {
+    color: #fff;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+    /* Reset chiều cao Swiper wrapper */
+  .featuredSwiper {
+    height: auto !important;
+    padding-bottom: 1rem; /* tạo khoảng cách nhỏ đẹp mắt, không bị to */
+  }
+
+  /* Swiper wrapper auto fit */
+  .featuredSwiper .swiper-wrapper {
+    height: auto !important;
+    align-items: stretch; /* các card bằng nhau theo chiều cao lớn nhất */
+  }
+
+  /* Slide cũng auto */
+  .featuredSwiper .swiper-slide {
+    height: auto !important;
+    display: flex;
+    justify-content: center;
+  }
+  /* Slide giữ căn giữa */
+  .featuredSwiper .swiper-slide {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* không stretch nữa */
+    height: auto !important;
+  }
+
+  /* Card gọn gàng */
+  .featuredSwiper .card-product {
+    max-width: 260px;
+    height: auto;        /* không kéo giãn */
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px;
+    transition: transform .3s ease, box-shadow .3s ease;
+  }
+
+  /* Ảnh đồng bộ */
+  .featuredSwiper .card-product__img img {
+    height: 220px;
+    object-fit: contain;
+    background: #f8f9fa;
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+  }
+
+  /* Body giữ cân bằng */
+  .featuredSwiper .card-body {
+    flex: 1 1 auto;
+    min-height: 160px; /* để card đều nhau */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .swiper-slide {
+    display: flex;
+    justify-content: center;
+  }
+  .card-product {
+    border: 2px solid #007bff;   /* viền xanh dương */
+  border-radius: 12px;         /* bo góc mềm */
+  overflow: hidden;            /* giữ nội dung không tràn */
+  background: #fff;            /* nền trắng gọn gàng */
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  .card-product:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 10px 20px rgba(0,123,255,.2);
+  }
+  .transition-icons { opacity: 0; transform: scale(0.8); transition: all .3s; }
+  .card-product:hover .transition-icons { opacity: 1; transform: scale(1); }
+ .card-title a {
+    display: block;
+    white-space: nowrap;       /* chỉ 1 dòng */
+    overflow: hidden;          /* ẩn phần dư */
+    text-overflow: ellipsis;   /* hiện ... */
+  } 
+</style>
+
 <section class="section-margin calc-60px">
   <div class="container">
     <div class="highlight-box p-4 mb-4">

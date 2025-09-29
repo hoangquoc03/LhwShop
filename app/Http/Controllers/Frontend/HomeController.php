@@ -79,10 +79,29 @@ class HomeController extends Controller
         })
         ->get();
 
+        $screen = ShopProduct::with(['category', 'supplier'])
+        ->whereHas('category', function($query) {
+            $query->where('categories_code', 'CPL');
+        })
+        ->get();
+
+        $screenIpad = ShopProduct::with(['category', 'supplier'])
+        ->whereHas('category', function($query) {
+            $query->where('categories_code', 'MTB');
+        })
+        ->get();
+        $LAPTOP = ShopProduct::with(['category', 'supplier'])
+        ->whereHas('category', function($query) {
+            $query->where('categories_code', 'LTVP');
+        })
+        ->get();
+
         return view('frontend.index',
          compact('categories', 'suppliers','products', 
          'specialCategories', 'newProducts', 'bestSellers',
-          'settings', 'bannerPosts', 'featuredProducts', 'category', 'watch'));
+          'settings', 'bannerPosts',
+           'featuredProducts', 'category', 'watch', 'screen',
+            'screenIpad', 'LAPTOP'));
     }
     public function dashboard()
     {
@@ -101,7 +120,8 @@ class HomeController extends Controller
 
         $recentOrders = $orders->take(5);
 
-        return view('frontend.customer.tongquan', compact('customer', 'stats', 'recentOrders', 'categories'));
+        return view('frontend.customer.tongquan', compact('customer', 'stats', 'recentOrders',
+         'categories'));
     }
     public function orders()
     {
