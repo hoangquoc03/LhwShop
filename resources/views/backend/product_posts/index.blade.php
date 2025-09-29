@@ -31,7 +31,7 @@ Các bài đăng sản phẩm
             </div>
             <div class="items-center justify-between block sm:flex md:divide-x md:divide-gray-100 dark:divide-gray-700" bis_skin_checked="1">
                 <div class="flex items-center mb-4 sm:mb-0" bis_skin_checked="1">
-                <form method="GET" action="{{ route('backend.ProductPosts.index') }}" class="sm:pr-3">
+                <form method="GET" action="{{ route('backend.ProductPost.index') }}" class="sm:pr-3">
                     <label for="products-search" class="sr-only">Tìm kiếm</label>
                     <div class="relative w-48 mt-1 sm:w-64 xl:w-96">
                         <input type="text"
@@ -80,7 +80,7 @@ Các bài đăng sản phẩm
                     </div>
                 </div>
                 <button id="createProductButton" class="text-white bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-primary-600 dark:hover:bg-primary-700 focus:outline-none dark:focus:ring-primary-800" type="button" data-drawer-target="drawer-create-product-default" data-drawer-show="drawer-create-product-default" aria-controls="drawer-create-product-default" data-drawer-placement="right">
-                    Thêm  hình ảnh
+                    Thêm bài đăng
                 </button>
             </div>
         </div>
@@ -92,19 +92,12 @@ Các bài đăng sản phẩm
                     <table class="min-w-full divide-y divide-gray-200 table-fixed dark:divide-gray-600">
                         <thead class="bg-gray-100 dark:bg-gray-700">
                             <tr>
-                                <th scope="col" class="p-4">
-                                    <div class="flex items-center">
-                                            <input type="checkbox"  id="checkAll" value="1"   class="checkbox-item w-4 h-4 border-gray-300 rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
-                                            {{-- <label for="checkbox-{{ $item->id }}" class="sr-only">checkbox</label> --}}
-                                    </div>
-                                    
-                                </th>
-                
+                                
                                 <th scope="col" class="p-4 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">
                                     Thông tin sản phẩm
                                 </th>
                                 <th scope="col" class="p-4 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">
-                                    Tên sản phẩm                                                                                                      
+                                    hình ảnh bài đăng                                                                                                     
                                 </th>
                                 <th scope="col" class="p-4 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">
                                     Chủ đề                                                                                          
@@ -131,6 +124,15 @@ Các bài đăng sản phẩm
                                             </div>
                                         </div>
                                     </td>
+                                    <td class="p-4 text-base font-medium text-gray-900 dark:text-white view-field-name-{{ $item->id }}">
+                                        <img src="/storage/uploads/posts/{{ $item->image }}" alt="bai dang" class="w-12 h-12 rounded object-cover border">
+                                    </td>
+                                    <td class="p-4 text-base font-medium text-gray-900 dark:text-white view-field-name-{{ $item->id }}">
+                                        {{ $item->title }}
+                                    </td>
+                                    <td class="p-4 text-base font-medium text-gray-900 dark:text-white view-field-name-{{ $item->id }}">
+                                        {{ $item->content }}
+                                    </td>
 
                                     <td class="p-4 space-x-2 whitespace-nowrap">
                                         
@@ -152,7 +154,7 @@ Các bài đăng sản phẩm
                                         <button type="button" id="deleteProductButton" 
                                         class="btn-delete inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white bg-red-700 rounded-lg hover:bg-red-800 focus:ring-4 focus:ring-red-300 dark:focus:ring-red-900"
                                         data-id="{{ $item->id }}"
-                                        data-delete-url = "{{ route('backend.ProductImg.destroy', ['id' => $item->id]) }}"
+                                        data-delete-url = "{{ route('backend.ProductPost.destroy', ['id' => $item->id]) }}"
                                         >
                                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                                             <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
@@ -163,17 +165,17 @@ Các bài đăng sản phẩm
                                 </tr>
                             @endforeach
                         </tbody>
-                        @foreach ($dsProductImg as $item)
+                        @foreach ($dsShopProducPosts as $item)
                         <div id="drawer-update-product-{{ $item->id }}" class="fixed top-0 right-0 z-40 w-full h-screen max-w-xs p-4 overflow-y-auto transition-transform bg-white dark:bg-gray-800 translate-x-full" tabindex="-1" aria-labelledby="drawer-label-{{ $item->id }}" bis_skin_checked="1" aria-hidden="true">
                             <h5 id="drawer-label-{{ $item->id }}" class="inline-flex items-center mb-6 text-sm font-semibold text-gray-500 uppercase dark:text-gray-400">
-                                Cập nhật hình ảnh sản phẩm - {{ $item->id }}</h5>
+                                Cập nhật bài đăng - {{ $item->id }}</h5>
                             <button type="button" data-drawer-dismiss="drawer-update-product-{{ $item->id }}" aria-controls="drawer-update-product-{{ $item->id }}" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 absolute top-2.5 right-2.5 inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white">
                                 <svg aria-hidden="true" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
                                 </svg>
                                 <span class="sr-only">Close menu</span>
                             </button>
-                            <form action="{{ route('backend.ProductImg.update', ['id' => $item->id]) }}" method="POST" enctype="multipart/form-data">
+                            <form action="{{ route('backend.ProductPost.update', ['id' => $item->id]) }}" method="POST" enctype="multipart/form-data">
                                 @csrf
                                 @method('PUT')
                                 <div class="space-y-4">
@@ -193,11 +195,24 @@ Các bài đăng sản phẩm
                                         <label for="image-{{ $item->id }}" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Hình ảnh</label>
                                         <input type="file" name="image" id="update-image-{{ $item->id }}" accept="image/*"
                                             class="input border border-gray-300 text-sm rounded-lg w-full p-2.5">
-                                        <img src="{{ asset('storage/uploads/products/img/' . $item->image) }}"
-                                            data-default="{{ asset('storage/uploads/products/img/' . $item->image) }}"
+                                        <img src="{{ asset('storage/uploads/posts/' . $item->image) }}"
+                                            data-default="{{ asset('storage/uploads/posts/' . $item->image) }}"
                                             class="w-32 mt-2 preview-img-container"
                                             id="update-preview-img-{{ $item->id }}"
                                             alt="Xem trước ảnh">
+                                    </div>
+                                    <div>
+                                        <label for="title" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tên tiêu đề</label>
+                                        <input value="{{ $item->title }}" type="text" name="title" id="title"
+                                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                                            placeholder="Nhập tên tiêu đề" required>
+                                    </div>
+
+                                    <div>
+                                        <label for="content" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nội dung</label>
+                                        <input value="{{ $item->content }}" type="text" name="content" id="content"
+                                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                                            placeholder="Nhập Nội dung" required>
                                     </div>
 
                                 </div>
@@ -223,12 +238,12 @@ Các bài đăng sản phẩm
                         @endforeach 
                     </table>
                     @php
-                        $currentPage = $dsProductImg->currentPage();
-                        $prevUrl = $dsProductImg->previousPageUrl()
+                        $currentPage = $dsShopProducPosts->currentPage();
+                        $prevUrl = $dsShopProducPosts->previousPageUrl()
                             ? request()->fullUrlWithQuery(['page' => $currentPage - 1])
                             : null;
 
-                        $nextUrl = $dsProductImg->nextPageUrl()
+                        $nextUrl = $dsShopProducPosts->nextPageUrl()
                             ? request()->fullUrlWithQuery(['page' => $currentPage + 1])
                             : null;
                     @endphp
@@ -242,7 +257,7 @@ Các bài đăng sản phẩm
                             class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg 
                                     hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 
                                     dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800 
-                                    {{ $dsProductImg->onFirstPage() ? 'opacity-50 pointer-events-none' : '' }}">
+                                    {{ $dsShopProducPosts->onFirstPage() ? 'opacity-50 pointer-events-none' : '' }}">
                                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
                                 </svg>
@@ -254,7 +269,7 @@ Các bài đăng sản phẩm
                             class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg 
                                     hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 
                                     dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800 
-                                    {{ !$dsProductImg->hasMorePages() ? 'opacity-50 pointer-events-none' : '' }}">
+                                    {{ !$dsShopProducPosts->hasMorePages() ? 'opacity-50 pointer-events-none' : '' }}">
                                 Tiếp
                                 <svg class="w-5 h-5 ml-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
@@ -267,11 +282,11 @@ Các bài đăng sản phẩm
                             <span class="text-sm text-gray-500 dark:text-gray-400">
                                 Hiển thị 
                                 <span class="font-semibold text-gray-900 dark:text-white">
-                                    {{ $dsProductImg->firstItem() ?? 0 }} - {{ $dsProductImg->lastItem() ?? 0 }}
+                                    {{ $dsShopProducPosts->firstItem() ?? 0 }} - {{ $dsShopProducPosts->lastItem() ?? 0 }}
                                 </span> 
                                 trên tổng 
                                 <span class="font-semibold text-gray-900 dark:text-white">
-                                    {{ $dsProductImg->total() }}
+                                    {{ $dsShopProducPosts->total() }}
                                 </span> mục
                             </span>
                         </div>
@@ -283,80 +298,79 @@ Các bài đăng sản phẩm
         </div>
     </div>
     <!-- Add Product Drawer -->
-<div id="drawer-create-product-default"
-    class="fixed top-0 right-0 z-40 w-full max-w-xs h-screen overflow-y-auto bg-gray-100 dark:bg-gray-900 transition-transform translate-x-full p-4"
-    tabindex="-1" aria-labelledby="drawer-label" aria-hidden="true">
-
-    <!-- Tiêu đề -->
-    <h5 id="drawer-label"
-        class="mb-6 text-sm font-semibold text-gray-500 uppercase dark:text-gray-400 flex items-center">
-        Hình ảnh mới
-    </h5>
-
-    <!-- Nút đóng -->
-    <button type="button" data-drawer-dismiss="drawer-create-product-default"
-        aria-controls="drawer-create-product-default"
-        class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd"
-                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                clip-rule="evenodd"></path>
-        </svg>
-        <span class="sr-only">Đóng</span>
-    </button>
-
-    <!-- FORM -->
-    <form id="frmCreate" name="frmCreate"
-        action="{{ route('backend.ProductImg.store') }}"
-        class="dropzone flex flex-col gap-4 p-6 bg-gray-100 border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700"
-        enctype="multipart/form-data" method="POST">
-        @csrf
-
-        <!-- Chọn sản phẩm -->
-        <div>
-            <label for="product_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                Sản phẩm
-            </label>
-            <select id="product_id" name="product_id"
-                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                required>
-                <option value="">-- Chọn sản phẩm --</option>
-                @foreach ($dsShopProducts as $product)
-                    <option value="{{ $product->id }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>
-                        {{ $product->product_name }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-        <!-- Kéo thả ảnh -->
-        <div class="dz-message flex flex-col items-center justify-center text-sm text-gray-700 dark:text-gray-300 py-12 px-6 border-2 border-dashed border-gray-400 rounded-md bg-gray-200 dark:bg-gray-700 transition-all hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer">
-            <svg class="w-10 h-10 mb-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor"
-                viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M7 16V4m0 0L3 8m4-4l4 4M17 8h2a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8a2 2 0 012-2h2" />
+    <div id="drawer-create-product-default" class="fixed top-0 right-0 z-40 w-full h-screen max-w-xs p-4 overflow-y-auto transition-transform bg-white dark:bg-gray-800 translate-x-full" tabindex="-1" aria-labelledby="drawer-label" bis_skin_checked="1" aria-hidden="true">
+        <h5 id="drawer-label" class="inline-flex items-center mb-6 text-sm font-semibold text-gray-500 uppercase dark:text-gray-400">Sản phẩm mới</h5>
+        <button type="button" data-drawer-dismiss="drawer-create-product-default" aria-controls="drawer-create-product-default" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 absolute top-2.5 right-2.5 inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white">
+            <svg aria-hidden="true" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
             </svg>
-            <p>Kéo thả ảnh vào đây hoặc click để chọn ảnh</p>
-            <p class="text-xs text-gray-500">(Tối đa 10 ảnh, 5MB mỗi ảnh)</p>
-        </div>
-        <div class="flex justify-center w-full pt-4 space-x-4">
-                        <button type="submit"
-                            class="text-white w-full md:w-1/2 bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800">
-                            Thêm hình
-                        </button>
+            <span class="sr-only">Close menu</span>
+        </button>
+        <form id="frmCreate" action="{{ route('backend.ProductPost.store') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div class="space-y-6">
+                <!-- Chọn sản phẩm -->
+                <div>
+                    <label for="product_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                        Sản phẩm
+                    </label>
+                    <select id="product_id" name="product_id"
+                        class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                        required>
+                        <option value="">-- Chọn sản phẩm --</option>
+                        @foreach ($dsShopProducts as $product)
+                            <option value="{{ $product->id }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>
+                                {{ $product->product_name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
 
-                        <button type="button" data-drawer-dismiss="drawer-create-product-default"
-                            class="inline-flex w-full md:w-1/2 justify-center text-gray-500 items-center bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-primary-300 rounded-lg border border-gray-200 text-sm font-medium px-5 py-2.5 hover:text-gray-900 focus:z-10 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-600">
-                            <svg aria-hidden="true" class="w-5 h-5 -ml-1 sm:mr-1" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                            Hủy
-                        </button>
-                    </div>
-    </form>
-</div>
+
+                <!-- Hình ảnh -->
+                <div>
+                    <label for="image" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Hình ảnh</label>
+                    <input type="file" name="image" id="create-image" accept="image/*"
+                        class="input border border-gray-300 text-sm rounded-lg w-full p-2.5">
+                    <img src="{{ asset('static/dist/images/default-image.jpg') }}"
+                        data-default="{{ asset('static/dist/images/default-image.jpg') }}"
+                        class="w-32 mt-2 preview-img-container" id="create-preview-img" alt="Xem trước ảnh">
+                </div>
+                <div>
+                    <label for="title" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tên tiêu đề</label>
+                    <input value="{{ old('title') }}" type="text" name="title" id="title"
+                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                        placeholder="Nhập tên tiêu đề" required>
+                </div>
+                <div>
+                    <label for="content" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nội dung</label>
+                    <input value="{{ old('content') }}" type="text" name="content" id="content"
+                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                        placeholder="Nhập Nội dung" required>
+                </div>
+
+
+                <!-- Nút hành động -->
+                <div class="flex justify-center w-full pt-4 space-x-4">
+                    <button type="submit"
+                        class="text-white w-full md:w-1/2 bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800">
+                        Thêm sản phẩm
+                    </button>
+
+                    <button type="button" data-drawer-dismiss="drawer-create-product-default"
+                        class="inline-flex w-full md:w-1/2 justify-center text-gray-500 items-center bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-primary-300 rounded-lg border border-gray-200 text-sm font-medium px-5 py-2.5 hover:text-gray-900 focus:z-10 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-600">
+                        <svg aria-hidden="true" class="w-5 h-5 -ml-1 sm:mr-1" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        Hủy
+                    </button>
+                </div>
+
+            </div>
+        </form>
+    </div>
 @if (session('success'))
     <script>
         Toastify({
@@ -446,6 +460,13 @@ Các bài đăng sản phẩm
                 required: true,
                 extension: "jpg|jpeg|png|gif"
             }
+            title: {
+                required: true,
+            },
+            content: {
+                required: true,
+            }
+
         },
         messages: {
             product_id: {
@@ -454,6 +475,12 @@ Các bài đăng sản phẩm
             image: {
                 required: 'Vui lòng chọn ảnh.',
                 extension: 'Ảnh phải có định dạng: jpg, jpeg, png, gif.'
+            }
+            title: {
+                required: 'Vui lòng nhập tiêu đề.',
+            },
+            content: {
+                required: 'Vui lòng nhập nội dung.',
             }
         },
         errorElement: "em",
@@ -501,7 +528,7 @@ Các bài đăng sản phẩm
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        @foreach ($dsProductImg as $item)
+        @foreach ($dsShopProducPosts as $item)
             const fileInput{{ $item->id }} = document.getElementById("update-image-{{ $item->id }}");
             const img{{ $item->id }} = document.getElementById("update-preview-img-{{ $item->id }}");
 
@@ -532,7 +559,7 @@ Các bài đăng sản phẩm
     Dropzone.autoDiscover = false;
 
     const myDropzone = new Dropzone("#frmCreate", {
-        url: "{{ route('backend.ProductImg.store') }}", // ép dùng route POST
+        url: "{{ route('backend.ProductPost.store') }}", // ép dùng route POST
         method: "post", 
         paramName: "image", // name cho từng file
         uploadMultiple: true,

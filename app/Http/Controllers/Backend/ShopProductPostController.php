@@ -112,17 +112,20 @@ class ShopProductPostController extends Controller
             'product_id.required' => 'Sản phẩm áp dụng là bắt buộc.',
             'product_id.exists'   => 'Sản phẩm được chọn không tồn tại.',
         ]);
-
+        // cập nhật dữ liệu
+        $product->title = $request->title;
+        $product->content = $request->content;
+        $product->product_id = $request->product_id;
         // Xử lý ảnh nếu có upload mới
         if ($request->hasFile('image')) {
             // Xóa ảnh cũ nếu tồn tại
-            if ($product->image && Storage::disk('public')->exists('uploads/products/' . $product->image)) {
+            if ($product->image && Storage::disk('public')->exists('uploads/posts/' . $product->image)) {
                 Storage::disk('public')->delete('uploads/posts/' . $product->image);
             }
 
             $file = $request->file('image');
             $newFileName = now()->format('Ymd_His') . '_' . $file->getClientOriginalName();
-            $file->storeAs('uploads/products', $newFileName, 'public');
+            $file->storeAs('uploads/posts/', $newFileName, 'public');
             $product->image = $newFileName;
         }
 
@@ -137,23 +140,26 @@ class ShopProductPostController extends Controller
      */
     public function destroy($id)
     {
-        $product = ShopProduct::find($id);
+        $product = ModelsShopProductPost::find($id);
 
         if (!$product) {
-            return redirect()->route('backend.ProductPost.index')->with('error', 'Sản phẩm không tồn tại');
+            return response()->json(['success' => false, 'message' => 'Sản phẩm không tồn tại'], 404);
         }
 
-        // Xóa các bản ghi liên quan (nếu có)
-        $product->exportDetails()->delete();
+        // Nếu có quan hệ cần xóa
+        if (method_exists($product, 'exportDetails')) {
+            $product->exportDetails()->delete();
+        }
 
         // Xóa ảnh nếu tồn tại
         $filePath = 'uploads/posts/' . $product->image;
-        if (Storage::disk('public')->exists($filePath)) {
+        if ($product->image && Storage::disk('public')->exists($filePath)) {
             Storage::disk('public')->delete($filePath);
         }
 
-        // Xóa sản phẩm
         $product->delete();
-        return redirect()->route('backend.ProductPost.index')->with('success', 'Xóa bài đăng về sản phẩm thành công');
+
+        return response()->json(['success' => true, 'message' => 'Xóa bài đăng về sản phẩm thành công']);
     }
+
 }
