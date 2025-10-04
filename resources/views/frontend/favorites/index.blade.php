@@ -68,8 +68,8 @@ Sản phẩm yêu thích
     font-weight: bold;
     }
 </style>
-<div class="container my-3">
-    <h4>Sản phẩm yêu thích</h4>
+<div class="container my-3" style="margin-top :80px;">
+    <h4 style="margin-top :80px;">Sản phẩm yêu thích</h4>
     <div class="favorite-list">
         @forelse($favoriteProducts as $product)
             <div class="favorite-item d-flex align-items-center mb-3" data-id="{{ $product->id }}">

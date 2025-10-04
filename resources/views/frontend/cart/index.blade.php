@@ -138,7 +138,7 @@ Giỏ hàng của bạn
 </style>
 
 <div class="container py-5">
-    <h2 class="mb-4 text-center animate__animated animate__fadeInDown">🛒 Giỏ hàng của bạn</h2>
+    <h2 class="mb-4 text-center animate__animated animate__fadeInDown" style="margin-top :80px;">🛒 Giỏ hàng của bạn</h2>
 
     @if(count($cart))
     <div class="row">

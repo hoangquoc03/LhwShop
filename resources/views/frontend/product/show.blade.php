@@ -136,11 +136,11 @@
     }
 
 </style>
-<div class="container my-5">
-    <div class="row g-4">
+<div class="container my-5" style="margin-top: 20px">
+    <div class="row g-4" style="margin-top: 20px">
 
         {{-- Breadcrumb --}}
-        <div class="col-12">
+        <div class="col-12" style="margin-top: 80px">
             <nav aria-label="breadcrumb" class="mb-4">
                 <ol class="breadcrumb bg-transparent p-0 mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('frontend.home.index') }}" class="text-decoration-none text-muted">Trang chủ</a></li>
@@ -215,11 +215,11 @@
                 <p class="text-primary fs-6 fw-semibold mb-3">
                     {{ $product->category->categories_text ?? 'Danh mục' }}
                 </p>
-<div class="d-flex align-items-baseline mb-3">
-    <span class="fs-3 fw-bold text-danger me-2 product-price"></span>
-    <span class="text-muted text-decoration-line-through small fst-italic original-price"
-          style="text-decoration-thickness: 2px; text-decoration-color: #6c757d; display:none;text-decoration: line-through;"></span>
-</div>
+                <div class="d-flex align-items-baseline mb-3">
+                    <span class="fs-3 fw-bold text-danger me-2 product-price"></span>
+                    <span class="text-muted text-decoration-line-through small fst-italic original-price"
+                        style="text-decoration-thickness: 2px; text-decoration-color: #6c757d; display:none;text-decoration: line-through;"></span>
+                </div>
                 {{-- Star Rating & Review Count --}}
                 @php
                     $reviewsCount = $product->reviews->count();
@@ -247,36 +247,88 @@
 
                 {{-- Short Description --}}
                 @if ($product->short_description)
-                    <p class="text-secondary lh-base mb-4">{{ $product->short_description }}</p>
+                    <p class="text-secondary lh-base mb-4" style="display: none">{{ $product->short_description }}</p>
                     <hr class="my-4 d-lg-none"> {{-- Divider for mobile view --}}
                 @endif
 
 
 
-{{-- Variant Select --}}
+{{-- Variant Select (Grid Style) --}}
 @if($product->variants->count() > 0)
     <div class="mb-4">
-        <label for="variantSelect" class="form-label fw-semibold text-dark">Chọn phiên bản:</label>
-        <select class="form-select form-select-lg" id="variantSelect">
-            @foreach($product->variants as $variant)
-                <option value="{{ $variant->id }}"
-        data-price="{{ $variant->calculated_list_price }}" {{-- số thô --}}
-        data-discounted-price="{{ $variant->calculated_discounted_price }}" {{-- số thô --}}
-        data-has-discount="{{ $variant->has_discount ? 1 : 0 }}"
-        data-percent-off="{{ $variant->calculated_percent_off }}">
-    {{ $variant->variant_name }}
-    @if($variant->has_discount)
-        - {{ number_format($variant->calculated_discounted_price, 0, ',', '.') }}đ
-        (Giảm {{ $variant->calculated_percent_off }}%)
-    @else
-        - {{ number_format($variant->calculated_list_price, 0, ',', '.') }}đ
-    @endif
-</option>
+        <label class="form-label fw-semibold text-dark d-block mb-2">Chọn phiên bản:</label>
 
+        <div class="row g-3" id="variantGrid">
+            @foreach($product->variants as $variant)
+                <div class="col-6 col-md-4">
+                    <div class="variant-box border rounded-3 p-3 text-center h-100 selectable"
+                         data-id="{{ $variant->id }}"
+                         data-price="{{ $variant->calculated_list_price }}"
+                         data-discounted-price="{{ $variant->calculated_discounted_price }}"
+                         data-has-discount="{{ $variant->has_discount ? 1 : 0 }}"
+                         data-percent-off="{{ $variant->calculated_percent_off }}"
+                         role="button">
+
+                        <div class="fw-semibold mb-2">{{ $variant->variant_name }}</div>
+
+                        @if($variant->has_discount)
+                            <div class="text-danger fw-bold">
+                                {{ number_format($variant->calculated_discounted_price, 0, ',', '.') }}đ
+                            </div>
+                            <div class="text-muted text-decoration-line-through small">
+                                {{ number_format($variant->calculated_list_price, 0, ',', '.') }}đ
+                            </div>
+                            <div class="badge bg-success mt-1">
+                                -{{ $variant->calculated_percent_off }}%
+                            </div>
+                        @else
+                            <div class="text-dark fw-bold">
+                                {{ number_format($variant->calculated_list_price, 0, ',', '.') }}đ
+                            </div>
+                        @endif
+                    </div>
+                </div>
             @endforeach
-        </select>
+        </div>
+
+        {{-- Input ẩn để gửi variant_id về form --}}
+        <input type="hidden" name="variant_id" id="selectedVariantId">
     </div>
-@endif     
+@endif
+
+{{-- Script chọn box --}}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const boxes = document.querySelectorAll('.variant-box');
+    const hiddenInput = document.getElementById('selectedVariantId');
+
+    boxes.forEach(box => {
+        box.addEventListener('click', function() {
+            // Bỏ chọn các box khác
+            boxes.forEach(b => b.classList.remove('border-primary', 'shadow'));
+            // Chọn box hiện tại
+            this.classList.add('border-primary', 'shadow');
+            hiddenInput.value = this.dataset.id;
+        });
+    });
+});
+</script>
+
+{{-- Style nhẹ --}}
+<style>
+.variant-box {
+    cursor: pointer;
+    transition: 0.2s;
+}
+.variant-box:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 0 8px rgba(13, 110, 253, 0.3);
+}
+.variant-box.border-primary {
+    border-width: 2px !important;
+}
+</style>
+
 
                 {{-- Quantity Control --}}
                 <div class="mb-4">

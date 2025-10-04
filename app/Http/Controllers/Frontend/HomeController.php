@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use  App\Models\ShopSetting;
 use  App\Models\ShopOrder;
+use App\Models\ShopProductPost;
 
 class HomeController extends Controller
 {
@@ -66,7 +67,8 @@ class HomeController extends Controller
         ->take(8) // số lượng sp hiển thị
         ->get();
 
-        
+        $ProductPost = ShopProductPost::all();
+
         $settings = ShopSetting::all()->keyBy('key');
         $bannerPosts = ShopPost::whereNotNull('post_image')
         ->orderByDesc('created_at')
@@ -101,7 +103,7 @@ class HomeController extends Controller
          'specialCategories', 'newProducts', 'bestSellers',
           'settings', 'bannerPosts',
            'featuredProducts', 'category', 'watch', 'screen',
-            'screenIpad', 'LAPTOP'));
+            'screenIpad', 'LAPTOP','ProductPost'));
     }
     public function dashboard()
     {

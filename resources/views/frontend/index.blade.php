@@ -811,7 +811,7 @@ Trang chủ bán hàng
     <button class="nav-arrow right" onclick="scrollProducts(1)">&#8250;</button>
 
     <!-- Wrapper -->
-    <div id="productsContainer" class="featured-products-wrapper">
+    <div class="products-container featured-products-wrapper">
         @foreach ($watch as $product)
         @php
             $avgRating = (float) ($product->reviews_avg_rating ?? 0);
@@ -920,49 +920,7 @@ Trang chủ bán hàng
     </div>
   </div>
 </section>
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const container = document.getElementById('productsContainer');
 
-    // Nút mũi tên
-    window.scrollProducts = function(direction) {
-      const scrollAmount = 270; // rộng 1 card
-      container.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
-    }
-
-    // Kéo chuột PC
-    let isDown = false;
-    let startX;
-    let scrollLeft;
-
-    container.addEventListener('mousedown', (e) => {
-      isDown = true;
-      startX = e.pageX - container.offsetLeft;
-      scrollLeft = container.scrollLeft;
-    });
-    container.addEventListener('mouseleave', () => { isDown = false; });
-    container.addEventListener('mouseup', () => { isDown = false; });
-    container.addEventListener('mousemove', (e) => {
-      if (!isDown) return;
-      e.preventDefault();
-      const x = e.pageX - container.offsetLeft;
-      const walk = (x - startX) * 1.5; // tốc độ kéo
-      container.scrollLeft = scrollLeft - walk;
-    });
-
-    // Vuốt trên mobile
-    let startTouchX = 0;
-    container.addEventListener('touchstart', (e) => {
-      startTouchX = e.touches[0].pageX;
-      scrollLeft = container.scrollLeft;
-    });
-    container.addEventListener('touchmove', (e) => {
-      const x = e.touches[0].pageX;
-      const walk = (x - startTouchX) * 1.5;
-      container.scrollLeft = scrollLeft - walk;
-    });
-  });
-</script>
 
 
 <section class="section-margin calc-60px mt-4 pt-4">
@@ -1063,7 +1021,7 @@ Trang chủ bán hàng
     <button class="nav-arrow right" onclick="scrollProducts(1)">&#8250;</button>
 
     <!-- Wrapper -->
-    <div id="productsContainer" class="featured-products-wrapper">
+    <div  class="products-container featured-products-wrapper">
         @foreach ($screen as $product)
         @php
             $avgRating = (float) ($product->reviews_avg_rating ?? 0);
@@ -1195,7 +1153,7 @@ Trang chủ bán hàng
     <button class="nav-arrow right" onclick="scrollProducts(1)">&#8250;</button>
 
     <!-- Wrapper -->
-    <div id="productsContainer" class="featured-products-wrapper">
+    <div  class="products-container featured-products-wrapper">
         @foreach ($screenIpad as $product)
         @php
             $avgRating = (float) ($product->reviews_avg_rating ?? 0);
@@ -1327,7 +1285,7 @@ Trang chủ bán hàng
     <button class="nav-arrow right" onclick="scrollProducts(1)">&#8250;</button>
 
     <!-- Wrapper -->
-    <div id="productsContainer" class="featured-products-wrapper">
+    <div  class="products-container featured-products-wrapper">
         @foreach ($LAPTOP as $product)
         @php
             $avgRating = (float) ($product->reviews_avg_rating ?? 0);
@@ -1436,6 +1394,73 @@ Trang chủ bán hàng
     </div>
   </div>
 </section>
+
+<section class="section-margin py-4">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-center custom-gap">
+      @foreach ($ProductPost as $item)
+        <div class="post-image-box overflow-hidden rounded-3 shadow-sm">
+          <img 
+            src="{{ asset('storage/uploads/posts/'.$item->image) }}" 
+            alt="Post Image" 
+            class="post-image">
+        </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+
+<style>
+/* Khoảng cách giữa các ảnh */
+.custom-gap {
+  gap: 30px; /* có thể điều chỉnh 20px, 25px, 30px tùy bạn muốn rộng bao nhiêu */
+  padding: 10px 0;
+}
+
+/* Khung ảnh */
+.post-image-box {
+  width: 280px;
+  height: 180px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  margin: 0 auto;
+}
+
+/* Hiệu ứng hover */
+.post-image-box:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+}
+
+/* Ảnh bên trong */
+.post-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+/* Zoom nhẹ khi hover */
+.post-image-box:hover .post-image {
+  transform: scale(1.05);
+}
+
+/* Responsive cho điện thoại */
+@media (max-width: 768px) {
+  .post-image-box {
+    width: 100%;
+    height: 200px;
+  }
+  .custom-gap {
+    gap: 15px;
+  }
+}
+</style>
+
+
 
 <div id="floating-buttons">
   <!-- Nút Back to Top -->
@@ -1616,6 +1641,55 @@ document.querySelectorAll('.add-to-cart').forEach(btn => {
     <span class="visually-hidden">Loading...</span>
   </div>
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const containers = document.querySelectorAll('.products-container');
+
+  // Áp dụng sự kiện cho từng container riêng
+  containers.forEach((container, index) => {
+    // --- Kéo chuột PC ---
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    container.addEventListener('mousedown', (e) => {
+      isDown = true;
+      startX = e.pageX - container.offsetLeft;
+      scrollLeft = container.scrollLeft;
+    });
+    container.addEventListener('mouseleave', () => { isDown = false; });
+    container.addEventListener('mouseup', () => { isDown = false; });
+    container.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      container.scrollLeft = scrollLeft - walk;
+    });
+
+    // --- Vuốt trên mobile ---
+    let startTouchX = 0;
+    container.addEventListener('touchstart', (e) => {
+      startTouchX = e.touches[0].pageX;
+      scrollLeft = container.scrollLeft;
+    });
+    container.addEventListener('touchmove', (e) => {
+      const x = e.touches[0].pageX;
+      const walk = (x - startTouchX) * 1.5;
+      container.scrollLeft = scrollLeft - walk;
+    });
+  });
+
+  // --- Nút mũi tên ---
+  window.scrollProducts = function(sectionIndex, direction) {
+    const container = containers[sectionIndex];
+    if (!container) return;
+    const scrollAmount = 270; // 1 card
+    container.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
+  };
+});
+</script>
+
 @endsection
 
 <style>
