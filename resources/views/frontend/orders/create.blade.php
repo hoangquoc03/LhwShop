@@ -223,6 +223,42 @@ Giỏ hàng của bạn
             </div>
         </div>
     </div>
+    <script>
+  $(document).ready(function () {
+      $('#city').on('change', function () {
+          let city_id = $(this).val();
+          $('#district').html('<option value="">-- Chọn quận/huyện --</option>');
+          $('#ward').html('<option value="">-- Chọn xã/phường --</option>');
+
+          if (city_id) {
+              $.get('/get-districts/' + city_id, function (data) {
+                console.log("API districts:", data); 
+                  if (data.length > 0) {
+                      $.each(data, function (key, district) {
+                          $('#district').append('<option value="' + district.id + '">' + district.name + '</option>');
+                      });
+                  }
+              });
+          }
+      });
+
+      $('#district').on('change', function () {
+          let district_id = $(this).val();
+          $('#ward').html('<option value="">-- Chọn xã/phường --</option>');
+
+          if (district_id) {
+              $.get('/get-wards/' + district_id, function (data) {
+                  if (data.length > 0) {
+                      $.each(data, function (key, ward) {
+                          $('#ward').append('<option value="' + ward.id + '">' + ward.name + '</option>');
+                      });
+                  }
+              });
+          }
+      });
+  });
+</script>
+
 
   {{-- 🎟 Voucher --}}
   <div class="card shadow-sm mb-3">
@@ -468,41 +504,6 @@ document.addEventListener("DOMContentLoaded", function() {
                   }).showToast();
               }
           });
-      });
-  });
-</script>
-<script>
-  $(document).ready(function () {
-      $('#city').on('change', function () {
-          let city_id = $(this).val();
-          $('#district').html('<option value="">-- Chọn quận/huyện --</option>');
-          $('#ward').html('<option value="">-- Chọn xã/phường --</option>');
-
-          if (city_id) {
-              $.get('/get-districts/' + city_id, function (data) {
-                console.log("API districts:", data); 
-                  if (data.length > 0) {
-                      $.each(data, function (key, district) {
-                          $('#district').append('<option value="' + district.id + '">' + district.name + '</option>');
-                      });
-                  }
-              });
-          }
-      });
-
-      $('#district').on('change', function () {
-          let district_id = $(this).val();
-          $('#ward').html('<option value="">-- Chọn xã/phường --</option>');
-
-          if (district_id) {
-              $.get('/get-wards/' + district_id, function (data) {
-                  if (data.length > 0) {
-                      $.each(data, function (key, ward) {
-                          $('#ward').append('<option value="' + ward.id + '">' + ward.name + '</option>');
-                      });
-                  }
-              });
-          }
       });
   });
 </script>
