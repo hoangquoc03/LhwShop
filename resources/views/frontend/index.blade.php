@@ -1465,84 +1465,115 @@ Trang chủ bán hàng
 <div id="floating-buttons">
   <!-- Nút Back to Top -->
   <button id="back-to-top" 
-          class="btn btn-primary rounded-circle shadow d-flex align-items-center justify-content-center">
+          class="mt-[200px] btn btn-primary rounded-circle shadow d-flex align-items-center justify-content-center">
     <i class="ti-angle-up"></i>
   </button>
 
-  <!-- Menu Liên hệ -->
-  <div id="contact-menu" class="contact-menu">
 
-    <!-- Nút chính Liên hệ -->
-    <button id="contact-toggle" 
-            class="btn btn-success rounded-circle shadow d-flex align-items-center justify-content-center">
-      <i class="ti-headphone-alt"></i>
-    </button>
+  <!-- CHAT FLOAT BUTTON -->
+  <button id="chat-toggle" class="chat-fab">
+      <i class="ti-comments"></i>
+  </button>
 
-    <!-- Nút con: Zalo -->
-    <a href="https://zalo.me/0123456789" target="_blank" 
-       class="btn btn-info rounded-circle shadow d-flex align-items-center justify-content-center contact-item"
-       data-label="Liên hệ Zalo">
-      <i class="ti-comment-alt"></i>
-    </a>
+  <!-- CHAT BOX -->
+  <div id="chatbox" class="chatbox">
+      <div class="chatbox-header">
+          💬 LHW Shop – Tư vấn 24/7
+          <button id="chat-close">✕</button>
+      </div>
 
-<!-- Chat Toggle -->
-<button id="chat-toggle"
-    class="btn btn-warning rounded-circle shadow position-fixed chat-fab">
-    <i class="ti-user"></i>
-</button>
+      <div id="chat-messages" class="chatbox-body">
+          <div id="chat-categories" class="chat-categories" style="display:none;">
+              <button onclick="selectCategory('iphone')">📱 iPhone</button>
+              <button onclick="selectCategory('laptop')">💻 Laptop</button>
+              <button onclick="selectCategory('macbook')">🍎 MacBook</button>
+          </div>
+      </div>
 
-<!-- Chat Box -->
-<div id="chatbox" class="chatbox shadow">
-    <div class="chatbox-header">
-        <span>💬 Nhân viên tư vấn</span>
-        <button id="chat-close">✕</button>
-    </div>
-
-    <div id="chat-messages" class="chatbox-body"></div>
-
-    <div class="chatbox-footer">
-        <input id="chat-input" placeholder="Nhập câu hỏi..." />
-        <button id="chat-send">Gửi</button>
-    </div>
-</div>
-
-
+      <div class="chatbox-footer">
+          <input id="chat-input" placeholder="Nhập tên sản phẩm hoặc nhu cầu..." />
+          <button id="chat-send">Gửi</button>
+      </div>
   </div>
+
+
+
+
 </div>
 
 
 
 <style>
+  #floating-buttons {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 9999;
+}
+
+/* Back to top */
+#back-to-top {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Chat button */
 .chat-fab {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #25d366;
+    color: #fff;
+    border: none;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+}
+
+.chat-fab {
+    position: fixed;
     bottom: 20px;
     right: 20px;
-    z-index: 9999;
     width: 56px;
     height: 56px;
+    border-radius: 50%;
+    background: #1e88e5;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,.25);
+    z-index: 9999;
+    font-size: 22px;
 }
 
 .chatbox {
     position: fixed;
     bottom: 90px;
     right: 20px;
-    width: 340px;
-    max-height: 520px;
+    width: 360px;
+    max-height: 540px;
     background: #fff;
     border-radius: 14px;
     display: none;
-    z-index: 9999;
+    box-shadow: 0 10px 30px rgba(0,0,0,.3);
     overflow: hidden;
-    font-size: 14px;
+    z-index: 9999;
+    font-family: Arial, sans-serif;
 }
 
 .chatbox-header {
-    background: #ffb300;
+    background: linear-gradient(135deg, #1e88e5, #1565c0);
     color: #fff;
-    padding: 10px 12px;
+    padding: 12px;
+    font-weight: bold;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-weight: bold;
 }
 
 .chatbox-header button {
@@ -1554,63 +1585,81 @@ Trang chủ bán hàng
 }
 
 .chatbox-body {
-    padding: 10px;
-    height: 340px;
+    padding: 12px;
+    height: 360px;
     overflow-y: auto;
-    background: #f7f7f7;
+    background: #f5f7fa;
 }
 
 .chatbox-footer {
     display: flex;
     padding: 10px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid #ddd;
     gap: 6px;
 }
 
 .chatbox-footer input {
     flex: 1;
-    padding: 8px 10px;
+    padding: 10px;
     border-radius: 8px;
     border: 1px solid #ccc;
 }
 
 .chatbox-footer button {
-    background: #ffb300;
-    border: none;
+    background: #1e88e5;
     color: #fff;
-    padding: 8px 12px;
+    border: none;
     border-radius: 8px;
+    padding: 0 16px;
     cursor: pointer;
 }
 
-/* Bubble chat */
 .msg {
     margin-bottom: 10px;
-    line-height: 1.4;
+    display: flex;
 }
 
 .msg.user {
-    text-align: right;
+    justify-content: flex-end;
 }
 
 .msg.user .bubble {
-    background: #d1ecf1;
-    display: inline-block;
-    padding: 8px 10px;
-    border-radius: 12px 12px 0 12px;
-    max-width: 85%;
+    background: #1e88e5;
+    color: #fff;
+    border-radius: 16px 16px 0 16px;
 }
 
 .msg.bot .bubble {
     background: #fff;
-    display: inline-block;
-    padding: 8px 10px;
-    border-radius: 12px 12px 12px 0;
-    max-width: 85%;
+    color: #333;
+    border-radius: 16px 16px 16px 0;
 }
 
-.msg.bot a {
-    color: #ff9800;
+.bubble {
+    padding: 10px 12px;
+    max-width: 80%;
+    box-shadow: 0 2px 6px rgba(0,0,0,.1);
+    font-size: 14px;
+}
+
+.chat-categories {
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.chat-categories button {
+    background: #e3f2fd;
+    border: 1px solid #1e88e5;
+    color: #1e88e5;
+    border-radius: 20px;
+    padding: 6px 14px;
+    margin: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.chatbox-body a {
+    color: #1e88e5;
     font-weight: bold;
     text-decoration: none;
 }
@@ -1623,6 +1672,16 @@ const chatInput = document.getElementById('chat-input');
 
 document.getElementById('chat-toggle').onclick = () => {
     chatBox.style.display = 'block';
+
+    if (!chatMessages.dataset.started) {
+        addMessage('bot',
+            "👋 <b>Xin chào bạn đến với LHW Shop</b><br>" +
+            "Em có thể hỗ trợ mua sắm 24/7 😊<br><br>" +
+            "👉 Anh/chị quan tâm danh mục nào?"
+        );
+        document.getElementById('chat-categories').style.display = 'block';
+        chatMessages.dataset.started = '1';
+    }
 };
 
 document.getElementById('chat-close').onclick = () => {
@@ -1630,7 +1689,6 @@ document.getElementById('chat-close').onclick = () => {
 };
 
 document.getElementById('chat-send').onclick = sendMessage;
-
 chatInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') sendMessage();
 });
@@ -1643,18 +1701,25 @@ function addMessage(type, html) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+function selectCategory(category) {
+    document.getElementById('chat-categories').style.display = 'none';
+    send(category);
+}
+
 async function sendMessage() {
     const msg = chatInput.value.trim();
     if (!msg) return;
-
-    addMessage('user', msg);
+    send(msg);
     chatInput.value = '';
+}
+
+async function send(msg) {
+    addMessage('user', msg);
 
     const loading = document.createElement('div');
     loading.className = 'msg bot';
     loading.innerHTML = `<div class="bubble"><i>Đang tư vấn...</i></div>`;
     chatMessages.appendChild(loading);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
 
     try {
         const res = await fetch("{{ route('chat.ai') }}", {
@@ -1670,12 +1735,13 @@ async function sendMessage() {
         chatMessages.removeChild(loading);
         addMessage('bot', data.reply);
 
-    } catch (e) {
+    } catch {
         chatMessages.removeChild(loading);
-        addMessage('bot', '<span style="color:red">Lỗi kết nối, vui lòng thử lại</span>');
+        addMessage('bot', '<span style="color:red">Lỗi kết nối</span>');
     }
 }
 </script>
+
 
 
 
