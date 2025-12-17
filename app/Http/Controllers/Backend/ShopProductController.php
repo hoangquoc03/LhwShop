@@ -122,9 +122,7 @@ class ShopProductController extends Controller
             $file->storeAs('uploads/products', $newFileName, 'public');
             $product->image = $newFileName;
         }
-
         $product->save();
-
         toastify()->success('Thêm sản phẩm thành công');
         return redirect()->route('backend.Product.index');
     }

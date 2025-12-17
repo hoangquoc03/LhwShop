@@ -46,10 +46,17 @@ use App\Http\Controllers\Api\AclRoleHasPermissionController;
 use App\Http\Controllers\Backend\ShopCustomerVoucherController;
 use App\Http\Controllers\Backend\ShopOrderDetailController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Frontend\ChatController;
+use App\Http\Controllers\AIChatController;
+use App\Http\Controllers\SalesAIController;
 //                    errors
 Route::get('/errors/403',[
     ErrorController::class,'page403'
 ])->name('errors.403');
+
+
+Route::post('/chat/ai', [SalesAIController::class, 'chat'])
+    ->name('chat.ai');
 
 //                     Frontend
 Route::get('/',[
@@ -63,6 +70,7 @@ Route::post('/login-home', [
     LoginHomeController::class, 'login'
 ])->name('frontend.login.post');
 //            products
+
 
 Route::get('/product/{id}', [ProductController::class, 'show'])->name('product.show');
 

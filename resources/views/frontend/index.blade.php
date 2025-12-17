@@ -1485,14 +1485,199 @@ Trang chủ bán hàng
       <i class="ti-comment-alt"></i>
     </a>
 
-    <!-- Nút con: Chat nhân viên -->
-    <a href="/chat" 
-       class="btn btn-warning rounded-circle shadow d-flex align-items-center justify-content-center contact-item"
-       data-label="Chat với nhân viên">
-      <i class="ti-user"></i>
-    </a>
+<!-- Chat Toggle -->
+<button id="chat-toggle"
+    class="btn btn-warning rounded-circle shadow position-fixed chat-fab">
+    <i class="ti-user"></i>
+</button>
+
+<!-- Chat Box -->
+<div id="chatbox" class="chatbox shadow">
+    <div class="chatbox-header">
+        <span>💬 Nhân viên tư vấn</span>
+        <button id="chat-close">✕</button>
+    </div>
+
+    <div id="chat-messages" class="chatbox-body"></div>
+
+    <div class="chatbox-footer">
+        <input id="chat-input" placeholder="Nhập câu hỏi..." />
+        <button id="chat-send">Gửi</button>
+    </div>
+</div>
+
+
   </div>
 </div>
+
+
+
+<style>
+.chat-fab {
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    width: 56px;
+    height: 56px;
+}
+
+.chatbox {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 340px;
+    max-height: 520px;
+    background: #fff;
+    border-radius: 14px;
+    display: none;
+    z-index: 9999;
+    overflow: hidden;
+    font-size: 14px;
+}
+
+.chatbox-header {
+    background: #ffb300;
+    color: #fff;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+}
+
+.chatbox-header button {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.chatbox-body {
+    padding: 10px;
+    height: 340px;
+    overflow-y: auto;
+    background: #f7f7f7;
+}
+
+.chatbox-footer {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #eee;
+    gap: 6px;
+}
+
+.chatbox-footer input {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+.chatbox-footer button {
+    background: #ffb300;
+    border: none;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* Bubble chat */
+.msg {
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.msg.user {
+    text-align: right;
+}
+
+.msg.user .bubble {
+    background: #d1ecf1;
+    display: inline-block;
+    padding: 8px 10px;
+    border-radius: 12px 12px 0 12px;
+    max-width: 85%;
+}
+
+.msg.bot .bubble {
+    background: #fff;
+    display: inline-block;
+    padding: 8px 10px;
+    border-radius: 12px 12px 12px 0;
+    max-width: 85%;
+}
+
+.msg.bot a {
+    color: #ff9800;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+</style>
+<script>
+const chatBox = document.getElementById('chatbox');
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+
+document.getElementById('chat-toggle').onclick = () => {
+    chatBox.style.display = 'block';
+};
+
+document.getElementById('chat-close').onclick = () => {
+    chatBox.style.display = 'none';
+};
+
+document.getElementById('chat-send').onclick = sendMessage;
+
+chatInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendMessage();
+});
+
+function addMessage(type, html) {
+    const div = document.createElement('div');
+    div.className = `msg ${type}`;
+    div.innerHTML = `<div class="bubble">${html}</div>`;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+async function sendMessage() {
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+
+    addMessage('user', msg);
+    chatInput.value = '';
+
+    const loading = document.createElement('div');
+    loading.className = 'msg bot';
+    loading.innerHTML = `<div class="bubble"><i>Đang tư vấn...</i></div>`;
+    chatMessages.appendChild(loading);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        const res = await fetch("{{ route('chat.ai') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ message: msg })
+        });
+
+        const data = await res.json();
+        chatMessages.removeChild(loading);
+        addMessage('bot', data.reply);
+
+    } catch (e) {
+        chatMessages.removeChild(loading);
+        addMessage('bot', '<span style="color:red">Lỗi kết nối, vui lòng thử lại</span>');
+    }
+}
+</script>
+
+
 
 <script>
 document.querySelectorAll('.add-to-cart').forEach(btn => {
