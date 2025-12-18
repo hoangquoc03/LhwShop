@@ -1493,10 +1493,6 @@ Trang chủ bán hàng
           <button id="chat-send">Gửi</button>
       </div>
   </div>
-
-
-
-
 </div>
 
 
@@ -1663,7 +1659,7 @@ Trang chủ bán hàng
   }
 
 </style>
-  <script>
+<script>
 document.addEventListener('DOMContentLoaded', function () {
 
     const chatBox = document.getElementById('chatbox');
@@ -1671,12 +1667,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const chatInput = document.getElementById('chat-input');
     const chatToggle = document.getElementById('chat-toggle');
     const chatClose = document.getElementById('chat-close');
+    const chatSend = document.getElementById('chat-send');
 
     if (!chatBox || !chatToggle) {
         console.error('❌ Không tìm thấy chat DOM');
         return;
     }
 
+    /* =====================
+        UI EVENTS
+    ===================== */
     chatToggle.addEventListener('click', () => {
         chatBox.style.display = 'block';
 
@@ -1690,80 +1690,81 @@ document.addEventListener('DOMContentLoaded', function () {
         chatBox.style.display = 'none';
     });
 
+    chatSend.addEventListener('click', sendMessage);
 
-});
+    chatInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') sendMessage();
+    });
 
-  document.getElementById('chat-send')
-  .addEventListener('click', sendMessage);
-  chatInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') sendMessage();
-  });
-
-  function sendMessage() {
-      const msg = chatInput.value.trim();
-      if (!msg) return;
-      send(msg);
-      chatInput.value = '';
-  }
-
-  function addMessage(type, html) {
-      const chatMessages = document.getElementById('chat-messages');
-      const div = document.createElement('div');
-      div.className = `msg ${type}`;
-      div.innerHTML = `<div class="bubble">${html}</div>`;
-      chatMessages.appendChild(div);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-
-  /* =====================
-    CORE SEND FUNCTION
-  =====================*/
-  async function send(msg) {
-
-      if (msg !== '__start__' && !msg.startsWith('__category__')) {
-        addMessage('user', msg);
+    /* =====================
+        MESSAGE FUNCTIONS
+    ===================== */
+    function sendMessage() {
+        const msg = chatInput.value.trim();
+        if (!msg) return;
+        send(msg);
+        chatInput.value = '';
     }
 
-      const loading = document.createElement('div');
-      loading.className = 'msg bot';
-      loading.innerHTML = `<div class="bubble"><i>Đang tư vấn...</i></div>`;
-      chatMessages.appendChild(loading);
+    function addMessage(type, html) {
+        const div = document.createElement('div');
+        div.className = `msg ${type}`;
+        div.innerHTML = `<div class="bubble">${html}</div>`;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 
-      try {
-          const res = await fetch("{{ route('chat.ai') }}", {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-              },
-              body: JSON.stringify({ message: msg })
-          });
+    /* =====================
+        CORE SEND
+    ===================== */
+    async function send(msg) {
 
-          const data = await res.json();
-          chatMessages.removeChild(loading);
-          addMessage('bot', data.reply);
+        if (msg !== '__start__' && !msg.startsWith('__category__')) {
+            addMessage('user', msg);
+        }
 
-      } catch (e) {
-          chatMessages.removeChild(loading);
-          addMessage('bot', '<span style="color:red">❌ Lỗi kết nối</span>');
-      }
-  }
+        const loading = document.createElement('div');
+        loading.className = 'msg bot';
+        loading.innerHTML = `<div class="bubble"><i>Đang tư vấn...</i></div>`;
+        chatMessages.appendChild(loading);
 
-  /* =====================
-    CLICK CATEGORY BUTTON
-  =====================*/
-  document.addEventListener('click', function (e) {
-      if (e.target.classList.contains('chat-category')) {
-          const id = e.target.dataset.id;
-          send('__category__:' + e.target.dataset.id); // ✅ GỬI ĐÚNG FORMAT BACKEND
-      }
-  });
+        try {
+            const res = await fetch("{{ route('chat.ai') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document
+                        .querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ message: msg })
+            });
+
+            const data = await res.json();
+            chatMessages.removeChild(loading);
+            addMessage('bot', data.reply);
+
+        } catch (e) {
+            chatMessages.removeChild(loading);
+            addMessage('bot', '<span style="color:red">❌ Lỗi kết nối</span>');
+        }
+    }
+
+    /* =====================
+        CLICK CATEGORY
+    ===================== */
+    document.addEventListener('click', function (e) {
+        if (e.target.classList.contains('chat-category')) {
+            send('__category__:' + e.target.dataset.id);
+        }
+    });
+
+});
+</script>
 
 
 
 
-
-
+<script>
 document.querySelectorAll('.add-to-cart').forEach(btn => {
     btn.addEventListener('click', function() {
         let id = this.dataset.id;
