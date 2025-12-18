@@ -4,105 +4,127 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\ShopProduct;
+use App\Models\ShopCategory;
 
 class SalesAIController extends Controller
 {
     /* =====================
-        CONFIG
+        TIỆN ÍCH XỬ LÝ TEXT
     ======================*/
-    private array $stopWords = [
-        'tôi','muốn','mua','cần','cho','xin','là','có','không',
-        'giá','bao','nhiêu','một','cái','loại'
-    ];
 
-    private array $categories = [
-        'iphone'  => 'iPhone',
-        'laptop'  => 'Laptop',
-        'macbook' => 'MacBook'
-    ];
-
-    /* =====================
-        UTILS
-    ======================*/
     private function normalize(string $text): string
     {
-        return trim(mb_strtolower($text));
+        $text = mb_strtolower(trim($text));
+
+        $map = [
+            'à'=>'a','á'=>'a','ạ'=>'a','ả'=>'a','ã'=>'a',
+            'è'=>'e','é'=>'e','ẹ'=>'e','ẻ'=>'e','ẽ'=>'e',
+            'ì'=>'i','í'=>'i','ị'=>'i','ỉ'=>'i','ĩ'=>'i',
+            'ò'=>'o','ó'=>'o','ọ'=>'o','ỏ'=>'o','õ'=>'o',
+            'ù'=>'u','ú'=>'u','ụ'=>'u','ủ'=>'u','ũ'=>'u',
+            'ỳ'=>'y','ý'=>'y','ỵ'=>'y','ỷ'=>'y','ỹ'=>'y',
+            'đ'=>'d'
+        ];
+
+        return strtr($text, $map);
     }
 
     private function extractKeywords(string $text): array
     {
-        $text = $this->normalize($text);
+        $stopWords = [
+            'toi','muon','mua','can','cho','xin','la','co','khong',
+            'gia','bao','nhieu','mot','cai','loai'
+        ];
+
         $text = preg_replace('/[^\p{L}\p{N}\s]/u', '', $text);
-        $words = array_filter(explode(' ', $text));
+        $words = array_filter(explode(' ', $this->normalize($text)));
 
-        return array_values(array_diff($words, $this->stopWords));
-    }
-
-    /**
-     * So khớp từ đầu:
-     * iphone 14  -> iphone 14 pro max ✅
-     * iphone 14  -> macbook pro 14 ❌
-     */
-    private function matchFromStart(string $input, string $productName): bool
-    {
-        $inputWords   = explode(' ', $this->normalize($input));
-        $productWords = explode(' ', $this->normalize($productName));
-
-        foreach ($inputWords as $index => $word) {
-            if (!isset($productWords[$index]) || $productWords[$index] !== $word) {
-                return false;
-            }
-        }
-        return true;
+        return array_values(array_diff($words, $stopWords));
     }
 
     /* =====================
-        MAIN CHAT
+        MATCH THÔNG MINH (AI)
     ======================*/
+
+    private function matchSmart(string $input, string $productName): int
+    {
+        $inputWords   = $this->extractKeywords($input);
+        $productWords = explode(' ', $this->normalize($productName));
+
+        $score = 0;
+
+        foreach ($inputWords as $i => $word) {
+            foreach ($productWords as $j => $pw) {
+
+                // Khớp từ đầu
+                if (str_starts_with($pw, $word)) {
+                    $score += ($i === $j) ? 5 : 3;
+                    break;
+                }
+
+                // Sai chính tả nhẹ
+                if (levenshtein($word, $pw) <= 1) {
+                    $score += 1;
+                    break;
+                }
+            }
+        }
+
+        return $score;
+    }
+
+    /* =====================
+        CHAT CONTROLLER
+    ======================*/
+
     public function chat(Request $request)
     {
-        $message = trim($request->message);
+        $message = trim($request->message ?? '');
 
-        /* =====================
-           1️⃣ MỞ CHAT – CHÀO
-        ======================*/
+        /* 1️⃣ START CHAT */
         if ($message === '__start__') {
-            return response()->json([
-                'reply' => nl2br(
-                    "👋 <b>Xin chào! Chào mừng bạn đến với LHWShop</b>\n\n".
-                    "Em có thể hỗ trợ anh/chị mua sắm 24/7 😊\n\n".
-                    "👉 Anh/chị quan tâm danh mục nào?\n".
-                    "🔹 iPhone\n".
-                    "🔹 Laptop\n".
-                    "🔹 MacBook"
-                )
-            ]);
+
+            $categories = ShopCategory::where('active', true)->get();
+
+            $reply  = "👋 <b>Chào mừng bạn đến với LHW Shop</b>\n\n";
+            $reply .= "🤖 Em là trợ lý bán hàng 24/7\n\n";
+            $reply .= "👉 Anh/chị có thể:\n";
+            $reply .= "🔍 <b>Gõ tên sản phẩm</b> (VD: iPhone 15)\n";
+            $reply .= "📂 <b>Hoặc chọn danh mục bên dưới:</b>\n\n";
+
+            foreach ($categories as $c) {
+                $reply .= "👉 <button class='chat-category' data-id='{$c->id}'>📂 {$c->categories_text}</button>\n";
+            }
+
+            return response()->json(['reply' => nl2br($reply)]);
         }
 
         if (!$message) {
             return response()->json(['reply' => 'Anh/chị vui lòng nhập nội dung nhé 😊']);
         }
 
-        $text     = $this->normalize($message);
-        $keywords = $this->extractKeywords($text);
+        /* 2️⃣ USER CLICK CATEGORY */
+        if (str_starts_with($message, '__category__:')) {
 
-        /* =====================
-           2️⃣ CLICK CATEGORY
-        ======================*/
-        if (isset($this->categories[$text])) {
-            $products = ShopProduct::where('discontinued', false)
-                ->where('product_name', 'like', '%'.$this->categories[$text].'%')
-                ->orderByDesc('id')
-                ->limit(3)
+            $categoryId = (int) str_replace('__category__:', '', $message);
+            $category = ShopCategory::find($categoryId);
+
+            if (!$category) {
+                return response()->json(['reply' => '❌ Danh mục không tồn tại']);
+            }
+
+            $products = $category->products()
+                ->where('discontinued', false)
+                ->limit(5)
                 ->get();
 
             if ($products->isEmpty()) {
                 return response()->json([
-                    'reply' => 'Danh mục này hiện chưa có sản phẩm 😢'
+                    'reply' => "📂 <b>{$category->categories_text}</b> hiện chưa có sản phẩm 😢"
                 ]);
             }
 
-            $reply = "🔥 <b>Sản phẩm {$this->categories[$text]} nổi bật:</b>\n\n";
+            $reply = "📂 <b>{$category->categories_text}</b> – sản phẩm nổi bật:\n\n";
 
             foreach ($products as $p) {
                 $reply .= "📱 <b>{$p->product_name}</b>\n";
@@ -110,50 +132,29 @@ class SalesAIController extends Controller
                 $reply .= "👉 <a href='".route('product.show',$p->id)."' target='_blank'>Xem chi tiết</a>\n\n";
             }
 
-            $reply .= "👉 Anh/chị có thể gõ <b>tên sản phẩm</b> để em tư vấn kỹ hơn.";
-
             return response()->json(['reply' => nl2br($reply)]);
         }
 
-        /* =====================
-           3️⃣ MATCH CHÍNH XÁC
-        ======================*/
-        $allProducts = ShopProduct::where('discontinued', false)->get();
+        /* 3️⃣ TEXT SEARCH (AI PHÂN TÍCH) */
+        $text = $this->normalize($message);
 
-        $matched = $allProducts->filter(function ($p) use ($text) {
-            return $this->matchFromStart($text, $p->product_name);
-        });
+        $products = ShopProduct::where('discontinued', false)->get();
+
+        $matched = $products
+            ->map(fn($p) => [
+                'product' => $p,
+                'score'   => $this->matchSmart($text, $p->product_name)
+            ])
+            ->filter(fn($x) => $x['score'] > 0)
+            ->sortByDesc('score')
+            ->take(5);
 
         if ($matched->isNotEmpty()) {
-            $reply = "🎯 <b>Em tìm thấy sản phẩm phù hợp:</b>\n\n";
 
-            foreach ($matched as $p) {
-                $reply .= "📱 <b>{$p->product_name}</b>\n";
-                $reply .= "💰 ".number_format($p->list_price,0,',','.')."đ\n";
-                $reply .= "📝 {$p->short_description}\n";
-                $reply .= "👉 <a href='".route('product.show',$p->id)."' target='_blank'>Xem chi tiết</a>\n\n";
-            }
+            $reply = "🎯 <b>Sản phẩm phù hợp với anh/chị:</b>\n\n";
 
-            $reply .= "🛒 Anh/chị muốn em hỗ trợ đặt hàng hoặc so sánh mẫu khác không ạ?";
-
-            return response()->json(['reply' => nl2br($reply)]);
-        }
-
-        /* =====================
-           4️⃣ FALLBACK – GỢI Ý CÙNG DÒNG
-        ======================*/
-        $mainKeyword = $keywords[0] ?? '';
-
-        $products = ShopProduct::where('discontinued', false)
-            ->where('product_name', 'like', "%{$mainKeyword}%")
-            ->limit(3)
-            ->get();
-
-        if ($products->isNotEmpty()) {
-            $reply = "⚠️ <b>Mẫu anh/chị tìm hiện không có sẵn</b>\n\n";
-            $reply .= "📦 Em gợi ý các mẫu tương đương:\n\n";
-
-            foreach ($products as $p) {
+            foreach ($matched as $item) {
+                $p = $item['product'];
                 $reply .= "📱 <b>{$p->product_name}</b>\n";
                 $reply .= "💰 ".number_format($p->list_price,0,',','.')."đ\n";
                 $reply .= "👉 <a href='".route('product.show',$p->id)."' target='_blank'>Xem chi tiết</a>\n\n";
@@ -162,11 +163,9 @@ class SalesAIController extends Controller
             return response()->json(['reply' => nl2br($reply)]);
         }
 
-        /* =====================
-           5️⃣ KHÔNG HIỂU
-        ======================*/
+        /* 4️⃣ KHÔNG HIỂU */
         return response()->json([
-            'reply' => '🤔 Em chưa hiểu rõ nhu cầu. Anh/chị có thể gõ <b>iPhone</b>, <b>Laptop</b> hoặc <b>MacBook</b> để em hỗ trợ nhanh hơn ạ.'
+            'reply' => '🤔 Em chưa hiểu rõ. Anh/chị có thể gõ <b>iPhone</b>, <b>Laptop</b>, <b>MacBook</b> hoặc chọn <b>danh mục</b> để em hỗ trợ tốt hơn ạ.'
         ]);
     }
 }

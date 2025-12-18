@@ -54,9 +54,27 @@ Route::get('/errors/403',[
     ErrorController::class,'page403'
 ])->name('errors.403');
 
-
+//  Seller Chat 
 Route::post('/chat/ai', [SalesAIController::class, 'chat'])
     ->name('chat.ai');
+    
+Route::get('/chat/categories', [SalesAIController::class, 'categories'])
+    ->name('chat.categories');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //                     Frontend
 Route::get('/',[
