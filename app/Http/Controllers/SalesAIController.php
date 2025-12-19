@@ -84,8 +84,7 @@ class SalesAIController extends Controller
         /* 1️⃣ START CHAT */
         if ($message === '__start__') {
 
-            $categories = ShopCategory::where('active', true)->get();
-
+            $categories = ShopCategory::all();
             $reply  = "👋 <b>Chào mừng bạn đến với LHW Shop</b>\n\n";
             $reply .= "🤖 Em là trợ lý bán hàng 24/7\n\n";
             $reply .= "👉 Anh/chị có thể:\n";

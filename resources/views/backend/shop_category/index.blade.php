@@ -91,6 +91,9 @@ Danh sách Chuyên mục sản phẩm
                                 <th scope="col" class="p-4 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">
                                     Mã danh mục
                                 </th>
+                                 {{-- <th scope="col" class="p-4 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">
+                                    Danh mục cha 
+                                </th> --}}
                                 <th scope="col" class="p-4 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">
                                     Văn bản danh mục 
                                 </th>
@@ -107,79 +110,88 @@ Danh sách Chuyên mục sản phẩm
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                         
-                            @foreach ($dsShopCategories as $item)
-                                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700">
-                                <td class="w-4 p-4">
-                                    <div class="flex items-center" bis_skin_checked="1">
-                                        <input id="checkbox-633293" aria-describedby="checkbox-1" type="checkbox" class="w-4 h-4 border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-primary-300 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600">
-                                        <label for="checkbox-633293" class="sr-only">checkbox</label>
-                                    </div>
-                                </td>
-                                <td class="p-4 text-sm font-normal text-gray-500 whitespace-nowrap dark:text-gray-400">
-                                    <div class="text-base font-semibold text-gray-900 dark:text-white" bis_skin_checked="1">{{ $item->id }}
-                                    </div>
-                                </td>
-                                <td class="p-4 text-base font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                    <img src="/storage/uploads/categories/logo/{{ $item->image }}" alt="Post Image" class="w-16 h-16 object-cover rounded">
-                                </td>
-                                <td class="max-w-sm p-4 overflow-hidden text-base font-normal text-gray-500 truncate xl:max-w-xs dark:text-gray-400">
-                                    {{ $item->categories_code }}
-                                </td>
-                                <td class="p-4 text-base font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                    {{ $item->categories_text}}</td>
-                                <td class="p-4 text-base font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                    {{ $item->description }}</td>
-                                <td class="p-4 text-base font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ $item->created_at->format('d/m/Y H:i:s') }}
-                                </td>
-
-                                <td class="p-4 space-x-2 whitespace-nowrap">
-                                    <button type="button" id="updateProductButton" 
-                                    data-drawer-target="drawer-update-product-{{ $item->id }}" 
-                                    data-drawer-show="drawer-update-product-{{ $item->id }}" 
-                                    aria-controls="drawer-update-product-{{ $item->id }}" 
-                                    data-drawer-placement="right" 
-                                    class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
-                                    data-id="{{ $item->id }}"
-                                    data-image="{{ $item->image }}"
-                                    data-categories_code="{{ $item->categories_code }}"
-                                    data-categories_text="{{ $item->categories_text }}"
-                                    data-description="{{ $item->description }}"
-                                    {{-- data-url="{{ route('backend.shop_setting.update', $item->id) }}" --}}
-                                    >
-                                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z">
-                                            </path>
-                                            <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path>
-                                        </svg>
-                                        Cập nhật
-                                    </button>
-                                    {{-- <button type="button" id="deleteProductButton" data-drawer-target="drawer-delete-product-{{ $item->id }}" data-drawer-show="drawer-delete-product-{{ $item->id }}" aria-controls="drawer-delete-product-{{ $item->id }}" data-drawer-placement="right" class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white bg-red-700 rounded-lg hover:bg-red-800 focus:ring-4 focus:ring-red-300 dark:focus:ring-red-900"
-                                        data-id="{{ $item->id }}"
-                                        data-group="{{ $item->group }}"
-                                        data-key="{{ $item->key }}"
-                                        data-value="{{ $item->value }}"
-                                        data-description="{{ $item->description }}"
-                                        >
-                                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                                        </svg>
-                                        Delete 
-                                    </button> --}}
-                                    <button type="button" id="deleteProductButton" 
-                                        class="btn-delete inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white bg-red-700 rounded-lg hover:bg-red-800 focus:ring-4 focus:ring-red-300 dark:focus:ring-red-900"
-                                        data-id="{{ $item->id }}"
-                                        data-delete-url = "{{ route('backend.Category.destroy', ['id' => $item->id]) }}"
-                                        >
-                                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                                        </svg>
-                                        Xóa
-                                    </button>
+                            @foreach ($dsShopCategories as $parent)
+                            <tr class="bg-gray-50 dark:bg-gray-900">
+                                <td colspan="9" class="p-4 font-bold text-gray-900 dark:text-white">
+                                    📁 {{ $parent->categories_text }}
                                 </td>
                             </tr>
+
+                            @forelse ($parent->children as $item)
+                                <tr class="hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <td class="w-4 p-4">
+                                        <div class="flex items-center" bis_skin_checked="1">
+                                            <input id="checkbox-633293" aria-describedby="checkbox-1" type="checkbox" class="w-4 h-4 border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-primary-300 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600">
+                                            <label for="checkbox-633293" class="sr-only">checkbox</label>
+                                        </div>
+                                    </td>
+                                    <td class="p-4 text-sm font-normal text-gray-500 whitespace-nowrap dark:text-gray-400">
+                                        <div class="text-base font-semibold text-gray-900 dark:text-white" bis_skin_checked="1">{{ $item->id }}
+                                        </div>
+                                    </td>
+                                    <td class="p-4 text-base font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                        <img src="/storage/uploads/categories/logo/{{ $item->image }}" alt="Post Image" class="w-16 h-16 object-cover rounded">
+                                    </td>
+                                    <td class="max-w-sm p-4 overflow-hidden text-base font-normal text-gray-500 truncate xl:max-w-xs dark:text-gray-400">
+                                        {{ $item->categories_code }}
+                                    </td>
+                                    {{-- DANH MỤC CHA --}}
+                                    {{-- <td class="p-4 text-sm italic text-gray-700 dark:text-gray-300">
+                                        {{ $parent->categories_text }}
+                                    </td> --}}
+                                    <td class="p-4 text-base font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                        {{ $item->categories_text}}</td>
+                                    <td class="p-4 text-base font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                        {{ $item->description }}</td>
+                                    <td class="p-4 text-base font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ $item->created_at->format('d/m/Y H:i:s') }}
+                                    </td>
+
+                                    <td class="p-4 space-x-2 whitespace-nowrap">
+                                        <button type="button" id="updateProductButton" 
+                                        data-drawer-target="drawer-update-product-{{ $item->id }}" 
+                                        data-drawer-show="drawer-update-product-{{ $item->id }}" 
+                                        aria-controls="drawer-update-product-{{ $item->id }}" 
+                                        data-drawer-placement="right" 
+                                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
+                                        data-id="{{ $item->id }}"
+                                        data-image="{{ $item->image }}"
+                                        data-categories_code="{{ $item->categories_code }}"
+                                        data-categories_text="{{ $item->categories_text }}"
+                                        data-description="{{ $item->description }}"
+                                        {{-- data-url="{{ route('backend.shop_setting.update', $item->id) }}" --}}
+                                        >
+                                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z">
+                                                </path>
+                                                <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path>
+                                            </svg>
+                                            Cập nhật
+                                        </button>
+                                        
+                                        <button type="button" id="deleteProductButton" 
+                                            class="btn-delete inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white bg-red-700 rounded-lg hover:bg-red-800 focus:ring-4 focus:ring-red-300 dark:focus:ring-red-900"
+                                            data-id="{{ $item->id }}"
+                                            data-delete-url = "{{ route('backend.Category.destroy', ['id' => $item->id]) }}"
+                                            >
+                                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                            </svg>
+                                            Xóa
+                                        </button>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="9" class="text-center text-gray-400 italic">
+                                        Chưa có danh mục con
+                                    </td>
+                                </tr>
+                                @endforelse
+
                             @endforeach
                         </tbody>
                         @foreach ($dsShopCategories as $item)
+
                         <div id="drawer-update-product-{{ $item->id }}" class="fixed top-0 right-0 z-40 w-full h-screen max-w-xs p-4 overflow-y-auto transition-transform bg-white dark:bg-gray-800 translate-x-full" tabindex="-1" aria-labelledby="drawer-label-{{ $item->id }}" bis_skin_checked="1" aria-hidden="true">
                                 <h5 id="drawer-label-{{ $item->id }}" class="inline-flex items-center mb-6 text-sm font-semibold text-gray-500 uppercase dark:text-gray-400">
                                 Cập nhật danh mục- {{ $item->id }}</h5>
@@ -196,6 +208,32 @@ Danh sách Chuyên mục sản phẩm
                                     <div bis_skin_checked="1">
                                         <label for="categories_code" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Mã danh mục</label>
                                         <input value="{{ $item->categories_code }}" type="text" name="categories_code" id="categories_code" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="categories_code" required="">
+                                    </div>
+                                        <label for="parent_id"
+                                            class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                                            Danh mục cha
+                                        </label>
+
+                                        <select name="parent_id" id="parent_id"
+                                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg
+                                                focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5
+                                                dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
+                                            <option value=""
+                                                {{ old('parent_id', $item->parent_id) === null ? 'selected' : '' }}>
+                                                -- Danh mục cha (không chọn = danh mục cha) --
+                                            </option>
+
+
+                                            @foreach ($parentCategories as $parentCat)
+                                                @if ($parentCat->id !== $item->id)
+                                                    <option value="{{ $parentCat->id }}"
+                                                        {{ $item->parent_id == $parentCat->id ? 'selected' : '' }}>
+                                                        {{ $parentCat->categories_text }}
+                                                    </option>
+                                                @endif
+                                            @endforeach
+                                        </select>
                                     </div>
 
                                     <div bis_skin_checked="1">
@@ -215,10 +253,6 @@ Danh sách Chuyên mục sản phẩm
                                             id="update-preview-img-{{ $item->id }}"
                                             alt="Xem trước ảnh">
                                     </div>
-
-
-                        
-
                                     <div bis_skin_checked="1">
                                         <label for="description" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Mô tả</label>
                                         <input value="{{ $item->description }}" type="text" name="description" id="description" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Description" required="">
@@ -260,6 +294,30 @@ Danh sách Chuyên mục sản phẩm
                         <label for="categories_code" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Mã danh mục</label>
                         <input value="{{ old('categories_code') }}" type="text" name="categories_code" id="categories_code" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="categories_code" required="">
                     </div>
+                    <div>
+                        <label for="parent_id"
+                            class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                            Danh mục cha
+                        </label>
+
+                        <select name="parent_id" id="parent_id"
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg
+                                focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5
+                                dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
+                            <option value="">-- Danh mục cha (không chọn = danh mục cha) --</option>
+
+                            @foreach ($parentCategories as $parentCat)
+                                @if ($parentCat->id !== $item->id)
+                                    <option value="{{ $parentCat->id }}"
+                                        {{ $item->parent_id == $parentCat->id ? 'selected' : '' }}>
+                                        {{ $parentCat->categories_text }}
+                                    </option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </div>
+
 
                     <div bis_skin_checked="1">
                         <label for="categories_text" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Văn bản danh mục</label>
@@ -296,9 +354,9 @@ Danh sách Chuyên mục sản phẩm
                         Hủy
                     </button>
                 </div>
-        
-    </div></form>
-</div>
+            </div>
+        </form>
+    </div>
 @endsection
 <style>
 .input-style {

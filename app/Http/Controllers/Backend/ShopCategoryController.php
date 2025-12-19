@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 
 use App\Http\Requests\StoreCategoryIndexRequest;
 use App\Http\Requests\ShopCategoryDestroyRequest;
+
 class ShopCategoryController extends Controller
 {
     /**
@@ -17,10 +18,20 @@ class ShopCategoryController extends Controller
      */
     public function index(StoreCategoryIndexRequest $request)
     {
-        $dsShopCategories = ShopCategory::all();
-        return view('backend.shop_category.index')
-        ->with('dsShopCategories',$dsShopCategories);
+        // Danh mục CHA + CON để hiển thị bảng
+        $dsShopCategories = ShopCategory::whereNull('parent_id')
+            ->with('children')
+            ->get();
+
+        // Danh mục CHA để chọn trong form
+        $parentCategories = ShopCategory::whereNull('parent_id')->get();
+
+        return view('backend.shop_category.index', compact(
+            'dsShopCategories',
+            'parentCategories'
+        ));
     }
+
 
     /**
      * Show the form for creating a new resource.
@@ -40,6 +51,7 @@ class ShopCategoryController extends Controller
             'categories_text' => 'required|min:3|max:100',
             'description' => 'required|string|min:10',
             'image' => 'required|image|mimes:jpg,jpeg,png,gif|max:2048',
+            'parent_id' => 'nullable|exists:shop_categories,id',
         ], [
             'categories_code.required' => 'Mã danh mục bắt buộc nhập.',
             'categories_code.min' => 'Mã danh mục phải từ 3 ký tự trở lên.',
@@ -64,13 +76,14 @@ class ShopCategoryController extends Controller
         $post->categories_code = $request->categories_code;
         $post->categories_text = $request->categories_text;
         $post->description = $request->description;
-        
+        $post->parent_id = $request->parent_id;
+
         if ($request->hasFile('image')) {
             $path = $request->image;
-            $newFileName = date('Ymd_His') . '_'.
-            $path->getClientOriginalName();      
+            $newFileName = date('Ymd_His') . '_' .
+                $path->getClientOriginalName();
             $post->image = $newFileName;
-            $path->storeAs('/uploads/categories/logo', $newFileName,'public') ;
+            $path->storeAs('/uploads/categories/logo', $newFileName, 'public');
         }
         $post->save();
 
@@ -104,6 +117,7 @@ class ShopCategoryController extends Controller
         $post->categories_code = $request->categories_code;
         $post->categories_text = $request->categories_text;
         $post->description = $request->description;
+        $post->parent_id = $request->parent_id;
 
         if ($request->hasFile('image')) {
             if ($post->image && Storage::disk('public')->exists('uploads/categories/logo/' . $post->image)) {
@@ -129,8 +143,8 @@ class ShopCategoryController extends Controller
     public function destroy(ShopCategoryDestroyRequest $request, $id)
     {
         $deletingModel = ShopCategory::find($id);
-        if($deletingModel != null){
-            $filePath = 'uploads/categories/logo/'. $deletingModel->image;
+        if ($deletingModel != null) {
+            $filePath = 'uploads/categories/logo/' . $deletingModel->image;
             Storage::disk('public')->delete($filePath);
             $deletingModel->delete();
         }
