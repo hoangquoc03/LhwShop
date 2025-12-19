@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 
 use App\Http\Requests\ShopSupplierDestroyRequest;
 use App\Http\Requests\StoreSupplierIndexRequest;
+
 class ShopSupplierController extends Controller
 {
     /**
@@ -19,7 +20,7 @@ class ShopSupplierController extends Controller
     {
         $dsShopSuppliers = ShopSupplier::all();
         return view('backend.shop_supplier.index')
-        ->with('dsShopSuppliers',$dsShopSuppliers);
+            ->with('dsShopSuppliers', $dsShopSuppliers);
     }
 
     /**
@@ -39,7 +40,7 @@ class ShopSupplierController extends Controller
             'supplier_code' => 'required|min:3|max:100',
             'supplier_text' => 'required|min:3|max:100',
             'description' => 'required|string|min:10',
-            'image' => 'required|image|mimes:jpg,jpeg,png,gif|max:2048',
+            'image'         => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
         ], [
             'supplier_code.required' => 'Mã danh mục bắt buộc nhập.',
             'supplier_code.min' => 'Mã danh mục phải từ 3 ký tự trở lên.',
@@ -49,7 +50,7 @@ class ShopSupplierController extends Controller
             'supplier_text.max' => 'Văn bản danh mục phải ít hơn 100 ký tự.',
             'description.required' => 'Mô tả bài viết bắt buộc nhập.',
             'description.min' => 'Mô tả phải ít nhất 10 ký tự.',
-            'image.required' => 'Ảnh bài viết bắt buộc nhập.',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
             'image.image' => 'Tệp tải lên phải là hình ảnh.',
             'image.mimes' => 'Ảnh phải có định dạng jpg, jpeg, png hoặc gif.',
         ]);
@@ -64,13 +65,13 @@ class ShopSupplierController extends Controller
         $post->supplier_code = $request->supplier_code;
         $post->supplier_text = $request->supplier_text;
         $post->description = $request->description;
-        
+
         if ($request->hasFile('image')) {
             $path = $request->image;
-            $newFileName = date('Ymd_His') . '_'.
-            $path->getClientOriginalName();      
+            $newFileName = date('Ymd_His') . '_' .
+                $path->getClientOriginalName();
             $post->image = $newFileName;
-            $path->storeAs('/uploads/suppliers/logo', $newFileName,'public') ;
+            $path->storeAs('/uploads/suppliers/logo', $newFileName, 'public');
         }
         $post->save();
 
@@ -129,8 +130,8 @@ class ShopSupplierController extends Controller
     public function destroy(ShopSupplierDestroyRequest $request, $id)
     {
         $deletingModel = ShopSupplier::find($id);
-        if($deletingModel != null){
-            $filePath = '/uploads/suppliers/logo/'. $deletingModel->image;
+        if ($deletingModel != null) {
+            $filePath = '/uploads/suppliers/logo/' . $deletingModel->image;
             Storage::disk('public')->delete($filePath);
             $deletingModel->delete();
         }
