@@ -105,7 +105,8 @@ Danh sách Sản phẩm
                                     Danh mục
                                 </th>
                                 <th scope="col" class="p-4 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">
-                                    Nhà cung cấp
+                                    Danh mục 2
+                                
                                 </th>
                                 {{-- <th scope="col" class="p-4 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">
                                     Ngày tạo
@@ -129,8 +130,14 @@ Danh sách Sản phẩm
                                     </td>
 
                                     <td class="p-4">
-                                        <img src="/storage/uploads/products/{{ $item->image }}" alt="Product Image" class="w-16 h-16 object-cover rounded">
+                                        <img 
+                                            src="{{ Str::startsWith($item->image, ['http://', 'https://']) 
+                                                    ? $item->image 
+                                                    : asset('storage/uploads/products/' . $item->image) }}"
+                                            alt="Product Image"
+                                            class="w-16 h-16 object-cover rounded">
                                     </td>
+
 
                                     <td class="hidden p-4 text-base font-medium text-gray-900 dark:text-white view-field-name-{{ $item->id }}">
                                         {{ $item->product_name }}
@@ -224,7 +231,7 @@ Danh sách Sản phẩm
                                                 {{ $item->supplier->supplier_text }}
                                             </span>
                                         @else
-                                            <span class="text-sm text-gray-400 italic">Không có nhà cung cấp</span>
+                                            <span class="text-sm text-gray-400 italic">Không có nhà danh mục 2</span>
                                         @endif
                                     </td>
 
@@ -365,11 +372,11 @@ Danh sách Sản phẩm
 
                                     {{-- Chọn nhà cung cấp --}}
                                     <div>
-                                        <label for="supplier_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nhà cung cấp</label>
+                                        <label for="supplier_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Danh mục 2</label>
                                         <select name="supplier_id" id="supplier_id"
                                             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
                                             required>
-                                            <option value="">-- Chọn nhà cung cấp --</option>
+                                            <option value="">-- Chọn danh mục 2 --</option>
                                             @foreach ($dsShopSupplier as $supplier)
                                                 <option value="{{ $supplier->id }}"
                                                     {{ $item->supplier_id == $supplier->id ? 'selected' : '' }}>
@@ -390,6 +397,13 @@ Danh sách Sản phẩm
                                             class="w-32 mt-2 preview-img-container"
                                             id="update-preview-img-{{ $item->id }}"
                                             alt="Xem trước ảnh">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Hoặc nhập link ảnh</label>
+                                        <input type="text" name="image_url" 
+                                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+                                            placeholder="https://example.com/image.jpg"
+                                            value="{{ old('image_url', $item->image) }}">
                                     </div>
 
 
@@ -470,7 +484,7 @@ Danh sách Sản phẩm
                     </div>
                 </div>
 
-                <!-- Danh mục & Nhà cung cấp -->
+                <!-- Danh mục & danh mục 2 -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="category_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Danh mục</label>
@@ -487,11 +501,11 @@ Danh sách Sản phẩm
                     </div>
 
                     <div>
-                        <label for="supplier_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nhà cung cấp</label>
+                        <label for="supplier_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">danh mục 2</label>
                         <select name="supplier_id" id="supplier_id"
                             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:text-white dark:border-gray-600"
                             required>
-                            <option value="">-- Chọn nhà cung cấp --</option>
+                            <option value="">-- Chọn danh mục 2 --</option>
                             @foreach ($dsShopSupplier as $supplier)
                                 <option value="{{ $supplier->id }}" {{ old('supplier_id') == $supplier->id ? 'selected' : '' }}>
                                     {{ $supplier->supplier_text }}

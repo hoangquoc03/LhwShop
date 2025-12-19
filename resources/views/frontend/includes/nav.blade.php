@@ -46,14 +46,16 @@
                                         {{-- Cột 1: Hãng --}}
                                         <div class="col-md-4">
                                             <h6 class="dropdown-header">Hãng</h6>
-                                            @foreach ($item->products->pluck('supplier')->unique('id') as $s)
-                                                @if ($s) {{-- tránh lỗi nếu sản phẩm chưa có supplier --}}
-                                                    <a class="dropdown-item" 
-                                                    href="{{ route('products.filter', ['category_id' => $item->id, 'supplier_id' => $s->id]) }}">
-                                                        {{ $s->supplier_text }}
-                                                    </a>
-                                                @endif
+                                            @foreach ($item->suppliers as $s)
+                                                <a class="dropdown-item"
+                                                href="{{ route('products.filter', [
+                                                    'category_id' => $item->id,
+                                                    'supplier_id' => $s->id
+                                                ]) }}">
+                                                    {{ $s->supplier_text }}
+                                                </a>
                                             @endforeach
+
 
                                         </div>
 

@@ -149,7 +149,7 @@ class ShopProductController extends Controller
     {
         $product = ShopProduct::findOrFail($id);
 
-        // Validate dữ liệu nếu chưa có ở nơi khác
+        //Validate dữ liệu nếu chưa có ở nơi khác
         // $request->validate([
         //     'product_name'        => 'required|min:3|max:100',
         //     'standard_cost'       => 'required|min:3|max:17',
@@ -177,6 +177,9 @@ class ShopProductController extends Controller
             'category_id'        => $request->category_id,
             'supplier_id'        => $request->supplier_id,
         ]);
+        if ($request->filled('image_url')) {
+            $product->image = $request->image_url;
+        }
 
         // Xử lý ảnh nếu có upload mới
         if ($request->hasFile('image')) {
