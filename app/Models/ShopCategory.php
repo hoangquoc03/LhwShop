@@ -33,14 +33,4 @@ class ShopCategory extends Model
             'id'
         );
     }
-    public function parent()
-    {
-        return $this->belongsTo(ShopCategory::class, 'parent_id');
-    }
-
-    // Danh mục con
-    public function children()
-    {
-        return $this->hasMany(ShopCategory::class, 'parent_id');
-    }
 }

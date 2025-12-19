@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\ShopProductDestroyRequest;
 use App\Models\ShopImportDetail;
 use App\Http\Requests\StoreProductIndexRequest;
+
 class ShopProductController extends Controller
 {
     /**
@@ -23,11 +24,11 @@ class ShopProductController extends Controller
         $dsShopProducts = ShopProduct::all();
         $dsShopCategory = ShopCategory::all();
         $dsShopSupplier = ShopSupplier::all();
-        
+
         return view('backend.shop_product.index')
-        ->with('dsShopProducts',$dsShopProducts)
-        ->with('dsShopCategory',$dsShopCategory)
-        ->with('dsShopSupplier',$dsShopSupplier);
+            ->with('dsShopProducts', $dsShopProducts)
+            ->with('dsShopCategory', $dsShopCategory)
+            ->with('dsShopSupplier', $dsShopSupplier);
     }
 
     /**
@@ -224,5 +225,4 @@ class ShopProductController extends Controller
 
         return redirect()->route('backend.Product.index')->with('success', 'Xóa sản phẩm thành công');
     }
-
 }

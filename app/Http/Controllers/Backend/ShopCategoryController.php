@@ -19,16 +19,9 @@ class ShopCategoryController extends Controller
     public function index(StoreCategoryIndexRequest $request)
     {
         // Danh mục CHA + CON để hiển thị bảng
-        $dsShopCategories = ShopCategory::whereNull('parent_id')
-            ->with('children')
-            ->get();
-
-        // Danh mục CHA để chọn trong form
-        $parentCategories = ShopCategory::whereNull('parent_id')->get();
-
+        $dsShopCategories = ShopCategory::all();
         return view('backend.shop_category.index', compact(
-            'dsShopCategories',
-            'parentCategories'
+            'dsShopCategories'
         ));
     }
 
