@@ -15,22 +15,22 @@ class ProductController extends Controller
     {
         switch ($priceRange) {
             case '1': // Dưới 2 triệu
-                $query->where('list_price', '<', 2000000);
+                $query->where('list_price', '<', 20000000);
                 break;
             case '2': // 2 - 4 triệu
-                $query->whereBetween('list_price', [2000000, 4000000]);
+                $query->whereBetween('list_price', [20000000, 40000000]);
                 break;
             case '3': // 4 - 7 triệu
-                $query->whereBetween('list_price', [4000000, 7000000]);
+                $query->whereBetween('list_price', [40000000, 70000000]);
                 break;
             case '4': // 7 - 13 triệu
-                $query->whereBetween('list_price', [7000000, 13000000]);
+                $query->whereBetween('list_price', [70000000, 80000000]);
                 break;
             case '5': // 13 - 20 triệu
-                $query->whereBetween('list_price', [13000000, 20000000]);
+                $query->whereBetween('list_price', [80000000, 100000000]);
                 break;
             case '6': // Trên 20 triệu
-                $query->where('list_price', '>', 20000000);
+                $query->where('list_price', '>', 100000000);
                 break;
         }
         return $query;
@@ -73,7 +73,7 @@ class ProductController extends Controller
                         ->orderBy('created_at', 'desc');
                     break;
 
-                case 'best_seller': 
+                case 'best_seller':
                     $query->withSum('orders as total_quantity', 'quantity')
                         ->having('total_quantity', '>', 5)
                         ->orderByDesc('total_quantity');
@@ -93,33 +93,35 @@ class ProductController extends Controller
             // Mặc định sắp xếp mới nhất
             $query->orderBy('created_at', 'desc');
         }
-        
+
 
         $products = $query->paginate(8);
         if ($request->ajax()) {
             return view('frontend.category.partials.products', compact('products'))->render();
         }
-        
+
         $newProducts = ShopProduct::where('category_id', $id)
-        ->where('is_featured', 1)
-        ->with(['discount', 'category:id,categories_text'])
-        ->withAvg('reviews', 'rating')
-        ->take(8)
-        ->get();
+            ->where('is_featured', 1)
+            ->with(['discount', 'category:id,categories_text'])
+            ->withAvg('reviews', 'rating')
+            ->take(8)
+            ->get();
 
 
 
         $categories = ShopCategory::all();
 
-        $suppliers = ShopSupplier::whereIn('id', function($q) use ($id) {
+        $suppliers = ShopSupplier::whereIn('id', function ($q) use ($id) {
             $q->select('supplier_id')
-            ->from('shop_products')
-            ->where('category_id', $id);
+                ->from('shop_products')
+                ->where('category_id', $id);
         })->get();
 
-        
-        return view('frontend.category.index', 
-        compact('category', 'products', 'categories', 'suppliers', 'newProducts'));
+
+        return view(
+            'frontend.category.index',
+            compact('category', 'products', 'categories', 'suppliers', 'newProducts')
+        );
     }
 
     // ✅ Lọc theo Supplier
@@ -134,18 +136,20 @@ class ProductController extends Controller
         if ($request->has('price_range')) {
             $this->applyPriceFilter($query, $request->price_range);
         }
-        $suppliers = ShopSupplier::all(['id', 'supplier_text','image']);
+        $suppliers = ShopSupplier::all(['id', 'supplier_text', 'image']);
 
         $products = $query->paginate(12);
 
-        return view('frontend.supplier.index', 
-        compact('supplier', 'products', 'suppliers'));
+        return view(
+            'frontend.supplier.index',
+            compact('supplier', 'products', 'suppliers')
+        );
     }
 
     public function filter(Request $request)
     {
         $query = ShopProduct::with(['discount', 'category:id,categories_text'])
-                        ->withAvg('reviews', 'rating');
+            ->withAvg('reviews', 'rating');
         if ($request->has('sort')) {
             switch ($request->sort) {
                 case 'popular': // Phổ biến
@@ -171,7 +175,7 @@ class ProductController extends Controller
                         ->orderBy('created_at', 'desc');
                     break;
 
-                case 'best_seller': 
+                case 'best_seller':
                     $query->withSum('orders as total_quantity', 'quantity')
                         ->having('total_quantity', '>', 5)
                         ->orderByDesc('total_quantity');
@@ -191,7 +195,7 @@ class ProductController extends Controller
             // Mặc định sắp xếp mới nhất
             $query->orderBy('created_at', 'desc');
         }
-        $keyword = $request->input('query'); 
+        $keyword = $request->input('query');
 
         if (!empty($keyword)) {
             $query->where('product_name', 'LIKE', '%' . $keyword . '%');
@@ -215,11 +219,11 @@ class ProductController extends Controller
         if ($request->filled('price_range')) {
             $this->applyPriceFilter($query, $request->price_range);
         }
-        
+
 
         $products = $query->orderByDesc('created_at')->paginate(12);
         $queryText = $request->input('query');
-        $categories = ShopCategory::all(['id','categories_text']);
+        $categories = ShopCategory::all(['id', 'categories_text']);
 
         return view('frontend.product.filter', compact('products', 'category', 'supplier', 'categories', 'queryText'));
     }
@@ -227,8 +231,8 @@ class ProductController extends Controller
     {
         $keyword = $request->keyword ?? '';
         $products = ShopProduct::where('product_name', 'LIKE', "%$keyword%")
-        ->take(10)
-        ->get(['id', 'product_name', 'image']); // trả về JSON
+            ->take(10)
+            ->get(['id', 'product_name', 'image']); // trả về JSON
 
         return response()->json($products);
     }
@@ -239,9 +243,9 @@ class ProductController extends Controller
         $keyword = $request->keyword ?? '';
 
         $query = ShopProduct::with(['discount', 'category:id,categories_text'])
-                            ->withAvg('reviews', 'rating');
+            ->withAvg('reviews', 'rating');
 
-        if($keyword != '') {
+        if ($keyword != '') {
             $query->where('product_name', 'LIKE', "%$keyword%");
         }
 
@@ -310,7 +314,7 @@ class ProductController extends Controller
             $variant->calculated_percent_off = 0;
             $variant->has_discount = false;
 
-            
+
 
             if ($discount && $variant->calculated_list_price > 0) {
                 $discountAmount = (float) ($discount->discount_amount ?? 0);
@@ -337,7 +341,6 @@ class ProductController extends Controller
 
                 $variant->has_discount = $variant->calculated_discounted_price < $variant->calculated_list_price;
             }
-
         }
 
 
