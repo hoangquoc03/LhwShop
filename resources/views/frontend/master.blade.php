@@ -9,7 +9,6 @@
         body {
             position: relative;
             background: #ffffff;
-            padding-top: 120px;
         }
 
         /* Background layer */
@@ -54,15 +53,76 @@
             position: relative;
             z-index: 1;
         }
+
+        /* Banner */
+        .top-banner {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1031;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .navbar-fixed {
+            position: fixed;
+            top: 40px;
+            /* có banner */
+            width: 100%;
+            z-index: 1030;
+            transition: transform 0.35s ease, top 0.35s ease;
+            will-change: transform;
+        }
+
+        /* Khi banner biến mất */
+        .top-banner.hide-banner {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+
+        /* Navbar dính lên trên khi banner mất */
+        .navbar-fixed.banner-gone {
+            top: 0;
+        }
+
+        /* Ẩn navbar */
+        .navbar-hide {
+            transform: translateY(-100%);
+        }
+
+        /* Body mặc định (có banner) */
+        body {
+            padding-top: 120px;
+            /* banner + navbar */
+        }
+
+        /* Khi banner mất */
+        body.banner-hidden {
+            padding-top: 80px;
+            /* chỉ còn navbar */
+        }
     </style>
 
     <!--================ Start Header Menu Area =================-->
-    <header class="header_area">
+    <header class="header_area ">
+        <!-- Banner TOP -->
+        <div class="top-banner">
+            <div class="w-100 py-2 text-sm text-white text-center"
+                style="background: linear-gradient(to right, #4F39F6, #FDFEFF);">
+                <p class="mb-0">
+                    <span class="px-3 py-1 rounded bg-white  me-2 fw-semibold" style="color: #4F39F6">
+                        Ưu đãi ra mắt
+                    </span>
+                    Khám phá thời trang Luxury cao cấp – Ưu đãi độc quyền cho khách hàng mới
+                </p>
+            </div>
+        </div>
 
-        <div class="main_menu">
+        <!-- Navbar -->
+        <div class="navbar-fixed" id="navbar">
             @include('frontend/includes/nav')
         </div>
     </header>
+
     <!--================ End Header Menu Area =================-->
 
     <main class="site-main">
@@ -76,6 +136,40 @@
     <!--================ End footer Area  =================-->
     @include('frontend/includes/script')
     @yield('user.js')
+
 </body>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const navbar = document.getElementById('navbar');
+        const banner = document.querySelector('.top-banner');
+        const body = document.body;
+
+        let lastScroll = window.pageYOffset;
+        let bannerHidden = false;
+
+        window.addEventListener('scroll', function() {
+            const currentScroll = window.pageYOffset;
+
+            /* Ẩn banner khi rời top */
+            if (currentScroll > 20 && !bannerHidden) {
+                banner.classList.add('hide-banner');
+                navbar.classList.add('banner-gone');
+                body.classList.add('banner-hidden');
+                bannerHidden = true;
+            }
+
+            /* Navbar ẩn / hiện */
+            if (currentScroll > lastScroll && currentScroll > 120) {
+                navbar.classList.add('navbar-hide');
+            } else {
+                navbar.classList.remove('navbar-hide');
+            }
+
+            lastScroll = currentScroll;
+        });
+    });
+</script>
+
+
 
 </html>

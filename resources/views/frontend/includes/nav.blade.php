@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand-lg fixed-top luxury-nav">
+<nav class="navbar navbar-expand-lg  luxury-nav">
     <div class="container-fluid luxury-container">
 
         <!-- LOGO -->
