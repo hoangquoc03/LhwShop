@@ -110,8 +110,9 @@ class ShopCategoryController extends Controller
         $post->categories_code = $request->categories_code;
         $post->categories_text = $request->categories_text;
         $post->description = $request->description;
-        $post->parent_id = $request->parent_id;
-
+        if ($request->filled('image_url')) {
+            $post->image = $request->image_url;
+        }
         if ($request->hasFile('image')) {
             if ($post->image && Storage::disk('public')->exists('uploads/categories/logo/' . $post->image)) {
                 Storage::disk('public')->delete('uploads/categories/logo/' . $post->image);

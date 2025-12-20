@@ -74,37 +74,8 @@
             font-weight: bold;
         }
     </style>
-
-    <section class="container my-5 mt-6" style="margin-top: 200px;">
-        <div class="row g-3">
-            <!-- Banner lớn trên -->
-            <div class="col-12 mb-4 mt-5">
-                <div class="swiper mySwiperTop rounded-4 shadow-lg overflow-hidden">
-                    <div class="swiper-wrapper">
-                        @foreach ($bannerPosts->take(1) as $post)
-                            <div class="swiper-slide">
-                                <a href="#" class="d-block position-relative">
-                                    <img src="{{ asset('storage/uploads/posts/images/' . $post->post_image) }}"
-                                        class="banner-img-lg" alt="{{ $post->post_title }}">
-
-                                </a>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2 Banner nhỏ dưới -->
-            @foreach ($bannerPosts->skip(1)->take(2) as $post)
-                <div class="col-md-6">
-                    <a href="#" class="d-block position-relative rounded-4 shadow-sm overflow-hidden">
-                        <img src="{{ asset('storage/uploads/posts/images/' . $post->post_image) }}" class="banner-img-sm"
-                            alt="{{ $post->post_title }}">
-                    </a>
-                </div>
-            @endforeach
-        </div>
-    </section>
+    @include('frontend/includes/CategorySection')
+    @include('frontend/includes/HeroSection')
 
 
     <section class="section-margin calc-60px mt-3">

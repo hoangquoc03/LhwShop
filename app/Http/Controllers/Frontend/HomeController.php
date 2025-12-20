@@ -48,10 +48,24 @@ class HomeController extends Controller
             ->get(['id', 'product_name', 'image', 'short_description', 'is_featured', 'is_new']);
 
         $newProducts = ShopProduct::where('is_new', true)
+            ->with([
+                'discount' => function ($q) {
+                    $q->where('start_date', '<=', now())
+                        ->where('end_date', '>=', now());
+                }
+            ])
             ->withAvg('reviews', 'rating')
-            ->with('discount')
-            ->take(8)
-            ->get(['id', 'product_name', 'image', 'short_description', 'is_featured', 'is_new', 'standard_cost', 'list_price']);
+            ->get([
+                'id',
+                'product_name',
+                'image',
+                'short_description',
+                'is_featured',
+                'is_new',
+                'standard_cost',
+                'list_price'
+            ]);
+
 
         $featuredProducts = ShopProduct::where('is_featured', true)
             ->where('is_new', true)
@@ -59,10 +73,9 @@ class HomeController extends Controller
             ->with('discount', 'category')
             ->get(['id', 'product_name', 'image', 'short_description', 'is_featured', 'is_new', 'standard_cost', 'list_price']);
 
-        $specialCategories = ShopCategory::whereIn('categories_code', ['PHONE', 'LTVP', 'MTB'])
+        $heroCategories = ShopCategory::latest()
             ->take(3)
-            ->get(['id', 'categories_text', 'image', 'categories_code']);
-
+            ->get(['id', 'categories_text', 'image']);
 
         $bestSellers = ShopOrderDetail::select('product_id', DB::raw('SUM(quantity) as total_sold'))
             ->groupBy('product_id')
@@ -79,10 +92,7 @@ class HomeController extends Controller
         $ProductPost = ShopProductPost::all();
 
         $settings = ShopSetting::all()->keyBy('key');
-        $bannerPosts = ShopPost::whereNotNull('post_image')
-            ->orderByDesc('created_at')
-            ->take(5)
-            ->get(['id', 'post_title', 'post_image', 'post_slug']);
+
 
         $watch = ShopProduct::with(['category', 'supplier'])
             ->whereHas('category', function ($query) {
@@ -113,11 +123,10 @@ class HomeController extends Controller
                 'categories',
                 'suppliers',
                 'products',
-                'specialCategories',
+                'heroCategories',
                 'newProducts',
                 'bestSellers',
                 'settings',
-                'bannerPosts',
                 'featuredProducts',
                 'category',
                 'watch',

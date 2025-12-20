@@ -243,11 +243,11 @@
                         </div>
                     </li>
                 @else
-                    <li class="nav-item">
+                    {{-- <li class="nav-item">
                         <a href="{{ route('frontend.login.index') }}" class="nav-link">
                             <i class="ti-user"></i> Đăng nhập
                         </a>
-                    </li>
+                    </li> --}}
                     <li class="nav-item">
                         <a href="{{ route('frontend.register.register') }}" class="nav-link">
                             <i class="ti-pencil-alt"></i> Đăng ký
@@ -260,9 +260,9 @@
 </nav>
 
 <style>
-    .nav-right {
-        padding-right: 15px;
-    }
+    /* .nav-right {
+        padding-right: 45px;
+    } */
 
     /* ================= GLOBAL NAV LINK ================= */
 
@@ -274,11 +274,11 @@
     }
 
     .luxury-nav .nav-link:hover {
-        color: #0018f3;
+        color: #0f3c91;
     }
 
     .luxury-nav .nav-item.active .nav-link {
-        color: #0018f3;
+        color: #0f3c91;
         font-weight: 600;
     }
 
@@ -290,14 +290,14 @@
         letter-spacing: 2px;
         text-transform: uppercase;
         color: #111;
-        padding-left: 15px;
+        padding-left: 45px;
         text-decoration: none;
     }
 
     .luxury-logo span {
         font-family: 'Montserrat', sans-serif;
         font-weight: 300;
-        color: #0018f3;
+        color: #0f3c91;
     }
 
     .luxury-logo:hover {
@@ -329,7 +329,7 @@
 
     /* ===== LUXURY SEARCH ===== */
     .luxury-search {
-        margin-right: 48px;
+        margin-right: 20px;
     }
 
     /* Box */
@@ -483,7 +483,7 @@
         height: 18px;
         padding: 0 4px;
 
-        background: #0018f3;
+        background: #0f3c91;
         color: #fff;
 
         font-size: 11px;

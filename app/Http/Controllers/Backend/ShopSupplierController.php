@@ -106,6 +106,9 @@ class ShopSupplierController extends Controller
         $post->supplier_text = $request->supplier_text;
         $post->description = $request->description;
 
+        if ($request->filled('image_url')) {
+            $post->image = $request->image_url;
+        }
         if ($request->hasFile('image')) {
             if ($post->image && Storage::disk('public')->exists('/uploads/suppliers/logo/' . $post->image)) {
                 Storage::disk('public')->delete('/uploads/suppliers/logo/' . $post->image);
