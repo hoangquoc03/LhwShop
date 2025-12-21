@@ -73,9 +73,8 @@ class HomeController extends Controller
             ->with('discount', 'category')
             ->get(['id', 'product_name', 'image', 'short_description', 'is_featured', 'is_new', 'standard_cost', 'list_price']);
 
-        $heroCategories = ShopCategory::latest()
-            ->take(3)
-            ->get(['id', 'categories_text', 'image']);
+        $heroCategories = ShopCategory::all();
+        $ImageCategories = ShopSupplier::get(['image', 'supplier_text']);
 
         $bestSellers = ShopOrderDetail::select('product_id', DB::raw('SUM(quantity) as total_sold'))
             ->groupBy('product_id')
@@ -101,10 +100,12 @@ class HomeController extends Controller
             ->get();
 
         $screen = ShopProduct::with(['category', 'supplier'])
+            ->withAvg('reviews', 'rating') // ⭐⭐⭐⭐⭐
             ->whereHas('category', function ($query) {
                 $query->where('categories_code', 'CPL');
             })
             ->get();
+
 
         $screenIpad = ShopProduct::with(['category', 'supplier'])
             ->whereHas('category', function ($query) {
@@ -122,6 +123,7 @@ class HomeController extends Controller
             compact(
                 'categories',
                 'suppliers',
+                'ImageCategories',
                 'products',
                 'heroCategories',
                 'newProducts',

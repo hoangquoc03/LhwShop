@@ -1,8 +1,18 @@
 @php
     $firstProduct = $newProducts->first();
 @endphp
-
 <section class="luxury-section reveal">
+    <div class="luxury-header reveal">
+        <div class="luxury-tag">LWshop giới thiệu</div>
+
+        <h1 class="luxury-section-title">
+            Bộ sưu tập thời trang Luxury mới nhất
+        </h1>
+
+        <p class="luxury-section-sub">
+            Tinh hoa thiết kế cao cấp – Khẳng định phong cách sang trọng
+        </p>
+    </div>
 
     <div class="luxury-container">
 
@@ -78,13 +88,14 @@
         @if ($firstProduct)
             <div class="luxury-content reveal-right">
 
-                <h2 class="luxury-title ">
+                <h2 class="luxury-title-product ">
                     {{ $firstProduct->product_name }}
                 </h2>
 
 
 
                 <p class="luxury-desc text-gray-600 leading-relaxed line-clamp-3">
+
                     {{ $firstProduct->short_description }}
                 </p>
                 {{-- Rating --}}
@@ -129,6 +140,32 @@
 </section>
 
 <style>
+    .luxury-header {
+        width: 100%;
+        position: relative;
+        z-index: 5;
+        /* cao hơn overlay */
+        margin-bottom: 80px;
+        padding-left: clamp(24px, 12vw, 200px);
+    }
+
+    .luxury-section-title {
+        font-size: 52px;
+        font-weight: 500;
+        margin-bottom: 16px;
+        letter-spacing: -0.5px;
+        color: #0a2540;
+
+        line-height: 1.15;
+    }
+
+    .luxury-section-sub {
+        font-size: 16px;
+        color: #666;
+        max-width: 640px;
+    }
+
+
     .luxury-star {
         color: #0f3c91;
         text-shadow: 0 1px 2px rgba(15, 60, 145, 0.25);
@@ -232,27 +269,21 @@
     }
 
 
-    .luxury-title {
-        font-size: 44px;
-        font-weight: 500;
-        margin: 18px 0 24px;
-        letter-spacing: -0.3px;
-        line-height: 1.15;
-        transition-delay: 0.4s;
+    .luxury-title-product {
+        color: #0a2540;
+        /* fallback */
         background: linear-gradient(120deg,
                 #0a2540 0%,
                 #0f3c91 35%,
                 #1e6bff 55%,
                 #6aa7ff 100%);
-
         background-size: 200% 200%;
         animation: luxuryGradient 6s ease infinite;
 
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-
-        position: relative;
     }
+
 
     /* underline mảnh, rất sang */
     .luxury-title::after {
@@ -724,7 +755,6 @@
     updateContent(0);
     updateBackground(0);
 </script>
-
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         const reveals = document.querySelectorAll(

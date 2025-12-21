@@ -11,6 +11,7 @@ use App\Http\Requests\ShopProductImgDestroyRequest;
 use App\Http\Requests\StoreProductImgIndexRequest;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+
 class ShopProductImgController extends Controller
 {
     /**
@@ -30,7 +31,7 @@ class ShopProductImgController extends Controller
             });
         }
 
-        $dsProductImg = $query->paginate(5);
+        $dsProductImg = $query->paginate(100);
 
         return view('backend.product_img.index')
             ->with('dsShopProducts', $dsShopProducts)
@@ -53,20 +54,20 @@ class ShopProductImgController extends Controller
     public function store(StoreProductImgIndexRequest $request)
     {
 
-    if ($request->hasFile('image')) {
-        foreach ($request->file('image') as $file) {
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('uploads/products/img', $filename, 'public');
+        if ($request->hasFile('image')) {
+            foreach ($request->file('image') as $file) {
+                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->storeAs('uploads/products/img', $filename, 'public');
 
-            ShopProductImage::create([
-                'product_id' => $request->product_id,
-                'image' => $filename,
-            ]);
+                ShopProductImage::create([
+                    'product_id' => $request->product_id,
+                    'image' => $filename,
+                ]);
+            }
         }
-    }
-    toastify()->success('Thêm hình ảnh sản phẩm thành công');
-    return redirect()->route('backend.ProductImg.index')
-    ->with('success', 'Cập nhật ảnh thành công');
+        toastify()->success('Thêm hình ảnh sản phẩm thành công');
+        return redirect()->route('backend.ProductImg.index')
+            ->with('success', 'Cập nhật ảnh thành công');
     }
 
     /**
@@ -110,7 +111,7 @@ class ShopProductImgController extends Controller
         $product->save();
         toastify()->success('Cập nhập thành công');
         return redirect()->route('backend.ProductImg.index')
-                        ->with('success', 'Cập nhật ảnh thành công');
+            ->with('success', 'Cập nhật ảnh thành công');
     }
 
 
@@ -133,7 +134,7 @@ class ShopProductImgController extends Controller
     public function batchDelete(Request $request)
     {
         $listSelectedIds = $request->listSelectedIds;
-        foreach($listSelectedIds as $id){
+        foreach ($listSelectedIds as $id) {
             $product = ShopProductImage::find($id);
             if ($product !== null) {
                 $filePath = 'uploads/products/img/' . $product->image;
@@ -144,9 +145,9 @@ class ShopProductImgController extends Controller
             }
         }
         return response()->json([
-            'status' =>'success',
+            'status' => 'success',
             'message' => 'Xóa các hình ảnh thành công',
-            'list_deleted_ids'=>$listSelectedIds
+            'list_deleted_ids' => $listSelectedIds
         ]);
     }
 }
