@@ -7,6 +7,7 @@ use App\Models\ShopCategory;
 use Illuminate\Http\Request;
 use App\Models\ShopProduct;
 use App\Models\ShopOrder;
+use App\Models\ShopCart;
 use App\Models\ShopOrderDetail;
 use App\Models\ShopPaymentType;
 use Illuminate\Support\Facades\DB;
@@ -20,15 +21,12 @@ use App\Models\ShopVoucher;
 
 class CartController extends Controller
 {
-     public function add(Request $request)
+    public function add(Request $request)
     {
         $product = ShopProduct::findOrFail($request->product_id);
 
+        // ===== SESSION CART =====
         $cart = session()->get('cart', []);
-
-        $imageUrl = $product->image 
-            ? asset('storage/uploads/products/' . basename($product->image)) 
-            : 'https://via.placeholder.com/100';
 
         if (isset($cart[$product->id])) {
             $cart[$product->id]['quantity']++;
@@ -36,45 +34,49 @@ class CartController extends Controller
             $cart[$product->id] = [
                 'name' => $product->product_name,
                 'price' => $product->list_price,
-                'image' => $imageUrl,
                 'quantity' => 1,
             ];
         }
 
         session()->put('cart', $cart);
 
-        $total = collect($cart)->sum(fn($item) => $item['price'] * $item['quantity']);
+        // ===== DB CART =====
+        if (Auth::check()) {
+            $cartDb = ShopCart::firstOrNew([
+                'customer_id' => Auth::id(),
+                'product_id' => $product->id,
+            ]);
+
+            $cartDb->quantity = ($cartDb->quantity ?? 0) + 1;
+            $cartDb->save();
+        }
 
         return response()->json([
             'success' => true,
             'cart_count' => collect($cart)->sum('quantity'),
-            'total' => number_format($total, 0, ',', '.') . '₫',
-            'product' => [
-                'id' => $product->id,
-                'name' => $product->product_name,
-                'image' => $imageUrl,
-                'price' => number_format($product->list_price, 0, ',', '.') . '₫',
-                'quantity' => $cart[$product->id]['quantity'],
-            ]
         ]);
-    }
-
-    public function remove($id)
-    {
-        $cart = session()->get('cart', []);
-        if(isset($cart[$id])){
-            unset($cart[$id]);
-            session()->put('cart', $cart);
-        }
-        return redirect()->back()->with('success', 'Đã xóa sản phẩm khỏi giỏ hàng!');
     }
 
     public function index()
     {
         $cart = session()->get('cart', []);
-        $categories = ShopCategory::all();
-        $total = collect($cart)->sum(fn($item) => $item['price'] * $item['quantity']);
-        return view('frontend.cart.index', compact('cart', 'total', 'categories'));
+        $total = collect($cart)->sum(fn($i) => $i['price'] * $i['quantity']);
+        return view('frontend.cart.index', compact('cart', 'total'));
+    }
+
+    public function remove($id)
+    {
+        $cart = session()->get('cart', []);
+        unset($cart[$id]);
+        session()->put('cart', $cart);
+
+        if (Auth::check()) {
+            ShopCart::where('customer_id', Auth::id())
+                ->where('product_id', $id)
+                ->delete();
+        }
+
+        return back();
     }
     public function update(Request $request, $id)
     {
@@ -110,7 +112,7 @@ class CartController extends Controller
             // ID khách hàng đang login
 
             $customerId = Auth::guard('customer')->id();
-             // hoặc $request->customer_id
+            // hoặc $request->customer_id
             $employeeId = null; // nếu nhân viên tạo đơn thì gán
             $paymentTypeId = $request->payment_type_id;
 
@@ -150,10 +152,10 @@ class CartController extends Controller
             session()->forget('cart');
 
             return redirect()->route('orders.success', $order->id)
-                            ->with('success', 'Đặt hàng thành công!');
+                ->with('success', 'Đặt hàng thành công!');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->route('cart.index')->with('error', 'Có lỗi xảy ra: '.$e->getMessage());
+            return redirect()->route('cart.index')->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
         }
     }
     // Hiển thị form nhập thông tin đặt hàng
@@ -185,7 +187,7 @@ class CartController extends Controller
         }
 
         // Voucher của khách hàng (nhiều)
-        $vouchers = ShopVoucher::whereHas('customers', function($q) use ($customer) {
+        $vouchers = ShopVoucher::whereHas('customers', function ($q) use ($customer) {
             $q->where('customer_id', $customer->id);
         })->get();
 
@@ -276,7 +278,6 @@ class CartController extends Controller
 
             // 👉 Chuyển sang trang thành công và truyền $order->id
             return redirect()->route('orders.success', ['id' => $order->id]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
@@ -287,16 +288,16 @@ class CartController extends Controller
     {
         // Load đầy đủ order + chi tiết sản phẩm
         $order = ShopOrder::with('details.product', 'payment_type', 'customer')
-                  ->findOrFail($id);
+            ->findOrFail($id);
 
         $categories = \App\Models\ShopCategory::all();
         $customer = Auth::guard('customer')->user();
         $recentOrders = ShopOrder::with('details')
-        ->where('customer_id', Auth::guard('customer')->id())
-        ->where('id', '!=', $id)
-        ->orderBy('created_at', 'desc')
-        ->take(5)
-        ->get();
+            ->where('customer_id', Auth::guard('customer')->id())
+            ->where('id', '!=', $id)
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get();
 
         return view('frontend.orders.success', compact('order', 'categories', 'recentOrders', 'customer'));
     }
@@ -321,7 +322,7 @@ class CartController extends Controller
             ->where('customer_id', Auth::guard('customer')->id())
             ->firstOrFail();
         $categories = ShopCategory::all();
-        $paymentTypes =ShopPaymentType::all();
+        $paymentTypes = ShopPaymentType::all();
         // Hiển thị view thanh toán
         return view('frontend.orders.payment', compact('order', 'categories', 'paymentTypes'));
     }

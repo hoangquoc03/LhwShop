@@ -36,7 +36,8 @@ class ShopCustomer extends Authenticatable
     ];
 
     protected $hidden = [
-        'password', 'remember_token'
+        'password',
+        'remember_token'
     ];
 
     protected $dates = [
@@ -50,16 +51,16 @@ class ShopCustomer extends Authenticatable
     // Quan hệ
     public function orders()
     {
-        return $this->hasMany(ShopOrder::class, 'customer_id','id');
+        return $this->hasMany(ShopOrder::class, 'customer_id', 'id');
     }
 
     public function reviews()
     {
-        return $this->hasMany(ShopProductReview::class, 'customer_id','id');
+        return $this->hasMany(ShopProductReview::class, 'customer_id', 'id');
     }
     public function carts()
     {
-        return $this->hasMany(ShopCart::class, 'customer_id','id');
+        return $this->hasMany(ShopCart::class, 'customer_id', 'id');
     }
 
     public function vouchers()
@@ -90,5 +91,4 @@ class ShopCustomer extends Authenticatable
     {
         return trim($this->first_name . ' ' . $this->last_name);
     }
-    
 }

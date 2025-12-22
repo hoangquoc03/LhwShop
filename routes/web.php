@@ -50,14 +50,15 @@ use App\Http\Controllers\Frontend\ChatController;
 use App\Http\Controllers\AIChatController;
 use App\Http\Controllers\SalesAIController;
 //                    errors
-Route::get('/errors/403',[
-    ErrorController::class,'page403'
+Route::get('/errors/403', [
+    ErrorController::class,
+    'page403'
 ])->name('errors.403');
 
 //  Seller Chat 
 Route::post('/chat/ai', [SalesAIController::class, 'chat'])
     ->name('chat.ai');
-    
+
 Route::get('/chat/categories', [SalesAIController::class, 'categories'])
     ->name('chat.categories');
 
@@ -77,16 +78,23 @@ Route::get('/chat/categories', [SalesAIController::class, 'categories'])
 
 
 //                     Frontend
-Route::get('/',[
-    HomeController::class,'index'
+Route::get('/', [
+    HomeController::class,
+    'index'
 ])->name('frontend.home.index');
 //                   LoginHomeController
 Route::get('/login-lhwshop', [
-    LoginHomeController::class, 'index'
+    LoginHomeController::class,
+    'index'
 ])->name('frontend.login.index');
 Route::post('/login-home', [
-    LoginHomeController::class, 'login'
+    LoginHomeController::class,
+    'login'
 ])->name('frontend.login.post');
+
+Route::get('/login/facebook', [LoginHomeController::class, 'redirectToFacebook'])->name('login.facebook');
+Route::get('/login/facebook/callback', [LoginHomeController::class, 'handleFacebookCallback']);
+
 //            products
 
 
@@ -104,13 +112,13 @@ Route::get('/products/load-more', [ProductController::class, 'loadMore'])->name(
 Route::post('/favorites/add', [FavoriteController::class, 'add'])->name('favorites.add');
 Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites.index');
 Route::post('/favorites/remove', [FavoriteController::class, 'remove'])->name('favorites.remove');
-Route::post('/logout-home', [LoginHomeController::class, 'logout'])->name('home.logout');
+Route::post('/logout-home', [LoginHomeController::class, 'logout'])->name('frontend.logout');
+
 //                   CartController
-Route::middleware('web')->group(function () {
-    Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
-    Route::post('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.remove');
-    Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-});
+Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
+Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+Route::delete('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.remove');
+
 Route::get('/get-districts/{city_id}', [CartController::class, 'getDistricts']);
 Route::get('/get-wards/{district_id}', [CartController::class, 'getWards']);
 
@@ -122,7 +130,7 @@ Route::middleware('auth:customer')->group(function () {
 Route::get('/checkout', [CartController::class, 'create'])
     ->name('orders.create')
     ->middleware('auth:customer');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+
 Route::post('/checkout/store', [CartController::class, 'store'])
     ->middleware(['web', 'auth:customer'])
     ->name('orders.store');
@@ -168,167 +176,208 @@ Route::middleware('auth:customer')->group(function () {
 //                Route register
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 
-Route::get('/register',[
-    RegisterController::class,'index'
+Route::get('/register', [
+    RegisterController::class,
+    'index'
 ])->name('auth.register.index');
 
-Route::post('/register',[
-    RegisterController::class,'register'
+Route::post('/register', [
+    RegisterController::class,
+    'register'
 ])->name('auth.register.register');
 
-Route::get('/register-success',[
-    RegisterController::class,'registerSuccess'
+Route::get('/register-success', [
+    RegisterController::class,
+    'registerSuccess'
 ])->name('auth.register.register-success');
 
-Route::get('/active-user',[
-    RegisterController::class,'activeUser'
+Route::get('/active-user', [
+    RegisterController::class,
+    'activeUser'
 ])->name('auth.register.active-user');
 
 //                   Route cấu hình
-Route::get('/backend/cau-hinh',[
-    ShopSettingController::class,'index'
+Route::get('/backend/cau-hinh', [
+    ShopSettingController::class,
+    'index'
 ])->name('backend.shop_setting.index');
 
-Route::put('/backend/cau-hinh/{id}',[
-    ShopSettingController::class,'update'
+Route::put('/backend/cau-hinh/{id}', [
+    ShopSettingController::class,
+    'update'
 ])->name('backend.shop_setting.update');
 
-Route::delete('/backend/cau-hinh/{id}',[
-    ShopSettingController::class,'destroy'
+Route::delete('/backend/cau-hinh/{id}', [
+    ShopSettingController::class,
+    'destroy'
 ])->name('backend.shop_setting.destroy');
 
-Route::post('/backend/cau-hinh/store',[
-    ShopSettingController::class,'store'
+Route::post('/backend/cau-hinh/store', [
+    ShopSettingController::class,
+    'store'
 ])->name('backend.shop_setting.store');
 
 //                       Route Post
-Route::get('/backend/post',[
-    ShopPostController::class,'index'
+Route::get('/backend/post', [
+    ShopPostController::class,
+    'index'
 ])->name('backend.post.index');
 
-Route::put('/backend/post/{id}',[
-    ShopPostController::class,'update'
+Route::put('/backend/post/{id}', [
+    ShopPostController::class,
+    'update'
 ])->name('backend.post.update');
 
-Route::delete('/backend/post/{id}',[
-    ShopPostController::class,'destroy'
+Route::delete('/backend/post/{id}', [
+    ShopPostController::class,
+    'destroy'
 ])->name('backend.post.destroy');
 
-Route::post('/backend/post/store',[
-    ShopPostController::class,'store'
+Route::post('/backend/post/store', [
+    ShopPostController::class,
+    'store'
 ])->name('backend.post.store');
 
 //                     cấp quyền cho vai trò
 Route::get('/api/v1/acl_role_has_permissions/getByRoleId/{role_id}', [
-    AclRoleHasPermissionController::class, 'getByRoleId'
+    AclRoleHasPermissionController::class,
+    'getByRoleId'
 ])->name('api.acl_role_has_permissions.getByRoleId');
 
 
-Route::get('/api/acl_role_has_permissions',[
-    AclRoleHasPermissionController::class,'index'
+Route::get('/api/acl_role_has_permissions', [
+    AclRoleHasPermissionController::class,
+    'index'
 ])->name('backend.acl_role_has_permissions.index');
 
 
-Route::post('/backend/RolePermission/store',[
-    AclRoleHasPermissionController::class,'store'
+Route::post('/backend/RolePermission/store', [
+    AclRoleHasPermissionController::class,
+    'store'
 ])->name('backend.acl_role_has_permissions.store');
 
 Route::delete('/backend/RolePermission/{id}', [
-    AclRoleHasPermissionController::class,'destroy'
+    AclRoleHasPermissionController::class,
+    'destroy'
 ])->name('backend.acl_role_has_permissions.destroy');
 
 //                           Product
-Route::get('/backend/Category',[
-    ShopCategoryController::class,'index'
+Route::get('/backend/Category', [
+    ShopCategoryController::class,
+    'index'
 ])->name('backend.Category.index');
 
-Route::put('/backend/Category/{id}',[
-    ShopCategoryController::class,'update'
+Route::put('/backend/Category/{id}', [
+    ShopCategoryController::class,
+    'update'
 ])->name('backend.Category.update');
 
-Route::delete('/backend/Category/{id}',[
-    ShopCategoryController::class,'destroy'
+Route::delete('/backend/Category/{id}', [
+    ShopCategoryController::class,
+    'destroy'
 ])->name('backend.Category.destroy');
 
-Route::post('/backend/Category/store',[
-    ShopCategoryController::class,'store'
+Route::post('/backend/Category/store', [
+    ShopCategoryController::class,
+    'store'
 ])->name('backend.Category.store');
 //                           Suppliers
-Route::get('/backend/Supplier',[
-    ShopSupplierController::class,'index'
+Route::get('/backend/Supplier', [
+    ShopSupplierController::class,
+    'index'
 ])->name('backend.Supplier.index');
 
-Route::put('/backend/Supplier/{id}',[
-    ShopSupplierController::class,'update'
+Route::put('/backend/Supplier/{id}', [
+    ShopSupplierController::class,
+    'update'
 ])->name('backend.Supplier.update');
 
-Route::delete('/backend/Supplier/{id}',[
-    ShopSupplierController::class,'destroy'
+Route::delete('/backend/Supplier/{id}', [
+    ShopSupplierController::class,
+    'destroy'
 ])->name('backend.Supplier.destroy');
 
-Route::post('/backend/Supplier/store',[
-    ShopSupplierController::class,'store'
+Route::post('/backend/Supplier/store', [
+    ShopSupplierController::class,
+    'store'
 ])->name('backend.Supplier.store');
 
 //                           Products
-Route::get('/backend/Product',[
-    ShopProductController::class,'index'
+Route::get('/backend/Product', [
+    ShopProductController::class,
+    'index'
 ])->name('backend.Product.index');
 
-Route::put('/backend/Product/{id}',[
-    ShopProductController::class,'update'
+Route::put('/backend/Product/{id}', [
+    ShopProductController::class,
+    'update'
 ])->name('backend.Product.update');
 
-Route::delete('/backend/Product/{id}',[
-    ShopProductController::class,'destroy'
+Route::delete('/backend/Product/{id}', [
+    ShopProductController::class,
+    'destroy'
 ])->name('backend.Product.destroy');
 
-Route::post('/backend/Product/store',[
-    ShopProductController::class,'store'
+Route::post('/backend/Product/store', [
+    ShopProductController::class,
+    'store'
 ])->name('backend.Product.store');
 
 //                product img
-Route::get('/backend/ProductImg',[
-    ShopProductImgController::class,'index'
+Route::get('/backend/ProductImg', [
+    ShopProductImgController::class,
+    'index'
 ])->name('backend.ProductImg.index');
 
-Route::put('/backend/ProductImg/{id}',[
-    ShopProductImgController::class,'update'
+Route::put('/backend/ProductImg/{id}', [
+    ShopProductImgController::class,
+    'update'
 ])->name('backend.ProductImg.update');
 
-Route::delete('/backend/ProductImg/{id}',[
-    ShopProductImgController::class,'destroy'
+Route::delete('/backend/ProductImg/{id}', [
+    ShopProductImgController::class,
+    'destroy'
 ])->name('backend.ProductImg.destroy');
 
 
-Route::post('/product-images/batch-delete', [
-    ShopProductImgController::class, 'batchDelete']
-    )->name('backend.ProductImg.batchDelete');
+Route::post(
+    '/product-images/batch-delete',
+    [
+        ShopProductImgController::class,
+        'batchDelete'
+    ]
+)->name('backend.ProductImg.batchDelete');
 
-Route::post('/backend/ProductImg/store',[
-    ShopProductImgController::class,'store'
+Route::post('/backend/ProductImg/store', [
+    ShopProductImgController::class,
+    'store'
 ])->name('backend.ProductImg.store');
 
 
 //                product Discount
-Route::get('/backend/ProductDiscount',[
-    ShopProductDiscountController::class,'index'
+Route::get('/backend/ProductDiscount', [
+    ShopProductDiscountController::class,
+    'index'
 ])->name('backend.ProductDiscount.index');
 
-Route::put('/backend/ProductDiscount/{id}',[
-    ShopProductDiscountController::class,'update'
+Route::put('/backend/ProductDiscount/{id}', [
+    ShopProductDiscountController::class,
+    'update'
 ])->name('backend.ProductDiscount.update');
 
-Route::delete('/backend/ProductDiscount/{id}',[
-    ShopProductDiscountController::class,'destroy'
+Route::delete('/backend/ProductDiscount/{id}', [
+    ShopProductDiscountController::class,
+    'destroy'
 ])->name('backend.ProductDiscount.destroy');
 
 Route::post('/product-discount-images/batch-delete', [
-    ShopProductDiscountController::class, 'batchDelete'
+    ShopProductDiscountController::class,
+    'batchDelete'
 ])->name('backend.ProductDiscount.batchDelete');
 
-Route::post('/backend/ProductDiscount/store',[
-    ShopProductDiscountController::class,'store'
+Route::post('/backend/ProductDiscount/store', [
+    ShopProductDiscountController::class,
+    'store'
 ])->name('backend.ProductDiscount.store');
 
 //                product Voucher

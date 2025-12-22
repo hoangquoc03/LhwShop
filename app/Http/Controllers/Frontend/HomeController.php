@@ -100,7 +100,7 @@ class HomeController extends Controller
             ->get();
 
         $screen = ShopProduct::with(['category', 'supplier'])
-            ->withAvg('reviews', 'rating') // ⭐⭐⭐⭐⭐
+            ->withAvg('reviews', 'rating')
             ->whereHas('category', function ($query) {
                 $query->where('categories_code', 'CPL');
             })

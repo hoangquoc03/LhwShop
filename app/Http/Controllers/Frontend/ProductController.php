@@ -260,31 +260,29 @@ class ProductController extends Controller
     {
         $product = ShopProduct::with([
             'images',
-            'reviews.customer', // Đảm bảo load user để hiển thị tên người đánh giá
+            'reviews.customer',
             'discounts',
-            'variants', // Load discounts cho từng variant
+            'variants',
             'category'
         ])->findOrFail($id);
 
-        // Rating trung bình
+        /* ================== RATING ================== */
         $reviewsCount = $product->reviews->count();
         $avgRating = $reviewsCount ? $product->reviews->avg('rating') : 0;
 
-        // --- Xử lý giá cho sản phẩm chính ---
-        $listPrice = (float) $product->list_price; // Giá gốc sản phẩm chính
-        $discountedPrice = $listPrice; // Giá sau giảm giá mặc định là giá gốc
+        /* ================== GIÁ & GIẢM GIÁ (SP CHÍNH) ================== */
+        $listPrice = (float) $product->list_price;
+        $discountedPrice = $listPrice;
         $percentOff = 0;
         $hasDiscount = false;
-        $originalProductDiscount = null; // Biến để lưu thông tin discount của sản phẩm chính
 
-        // Lấy discount đang áp dụng cho sản phẩm chính
         $discount = $product->discounts()
             ->where('start_date', '<=', now())
             ->where(function ($q) {
                 $q->whereNull('end_date')
                     ->orWhere('end_date', '>=', now());
             })
-            ->orderByDesc('id') // Lấy discount mới nhất hoặc ưu tiên cao nhất
+            ->orderByDesc('id')
             ->first();
 
         if ($discount && $listPrice > 0) {
@@ -292,69 +290,67 @@ class ProductController extends Controller
             $isPercent = (int) ($discount->is_fixed ?? 0);
 
             if ($isPercent === 0 && $discountAmount > 0) {
-                // Giảm theo %
+                // giảm theo %
                 $percentOff = min(100, round($discountAmount));
                 $discountedPrice = max(0, $listPrice * (1 - $discountAmount / 100));
             } elseif ($isPercent === 1 && $discountAmount > 0) {
-                // Giảm theo số tiền cố định
+                // giảm theo số tiền
                 $discountedPrice = max(0, $listPrice - $discountAmount);
                 $percentOff = min(100, round(($discountAmount / $listPrice) * 100));
             }
 
             $hasDiscount = $discountedPrice < $listPrice;
-            $originalProductDiscount = $discount; // Lưu thông tin discount của sản phẩm chính
         }
 
-        // --- Xử lý giá cho từng Variant (để truyền vào Blade data-attributes) ---
-        // Chúng ta sẽ tính toán giá cho mỗi variant ở đây để truyền vào data-attributes
-        // của các option trong select box.
+        /* ================== GIÁ VARIANT ================== */
         foreach ($product->variants as $variant) {
-            $variant->calculated_list_price = (float) $variant->price; // Giá gốc của variant
+            $variant->calculated_list_price = (float) $variant->price;
             $variant->calculated_discounted_price = $variant->calculated_list_price;
             $variant->calculated_percent_off = 0;
             $variant->has_discount = false;
-
-
 
             if ($discount && $variant->calculated_list_price > 0) {
                 $discountAmount = (float) ($discount->discount_amount ?? 0);
                 $isPercent = (int) ($discount->is_fixed ?? 0);
 
                 if ($isPercent === 0 && $discountAmount > 0) {
-                    // Giảm theo %
                     $variant->calculated_percent_off = min(100, round($discountAmount));
-                    $variant->calculated_discounted_price = max(
-                        0,
-                        $variant->calculated_list_price * (1 - $discountAmount / 100)
-                    );
+                    $variant->calculated_discounted_price =
+                        $variant->calculated_list_price * (1 - $discountAmount / 100);
                 } elseif ($isPercent === 1 && $discountAmount > 0) {
-                    // Giảm theo số tiền cố định
-                    $variant->calculated_discounted_price = max(
-                        0,
-                        $variant->calculated_list_price - $discountAmount
-                    );
-                    $variant->calculated_percent_off = min(
-                        100,
-                        round(($discountAmount / $variant->calculated_list_price) * 100)
-                    );
+                    $variant->calculated_discounted_price =
+                        $variant->calculated_list_price - $discountAmount;
+                    $variant->calculated_percent_off =
+                        round(($discountAmount / $variant->calculated_list_price) * 100);
                 }
 
-                $variant->has_discount = $variant->calculated_discounted_price < $variant->calculated_list_price;
+                $variant->has_discount =
+                    $variant->calculated_discounted_price < $variant->calculated_list_price;
             }
         }
 
+        /* ================== SẢN PHẨM LIÊN QUAN ================== */
+        $relatedProducts = collect();
+
+        if ($product->category_id) {
+            $relatedProducts = ShopProduct::where('category_id', $product->category_id)
+                ->where('id', '!=', $product->id)
+                ->latest()
+                ->get();
+        }
 
         $categories = ShopCategory::all();
 
         return view('frontend.product.show', compact(
             'product',
-            'reviewsCount', // Sửa từ 'rating' sang 'reviewsCount'
-            'avgRating',    // Thêm avgRating
+            'reviewsCount',
+            'avgRating',
             'categories',
-            'discountedPrice', // Giá sau giảm của sản phẩm chính
-            'listPrice',       // Giá gốc của sản phẩm chính
-            'hasDiscount',     // Sản phẩm chính có giảm giá không
-            'percentOff'       // Phần trăm giảm giá của sản phẩm chính
+            'listPrice',
+            'discountedPrice',
+            'hasDiscount',
+            'percentOff',
+            'relatedProducts'
         ));
     }
 }

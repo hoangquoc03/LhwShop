@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\CustomUserProvider;
 use App\Models\AclUser;
 use App\Models\AclPermission;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,28 +26,31 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-         $this->app->auth->provider('custom', function ($app, array $config) {
-             new CustomUserProvider($app['hash'], $config['model']);
+        if (app()->environment('local')) {
+            URL::forceScheme('https');
+        }
+        $this->app->auth->provider('custom', function ($app, array $config) {
+            new CustomUserProvider($app['hash'], $config['model']);
         });
 
-        Gate::define('shop_posts::view', function(AclUser $user){
-            return hasPermission($user,'shop_posts::view');
+        Gate::define('shop_posts::view', function (AclUser $user) {
+            return hasPermission($user, 'shop_posts::view');
         });
 
-        Gate::define('shop_posts::create', function(AclUser $user){
-            return hasPermission($user,'shop_posts::create');
+        Gate::define('shop_posts::create', function (AclUser $user) {
+            return hasPermission($user, 'shop_posts::create');
         });
 
-        Gate::define('shop_posts::update', function(AclUser $user){
-            return hasPermission($user,'shop_posts::update');
+        Gate::define('shop_posts::update', function (AclUser $user) {
+            return hasPermission($user, 'shop_posts::update');
         });
 
-        Gate::define('shop_posts::delete', function(AclUser $user){
-            return hasPermission($user,'shop_posts::delete');
+        Gate::define('shop_posts::delete', function (AclUser $user) {
+            return hasPermission($user, 'shop_posts::delete');
         });
 
-        Gate::define('shop_categories::view', function(AclUser $user){
-            return hasPermission($user,'shop_categories::view');
+        Gate::define('shop_categories::view', function (AclUser $user) {
+            return hasPermission($user, 'shop_categories::view');
         });
 
         // ✅ Thêm kiểm tra trước khi truy vấn

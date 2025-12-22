@@ -141,16 +141,18 @@
                 <li class="nav-item dropdown mr-3">
                     <button class="btn btn-light position-relative dropdown-toggle" data-toggle="dropdown">
                         <i class="ti-shopping-cart"></i>
-                        @php
-                            $cartCount = collect(session('cart', []))->sum('quantity');
-                        @endphp
 
-                        @if ($cartCount > 0)
-                            <span class="nav-shop__circle">
+                        @auth
+                            @php
+                                $cartCount = collect(session('cart', []))->sum('quantity');
+                            @endphp
+
+                            <span class="nav-shop__circle cart-count" style="{{ $cartCount > 0 ? '' : 'display:none' }}">
                                 {{ $cartCount }}
                             </span>
-                        @endif
+                        @endauth
                     </button>
+
                 </li>
                 @if (Auth::guard('customer')->check())
                     <li class="nav-item dropdown">
@@ -161,16 +163,19 @@
 
                             {{-- Hồ sơ và đăng xuất --}}
                             <div class="mb-3 d-flex justify-content-between align-items-center">
-                                <a href="" class="btn btn-sm btn-primary">Hồ sơ</a>
-                                <a href="" class="btn btn-sm btn-danger"
+                                <a href="#" class="btn btn-sm btn-primary">Hồ sơ</a>
+
+                                <a href="#" class="btn btn-sm btn-danger"
                                     onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                                     Đăng xuất
                                 </a>
-                                <form id="logout-form" action="{{ route('frontend.login.index') }}" method="POST"
+
+                                <form id="logout-form" action="{{ route('frontend.logout') }}" method="POST"
                                     style="display: none;">
                                     @csrf
                                 </form>
                             </div>
+
 
                             {{-- Tabs thông báo --}}
                             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -243,14 +248,9 @@
                         </div>
                     </li>
                 @else
-                    {{-- <li class="nav-item">
-                        <a href="{{ route('frontend.login.index') }}" class="nav-link">
-                            <i class="ti-user"></i> Đăng nhập
-                        </a>
-                    </li> --}}
                     <li class="nav-item">
-                        <a href="{{ route('frontend.register.register') }}" class="nav-link">
-                            <i class="ti-pencil-alt"></i> Đăng ký
+                        <a href="{{ route('frontend.login.index') }}" class="nav-link">
+                            <i class="ti-pencil-alt"></i> Đăng nhập
                         </a>
                     </li>
                 @endif

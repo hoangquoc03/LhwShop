@@ -1230,7 +1230,7 @@
             effect: "fade",
         });
     </script>
-
+    {{-- 
     <script>
         $(document).ready(function() {
 
@@ -1419,5 +1419,5 @@
                 });
             });
         });
-    </script>
+    </script> --}}
 @endsection

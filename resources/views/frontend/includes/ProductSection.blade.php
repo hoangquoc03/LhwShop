@@ -154,12 +154,22 @@
                         <ul
                             class="card-product__imgOverlay list-unstyled d-flex justify-content-center gap-2 position-absolute top-50 start-50 translate-middle opacity-0 transition-icons">
                             <li>
-                                <a href="/product/{{ $product->id }}">
-                                    <button class="btn btn-light rounded-circle shadow-sm">
-                                        <i class="ti-search"></i>
-                                    </button>
-                                </a>
+                                @if (!Auth::guard('customer')->check())
+                                    <a href="{{ route('frontend.register.register') }}">
+                                        <button class="btn btn-light rounded-circle shadow-sm">
+                                            <i class="ti-search"></i>
+                                        </button>
+                                    </a>
+                                @else
+                                    <a href="/product/{{ $product->id }}">
+                                        <button class="btn btn-light rounded-circle shadow-sm">
+                                            <i class="ti-search"></i>
+                                        </button>
+                                    </a>
+                                @endif
+
                             </li>
+
 
 
                             <li>
@@ -218,7 +228,7 @@
         </div>
     </div>
 </section>
-
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     function scrollProducts(direction) {
         const container = document.querySelector('.featured-products-wrapper');
@@ -238,4 +248,41 @@
             behavior: 'smooth'
         });
     }
+</script>
+
+<script>
+    $(document).ready(function() {
+
+        $(document).on('click', '.add-to-cart', function(e) {
+            e.preventDefault();
+
+            let productId = $(this).data('id');
+
+            $.ajax({
+                url: "{{ route('cart.add') }}",
+                type: "POST",
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    product_id: productId
+                },
+                success: function(res) {
+                    if (res.success) {
+                        $('.cart-count').text(res.cart_count).show();
+
+                        Toastify({
+                            text: "Thêm sản phẩm thành công",
+                            duration: 3000,
+                            gravity: "top",
+                            position: "right",
+                            backgroundColor: "#28a745",
+                        }).showToast();
+                    }
+                }, // ✅ DẤU PHẨY QUAN TRỌNG
+                error: function(xhr) {
+                    console.log(xhr.responseText);
+                }
+            });
+        });
+
+    });
 </script>
