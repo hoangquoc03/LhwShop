@@ -118,9 +118,11 @@ Route::post('/logout-home', [LoginHomeController::class, 'logout'])->name('front
 Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::delete('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.remove');
+Route::patch('/cart/update/{id}', [CartController::class, 'update'])->name('cart.update');
 
 Route::get('/get-districts/{city_id}', [CartController::class, 'getDistricts']);
 Route::get('/get-wards/{district_id}', [CartController::class, 'getWards']);
+Route::get('/get-wards/{city_id}', [CartController::class, 'getWards']);
 
 Route::middleware('auth:customer')->group(function () {
     Route::post('/cart/checkout', [CartController::class, 'checkout'])->name('cart.checkout');

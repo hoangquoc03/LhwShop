@@ -8,8 +8,12 @@ use Illuminate\Support\Facades\Gate;
 use App\Http\Controllers\Auth\CustomUserProvider;
 use App\Models\AclUser;
 use App\Models\AclPermission;
+use App\Models\ShopCategory;
+use Illuminate\Contracts\View\View as ContractsView;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
+
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +30,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        View::composer('frontend.includes.nav', function ($view) {
+            $categories = ShopCategory::all();
+            $view->with('categories', $categories);
+        });
+
         if (app()->environment('local')) {
             URL::forceScheme('https');
         }

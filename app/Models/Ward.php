@@ -6,10 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class Ward extends Model
 {
-     protected $fillable = ['name', 'district_id'];
+    protected $fillable = ['name', 'city_id'];
 
-    public function district()
+    public function city()
     {
-        return $this->belongsTo(District::class);
+        return $this->belongsTo(City::class);
     }
 }

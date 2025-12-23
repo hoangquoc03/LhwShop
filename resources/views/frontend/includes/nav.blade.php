@@ -138,22 +138,31 @@
                     </button>
                 </li>
 
-                <li class="nav-item dropdown mr-3">
-                    <button class="btn btn-light position-relative dropdown-toggle" data-toggle="dropdown">
+                <li class="nav-item mr-3">
+                    <a href="{{ route('cart.index') }}" class="btn btn-light position-relative">
                         <i class="ti-shopping-cart"></i>
 
-                        @auth
-                            @php
+
+
+                        @php
+                            if (Auth::guard('customer')->check()) {
+                                $cartCount = \App\Models\ShopCart::where(
+                                    'customer_id',
+                                    Auth::guard('customer')->id(),
+                                )->sum('quantity');
+                            } else {
                                 $cartCount = collect(session('cart', []))->sum('quantity');
-                            @endphp
+                            }
+                        @endphp
 
-                            <span class="nav-shop__circle cart-count" style="{{ $cartCount > 0 ? '' : 'display:none' }}">
-                                {{ $cartCount }}
-                            </span>
-                        @endauth
-                    </button>
+                        <span class="nav-shop__circle cart-count" style="{{ $cartCount > 0 ? '' : 'display:none' }}">
+                            {{ $cartCount }}
+                        </span>
 
+                    </a>
                 </li>
+
+
                 @if (Auth::guard('customer')->check())
                     <li class="nav-item dropdown">
                         <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">
@@ -540,6 +549,20 @@
 </style>
 
 <script>
+    function updateCartCount(count) {
+        const cartBadge = document.querySelector('.cart-count');
+        if (!cartBadge) return;
+
+        if (count > 0) {
+            cartBadge.innerText = count;
+            cartBadge.style.display = 'inline-flex';
+        } else {
+            cartBadge.innerText = '';
+            cartBadge.style.display = 'none';
+        }
+    }
+
+
     window.addEventListener("scroll", function() {
         const navbar = document.querySelector(".transparent-navbar");
         if (window.scrollY > 50) {

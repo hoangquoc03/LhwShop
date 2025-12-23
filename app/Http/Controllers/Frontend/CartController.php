@@ -17,34 +17,46 @@ use App\Models\City;
 use App\Models\District;
 use App\Models\Ward;
 use App\Models\ShopVoucher;
-
+use Illuminate\Support\Str;
 
 class CartController extends Controller
 {
+
+
     public function add(Request $request)
     {
         $product = ShopProduct::findOrFail($request->product_id);
+
+        // ===== CHUẨN HÓA IMAGE (LUÔN LÀ URL) =====
+        $image = $product->image;
+        if (!Str::startsWith($image, ['http://', 'https://'])) {
+            $image = asset('storage/uploads/products/' . $image);
+        }
 
         // ===== SESSION CART =====
         $cart = session()->get('cart', []);
 
         if (isset($cart[$product->id])) {
-            $cart[$product->id]['quantity']++;
+            $cart[$product->id]['quantity'] += 1;
+
+            // đảm bảo image luôn đúng
+            $cart[$product->id]['image'] = $image;
         } else {
             $cart[$product->id] = [
-                'name' => $product->product_name,
-                'price' => $product->list_price,
+                'name'     => $product->product_name,
+                'price'    => $product->list_price,
                 'quantity' => 1,
+                'image'    => $image,
             ];
         }
 
         session()->put('cart', $cart);
 
-        // ===== DB CART =====
-        if (Auth::check()) {
+        // ===== DB CART (GUARD CUSTOMER) =====
+        if (Auth::guard('customer')->check()) {
             $cartDb = ShopCart::firstOrNew([
-                'customer_id' => Auth::id(),
-                'product_id' => $product->id,
+                'customer_id' => Auth::guard('customer')->id(),
+                'product_id'  => $product->id,
             ]);
 
             $cartDb->quantity = ($cartDb->quantity ?? 0) + 1;
@@ -52,52 +64,120 @@ class CartController extends Controller
         }
 
         return response()->json([
-            'success' => true,
+            'success'    => true,
             'cart_count' => collect($cart)->sum('quantity'),
         ]);
     }
 
+
+
     public function index()
     {
-        $cart = session()->get('cart', []);
+        $sessionCart = session()->get('cart', []);
+
+        if (Auth::guard('customer')->check()) {
+            $dbCart = ShopCart::where('customer_id', Auth::guard('customer')->id())->get();
+
+            foreach ($dbCart as $item) {
+                $product = $item->product;
+                if (!$product) continue;
+
+                $originalPrice = (float) $product->list_price; // Giá gốc
+                $discountedPrice = $originalPrice;
+
+                if ($product->discount_percent > 0) {
+                    $discountedPrice = $originalPrice * (1 - $product->discount_percent / 100);
+                }
+
+                $sessionCart[$item->product_id] = [
+                    'name'             => $product->product_name ?? 'Product',
+                    'price'            => $discountedPrice, // Giá đã giảm
+                    'original_price'   => $originalPrice,   // Giá gốc để hiển thị gạch
+                    'quantity'         => $item->quantity,
+                    'image'            => $product->image
+                        ? (Str::startsWith($product->image, ['http://', 'https://'])
+                            ? $product->image
+                            : asset('storage/uploads/products/' . $product->image))
+                        : asset('storage/uploads/default.png'),
+                    'discount_percent' => $product->discount_percent ?? 0,
+                ];
+            }
+
+            session()->put('cart', $sessionCart);
+        }
+
+        // Đảm bảo mọi item có key cần thiết
+        foreach ($sessionCart as $id => $item) {
+            if (!isset($item['image'])) $sessionCart[$id]['image'] = asset('storage/uploads/default.png');
+            if (!isset($item['name'])) $sessionCart[$id]['name'] = 'Product';
+            if (!isset($item['price'])) $sessionCart[$id]['price'] = 0;
+            if (!isset($item['original_price'])) $sessionCart[$id]['original_price'] = $item['price'];
+            if (!isset($item['quantity'])) $sessionCart[$id]['quantity'] = 1;
+            if (!isset($item['discount_percent'])) $sessionCart[$id]['discount_percent'] = 0;
+        }
+
+        $cart = $sessionCart;
+
         $total = collect($cart)->sum(fn($i) => $i['price'] * $i['quantity']);
-        return view('frontend.cart.index', compact('cart', 'total'));
+        $totalBeforeDiscount = collect($cart)->sum(fn($i) => $i['original_price'] * $i['quantity']);
+
+        return view('frontend.cart.index', compact('cart', 'total', 'totalBeforeDiscount'));
     }
+
+
+
+
 
     public function remove($id)
     {
         $cart = session()->get('cart', []);
-        unset($cart[$id]);
+
+        if (isset($cart[$id])) {
+            unset($cart[$id]);
+        }
+
         session()->put('cart', $cart);
 
-        if (Auth::check()) {
-            ShopCart::where('customer_id', Auth::id())
+        if (Auth::guard('customer')->check()) {
+            ShopCart::where('customer_id', Auth::guard('customer')->id())
                 ->where('product_id', $id)
                 ->delete();
         }
-
-        return back();
+        toastify()->success('Xóa thành công');
+        // Redirect về trang giỏ hàng
+        return redirect()->route('cart.index')->with('success', 'Đã xóa sản phẩm khỏi giỏ hàng.');
     }
+
+
+
+
     public function update(Request $request, $id)
     {
         $cart = session()->get('cart', []);
 
         if (isset($cart[$id])) {
-            $quantity = max(1, (int) $request->quantity); // không cho < 1
-            $cart[$id]['quantity'] = $quantity;
-            session()->put('cart', $cart);
+            $cart[$id]['quantity'] = max(1, (int)$request->quantity); // đảm bảo >=1
         }
 
-        // Tính lại tổng tiền
-        $total = collect($cart)->sum(fn($item) => $item['price'] * $item['quantity']);
+        session()->put('cart', $cart);
+
+        // Cập nhật DB nếu login
+        if (Auth::guard('customer')->check()) {
+            $cartDb = ShopCart::firstOrNew([
+                'customer_id' => Auth::guard('customer')->id(),
+                'product_id' => $id,
+            ]);
+            $cartDb->quantity = $cart[$id]['quantity'];
+            $cartDb->save();
+        }
 
         return response()->json([
-            'success'  => true,
-            'quantity' => $cart[$id]['quantity'],
-            'subtotal' => number_format($cart[$id]['price'] * $cart[$id]['quantity'], 0, ',', '.') . '₫',
-            'total'    => number_format($total, 0, ',', '.') . '₫',
+            'success' => true,
+            'cart_count' => collect($cart)->sum('quantity'),
+            'item_total' => $cart[$id]['price'] * $cart[$id]['quantity']
         ]);
     }
+
     public function checkout(Request $request)
     {
         $cart = session()->get('cart', []);
@@ -171,39 +251,45 @@ class CartController extends Controller
         $paymentTypes = ShopPaymentType::all();
         $cities = City::all();
 
-        // Tính tổng tiền
-        $total = 0;
-        foreach ($cart as $item) {
-            $price = $item['price'];
+        // 1️⃣ Tổng tiền gốc (chưa giảm)
+        $totalBeforeDiscount = collect($cart)->sum(function ($item) {
+            $discountPercent = $item['discount_percent'] ?? 0;
 
-            // Nếu có giảm giá theo sản phẩm
-            if (!empty($item['discount_percent']) && $item['discount_percent'] > 0) {
-                $price -= $price * ($item['discount_percent'] / 100);
-            } elseif (!empty($item['discount_amount']) && $item['discount_amount'] > 0) {
-                $price -= $item['discount_amount'];
+            return $discountPercent > 0
+                ? ($item['price'] / (1 - $discountPercent / 100)) * $item['quantity']
+                : $item['price'] * $item['quantity'];
+        });
+
+        // 2️⃣ Tổng sau giảm giá sản phẩm
+        $totalAfterProductDiscount = collect($cart)->sum(function ($item) {
+            return $item['price'] * $item['quantity'];
+        });
+
+        // 3️⃣ Voucher
+        $appliedVoucher = session()->get('voucher');
+        $voucherDiscount = 0;
+
+        if ($appliedVoucher) {
+            if (!empty($appliedVoucher['discount_percent'])) {
+                $voucherDiscount = $totalAfterProductDiscount * ($appliedVoucher['discount_percent'] / 100);
+            } elseif (!empty($appliedVoucher['discount_amount'])) {
+                $voucherDiscount = $appliedVoucher['discount_amount'];
             }
-
-            $total += $price * $item['quantity'];
         }
 
-        // Voucher của khách hàng (nhiều)
+        // 4️⃣ Ship (nếu có)
+        $shippingFee = 0;
+
+        // 5️⃣ Tổng cuối cùng
+        $grandTotal = max(
+            $totalAfterProductDiscount - $voucherDiscount + $shippingFee,
+            0
+        );
+
+        // Voucher của khách
         $vouchers = ShopVoucher::whereHas('customers', function ($q) use ($customer) {
             $q->where('customer_id', $customer->id);
         })->get();
-
-
-        // Nếu có voucher đang áp dụng trong session
-        $appliedVoucher = session()->get('voucher');
-        if ($appliedVoucher) {
-            if (!empty($appliedVoucher['discount_percent'])) {
-                $total -= $total * ($appliedVoucher['discount_percent'] / 100);
-            } elseif (!empty($appliedVoucher['discount_amount'])) {
-                $total -= $appliedVoucher['discount_amount'];
-            }
-        }
-
-        $totalAfterDiscount = max($total, 0);
-
 
         return view('frontend.orders.create', compact(
             'cart',
@@ -211,11 +297,16 @@ class CartController extends Controller
             'categories',
             'cities',
             'paymentTypes',
-            'totalAfterDiscount',
+            'totalBeforeDiscount',
+            'totalAfterProductDiscount',
+            'voucherDiscount',
+            'shippingFee',
+            'grandTotal',
             'vouchers',
             'appliedVoucher'
         ));
     }
+
 
 
     public function store(Request $request)
@@ -309,11 +400,14 @@ class CartController extends Controller
         return response()->json($districts);
     }
 
-    public function getWards($district_id)
+    public function getWards($city_id)
     {
-        $wards = Ward::where('district_id', $district_id)->get();
+        $wards = Ward::where('city_id', $city_id)->get();
         return response()->json($wards);
     }
+
+
+
     public function payment($id)
     {
         // Lấy thông tin đơn hàng theo id
