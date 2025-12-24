@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\ShopPaymentType;
 use App\Models\AclUser;
 use App\Models\ShopCustomer;
+
 class ShopOrder extends Model
 {
     const STATUS_PENDING   = 'Pending';
@@ -14,12 +15,13 @@ class ShopOrder extends Model
     const STATUS_SHIPPED   = 'Shipped';
     const STATUS_COMPLETED = 'Completed';
     protected $table = 'shop_orders';
-    protected $fillable =[
+    protected $fillable = [
         'employee_id',
         'customer_id',
         'order_date',
         'shipped_date',
         'ship_name',
+        'ship_phone',
         'ship_address1',
         'ship_address2',
         'ship_city',
@@ -36,36 +38,58 @@ class ShopOrder extends Model
     ];
     protected $guarded = ['id'];
     protected $primaryKey = 'id';
-    protected $dates =[
+    protected $dates = [
         'order_date',
         'shipped_date',
         'paid_date',
         'created_at',
         'updated_at'
     ];
-    protected $dateFormat ='Y-m-d H:i:s';
+    protected $dateFormat = 'Y-m-d H:i:s';
 
-    public function payment_type(){
+    public function payment_type()
+    {
         return $this->belongsTo(
             ShopPaymentType::class,
-            'payment_type_id','id'
+            'payment_type_id',
+            'id'
         );
     }
-    public function user(){
+    public function user()
+    {
         return $this->belongsTo(
             AclUser::class,
-            'employee_id','id'
+            'employee_id',
+            'id'
         );
     }
 
-    public function customer(){
+    public function customer()
+    {
         return $this->belongsTo(
             ShopCustomer::class,
-            'customer_id','id'
+            'customer_id',
+            'id'
         );
     }
-    public function details(){
+    public function details()
+    {
         return $this->hasMany(ShopOrderDetail::class, 'order_id', 'id');
     }
+    // App\Models\ShopOrder.php
+    public function getSubtotalAttribute()
+    {
+        return $this->details->sum(function ($d) {
+            $priceAfterDiscount =
+                $d->unit_price - ($d->discount_amount ?? 0);
 
+            return $priceAfterDiscount * $d->quantity;
+        });
+    }
+
+
+    public function getTotalAttribute()
+    {
+        return $this->subtotal + $this->shipping_fee;
+    }
 }

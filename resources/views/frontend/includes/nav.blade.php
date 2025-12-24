@@ -127,23 +127,25 @@
 
 
                 <!-- Yêu thích -->
-                <li class="nav-item dropdown mr-3">
-                    <button class="btn btn-light position-relative dropdown-toggle" data-toggle="dropdown">
+                <li class="nav-item mr-3">
+                    <a href="{{ route('favorites.index') }}" class="btn btn-light position-relative">
+
                         <i class="ti-heart"></i>
-                        @if (count(session('favorites', [])) > 0)
-                            <span class="nav-shop__circle">
-                                {{ count(session('favorites', [])) }}
-                            </span>
-                        @endif
-                    </button>
+
+                        <span id="favorite-count" class="nav-shop__circle"
+                            style="{{ count(session('favorites', [])) > 0 ? '' : 'display:none' }}">
+                            {{ count(session('favorites', [])) }}
+                        </span>
+
+                    </a>
                 </li>
+
+
+
 
                 <li class="nav-item mr-3">
                     <a href="{{ route('cart.index') }}" class="btn btn-light position-relative">
                         <i class="ti-shopping-cart"></i>
-
-
-
                         @php
                             if (Auth::guard('customer')->check()) {
                                 $cartCount = \App\Models\ShopCart::where(

@@ -7,32 +7,53 @@ use Illuminate\Http\Request;
 use App\Models\ShopProduct;
 use App\Models\ShopCategory;
 use App\Models\ShopSupplier;
+use App\Models\ShopFavorite;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 
 class FavoriteController extends Controller
 {
     public function add(Request $request)
     {
+        $customer = Auth::guard('customer')->user();
+
+        if (!$customer) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vui lòng đăng nhập'
+            ], 401);
+        }
+
         $product = ShopProduct::findOrFail($request->product_id);
 
-        // Lấy danh sách yêu thích hiện tại từ session
-        $favorites = session()->get('favorites', []);
+        // ✅ LƯU DB (KHÔNG TRÙNG)
+        ShopFavorite::firstOrCreate([
+            'customer_id' => $customer->id,
+            'product_id'  => $product->id,
+        ]);
 
-        // Nếu sản phẩm chưa có trong danh sách thì thêm
-        if(!in_array($product->id, $favorites)){
-            $favorites[] = $product->id;
-            session(['favorites' => $favorites]);
+        // ✅ SYNC SESSION
+        $favorites = ShopFavorite::where('customer_id', $customer->id)
+            ->pluck('product_id')
+            ->toArray();
+
+        session(['favorites' => $favorites]);
+
+        // Ảnh
+        $image = $product->image;
+        if (!Str::startsWith($image, ['http://', 'https://'])) {
+            $image = asset('storage/uploads/products/' . $image);
         }
-        $imageUrl = asset('storage/uploads/products/' . basename($product->image));
 
         return response()->json([
             'success' => true,
-            'count' => count($favorites),
+            'count'   => count($favorites),
             'product' => [
-                'id' => $product->id,
-                'name' => $product->product_name,
-                'image' => $imageUrl,
-                'price' => number_format($product->list_price,0,',','.') . '₫'
+                'id'    => $product->id,
+                'name'  => $product->product_name,
+                'image' => $image,
+                'price' => number_format($product->list_price, 0, ',', '.') . '₫'
             ]
         ]);
     }
@@ -40,7 +61,7 @@ class FavoriteController extends Controller
     {
         $favoriteIds = session('favorites', []);
         $favoriteProducts = ShopProduct::whereIn('id', $favoriteIds)->get();
-        $categories = ShopCategory::all(['id','categories_text']);
+        $categories = ShopCategory::all(['id', 'categories_text']);
         return view('frontend.favorites.index', compact('favoriteProducts', 'categories'));
     }
     public function remove(Request $request)
@@ -48,7 +69,7 @@ class FavoriteController extends Controller
         $productId = $request->input('product_id');
         $favorites = session('favorites', []);
 
-        if(($key = array_search($productId, $favorites)) !== false){
+        if (($key = array_search($productId, $favorites)) !== false) {
             unset($favorites[$key]);
             session(['favorites' => $favorites]);
         }
@@ -67,5 +88,4 @@ class FavoriteController extends Controller
             'html'   => $html
         ]);
     }
-
 }

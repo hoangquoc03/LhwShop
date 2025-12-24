@@ -159,6 +159,12 @@
     <div class="container my-5">
         <div class="row justify-content-center">
             <div class="col-md-8">
+                @if (session('error'))
+                    <div class="alert alert-danger">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
                 <form method="POST" action="{{ route('orders.store') }}" class="p-4 border rounded shadow-sm bg-white">
                     @csrf
 
@@ -187,6 +193,7 @@
                             </div>
                         @endforeach
                     </div>
+
 
                     <hr>
 
@@ -299,7 +306,7 @@
                             @endif
                         </div>
                     </div>
-
+                    <input type="hidden" name="payment_type_id" id="payment_type_id">
                     {{-- 💳 Thông tin thanh toán --}}
                     <div class="card shadow-sm mb-3">
                         <div class="card-header fw-bold">THÔNG TIN THANH TOÁN</div>
@@ -310,16 +317,13 @@
                                 @if (!empty($selectedPaymentLabel))
                                     Thanh toán bằng: <b>{{ $selectedPaymentLabel }}</b>
                                 @else
-                                    Chọn phương thức thanh toán
+                                    <span id="paymentLabel">Chọn phương thức thanh toán</span>
                                 @endif
                             </button>
                         </div>
                     </div>
 
 
-
-                    {{-- 💰 Tổng tiền --}}
-                    {{-- 💰 Tổng tiền --}}
                     <div class="card shadow-sm mb-3">
                         <div class="card-header fw-bold">THANH TOÁN</div>
                         <div class="card-body">
@@ -361,8 +365,9 @@
                         </div>
                     </div>
 
-
                     <button type="submit" class="btn btn-primary w-100">Đặt hàng</button>
+
+
                 </form>
                 <!-- Modal chọn phương thức thanh toán -->
                 <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel"
@@ -463,19 +468,28 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const radios = document.querySelectorAll('input[name="payment_type"]');
-            const confirmBtn = document.querySelector('#paymentModal .btn-danger');
-            const triggerBtn = document.querySelector('[data-bs-target="#paymentModal"]');
+            const confirmBtn = document.getElementById('confirmPaymentBtn');
+            const labelSpan = document.getElementById('paymentLabel');
+            const hiddenInput = document.getElementById('payment_type_id');
 
             confirmBtn.addEventListener('click', function() {
-                let selected = document.querySelector('input[name="payment_type"]:checked');
-                if (selected) {
-                    let label = selected.closest('label').querySelector('strong').innerText;
-                    triggerBtn.innerHTML = 'Thanh toán bằng: <b>' + label + '</b>';
+                const selected = document.querySelector('input[name="payment_type"]:checked');
+
+                if (!selected) {
+                    alert('Vui lòng chọn phương thức thanh toán');
+                    return;
                 }
+
+                hiddenInput.value = selected.value;
+
+                labelSpan.innerHTML = 'Thanh toán bằng: <b>' +
+                    selected.closest('label').querySelector('strong').innerText +
+                    '</b>';
             });
         });
     </script>
+
+
 
 
     <script>

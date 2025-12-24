@@ -178,13 +178,17 @@
                                     <i class="ti-shopping-cart"></i>
                                 </button>
                             </li>
+
                             <li class="nav-item">
                                 <button class="btn btn-light rounded-circle shadow-sm btn-favorite"
-                                    data-id="{{ $product->id }}">
+                                    data-id="{{ $product->id }}" type="button">
                                     <i
-                                        class="ti-heart {{ in_array($product->id, session('favorites', [])) ? 'text-primary' : '' }}"></i>
+                                        class="ti-heart
+            {{ in_array($product->id, session('favorites', [])) ? 'text-primary' : '' }}">
+                                    </i>
                                 </button>
                             </li>
+
                         </ul>
                     </div>
 
@@ -278,6 +282,50 @@
                         }).showToast();
                     }
                 }, // ✅ DẤU PHẨY QUAN TRỌNG
+                error: function(xhr) {
+                    console.log(xhr.responseText);
+                }
+            });
+        });
+
+    });
+</script>
+<script>
+    $(document).ready(function() {
+
+        $(document).on('click', '.btn-favorite', function(e) {
+            e.preventDefault();
+
+            let productId = $(this).data('id');
+            let icon = $(this).find('i');
+
+            $.ajax({
+                url: "{{ route('favorites.add') }}",
+                type: "POST",
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    product_id: productId
+                },
+                success: function(res) {
+                    if (res.success) {
+
+                        // ❤️ đổi màu tim
+                        icon.addClass('text-primary');
+
+                        // ❤️ cập nhật số trên navbar
+                        $('#favorite-count')
+                            .text(res.count)
+                            .show();
+
+                        Toastify({
+                            text: "Đã thêm vào yêu thích",
+                            duration: 3000,
+                            gravity: "top",
+                            position: "right",
+                            backgroundColor: "#e91e63",
+                        }).showToast();
+                    }
+                },
                 error: function(xhr) {
                     console.log(xhr.responseText);
                 }

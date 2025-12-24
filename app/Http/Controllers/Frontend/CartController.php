@@ -311,34 +311,38 @@ class CartController extends Controller
 
     public function store(Request $request)
     {
-        $cart = session()->get('cart', []);
-        if (empty($cart)) {
+        $customer = Auth::guard('customer')->user();
+        $cart = \App\Models\ShopCart::where('customer_id', $customer->id)
+            ->with('product')
+            ->get();
+
+        if ($cart->isEmpty()) {
             return redirect()->route('cart.index')->with('error', 'Giỏ hàng trống!');
         }
 
-        $customer = Auth::guard('customer')->user();
+
+
 
         $request->validate([
             'ship_name'  => 'nullable|string|max:255',
             'ship_phone' => 'nullable|regex:/^[0-9]{9,11}$/',
             'address'    => 'nullable|string|max:255',
             'city'       => 'nullable|exists:cities,id',
-            'district'   => 'nullable|exists:districts,id',
             'ward'       => 'nullable|exists:wards,id',
             'delivery_type' => 'required|in:store,home',
+            'payment_type_id' => 'required|exists:shop_payment_types,id',
+
         ]);
 
         DB::beginTransaction();
         try {
             $city     = \App\Models\City::find($request->city);
-            $district = \App\Models\District::find($request->district);
             $ward     = \App\Models\Ward::find($request->ward);
-
             // Địa chỉ đầy đủ hoặc nhận tại cửa hàng
+            $shippingFee = $request->delivery_type === 'home' ? 30000 : 0;
             $fullAddress = $request->delivery_type === 'home'
                 ? trim($request->address . ', '
                     . ($ward?->name ?? '') . ', '
-                    . ($district?->name ?? '') . ', '
                     . ($city?->name ?? ''))
                 : 'Nhận tại cửa hàng';
 
@@ -352,26 +356,53 @@ class CartController extends Controller
                 'order_date'    => now(),
                 'order_status'  => \App\Models\ShopOrder::STATUS_PENDING,
                 'payment_type_id' => $request->payment_type_id ?? null,
+                'shipping_fee' => $shippingFee,
             ]);
 
-            foreach ($cart as $productId => $item) {
-                \App\Models\ShopOrderDetail::create([
-                    'order_id'   => $order->id,
-                    'product_id' => $productId,
-                    'quantity'   => $item['quantity'],
-                    'unit_price' => $item['price'],
+            foreach ($cart as $item) {
+
+                $product = $item->product;
+
+                // % giảm của sản phẩm
+                $discountPercent = $product->discount_percent ?? 0;
+
+                // Giá gốc
+                $unitPrice = $product->list_price;
+
+                // Số tiền giảm trên 1 sản phẩm
+                $discountAmount = $discountPercent > 0
+                    ? $unitPrice * $discountPercent / 100
+                    : 0;
+
+                ShopOrderDetail::create([
+                    'order_id'            => $order->id,
+                    'product_id'          => $product->id,
+                    'quantity'            => $item->quantity,
+
+                    // GIÁ CHUẨN
+                    'unit_price'          => $unitPrice,
+
+                    // DISCOUNT
+                    'discount_percentage' => $discountPercent,
+                    'discount_amount'     => $discountAmount,
                 ]);
             }
 
+
+
             DB::commit();
+
+            // Xóa giỏ hàng trong DB
+            \App\Models\ShopCart::where('customer_id', $customer->id)->delete();
+
+            // Xóa giỏ hàng session
             session()->forget('cart');
+
             session()->flash('order_success', $order->id);
 
-            // 👉 Chuyển sang trang thành công và truyền $order->id
             return redirect()->route('orders.success', ['id' => $order->id]);
         } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
+            dd($e->getMessage());
         }
     }
 
