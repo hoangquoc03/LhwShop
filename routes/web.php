@@ -59,6 +59,7 @@ Route::get('/errors/403', [
 Route::post('/chat/ai', [SalesAIController::class, 'chat'])
     ->name('chat.ai');
 
+
 Route::get('/chat/categories', [SalesAIController::class, 'categories'])
     ->name('chat.categories');
 
