@@ -59,9 +59,19 @@ class FavoriteController extends Controller
     }
     public function index()
     {
-        $favoriteIds = session('favorites', []);
-        $favoriteProducts = ShopProduct::whereIn('id', $favoriteIds)->get();
+        if (Auth::guard('customer')->check()) {
+            $favoriteProducts = ShopProduct::whereIn('id', function ($query) {
+                $query->select('product_id')
+                    ->from('shop_favorites')
+                    ->where('customer_id', Auth::guard('customer')->id());
+            })->get();
+        } else {
+            $favoriteIds = array_keys(session('favorites', []));
+            $favoriteProducts = ShopProduct::whereIn('id', $favoriteIds)->get();
+        }
+
         $categories = ShopCategory::all(['id', 'categories_text']);
+
         return view('frontend.favorites.index', compact('favoriteProducts', 'categories'));
     }
     public function remove(Request $request)

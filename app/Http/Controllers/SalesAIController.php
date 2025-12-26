@@ -121,11 +121,29 @@ class SalesAIController extends Controller
     {
         $categories = ShopCategory::all();
 
+        // 1️⃣ ƯU TIÊN MATCH CHUỖI ĐẦY ĐỦ
+        $fullText = implode(' ', $keywords);
+
         foreach ($categories as $cat) {
-            $name = $this->normalize($cat->categories_text); // normalize de chuan hoa ten danh muc thanh chu thuong khong dau
+            $name = $this->normalize($cat->categories_text);
+
+            if ($name === $fullText) {
+                return $cat;
+            }
+        }
+
+        // 2️⃣ MATCH TỪ KHÓA QUAN TRỌNG (BỎ TỪ CHUNG)
+        $stopWords = ['do', 'ao', 'quan', 'vay'];
+
+        foreach ($categories as $cat) {
+            $name = $this->normalize($cat->categories_text);
 
             foreach ($keywords as $kw) {
-                if (str_contains($name, $kw)) { // str_contains de tim kiem tu khoa trong ten danh muc
+                if (in_array($kw, $stopWords)) {
+                    continue;
+                }
+
+                if (str_contains($name, $kw)) {
                     return $cat;
                 }
             }
@@ -133,6 +151,7 @@ class SalesAIController extends Controller
 
         return null;
     }
+
 
     /* =====================
         MATCH SUPPLIER
@@ -146,6 +165,33 @@ class SalesAIController extends Controller
             ->with('supplier') // load quan he danh muc nho
             ->first()?->supplier; // tra ve danh muc nho dau tien tim thay
     }
+    private function normalizeText(string $text): string
+    {
+        $text = mb_strtolower($text, 'UTF-8');
+
+        // chuẩn hoá các cách viết khoảng giá → "-"
+        $text = preg_replace(
+            '/\b(đến|den|tới|toi|~|–|—|−)\b/u',
+            '-',
+            $text
+        );
+
+        // chuẩn hoá "dưới / trên"
+        $text = preg_replace('/\bdưới\b|\bduoi\b/u', 'duoi', $text);
+        $text = preg_replace('/\btrên\b|\btren\b/u', 'tren', $text);
+
+        // bỏ chữ đơn vị
+        $text = preg_replace('/(triệu|tr|vnd)/u', '', $text);
+
+        // chỉ giữ số + chữ + - + space
+        $text = preg_replace('/[^0-9a-z\- ]/u', '', $text);
+
+        // gộp khoảng trắng
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        return trim($text);
+    }
+
 
 
     /* =====================
@@ -153,24 +199,38 @@ class SalesAIController extends Controller
     ======================*/
     private function detectPriceRange(string $text): ?array
     {
-        if (preg_match('/dưới\s*(\d+)/u', $text, $m)) {
+        $text = $this->normalizeText($text);
+
+        // 50-80
+        if (preg_match('/(\d+)\s*-\s*(\d+)/', $text, $m)) {
+            return [
+                'min' => (int)$m[1] * 1000000,
+                'max' => (int)$m[2] * 1000000,
+            ];
+        }
+
+        // dưới 50
+        if (preg_match('/duoi\s*(\d+)/', $text, $m)) {
             return [
                 'min' => 0,
-                'max' => $m[1] * 1000000
+                'max' => (int)$m[1] * 1000000,
             ];
         }
 
-        if (preg_match('/trên\s*(\d+)/u', $text, $m)) {
+        // trên 80
+        if (preg_match('/tren\s*(\d+)/', $text, $m)) {
             return [
-                'min' => $m[1] * 1000000,
-                'max' => 999999999
+                'min' => (int)$m[1] * 1000000,
+                'max' => 999000000,
             ];
         }
 
-        if (preg_match('/(\d+)\s*[-–]\s*(\d+)/u', $text, $m)) {
+        // chỉ gõ 1 số: "80"
+        if (preg_match('/\b(\d+)\b/', $text, $m)) {
+            $price = (int)$m[1] * 1000000;
             return [
-                'min' => $m[1] * 1000000,
-                'max' => $m[2] * 1000000
+                'min' => $price - 10000000,
+                'max' => $price + 10000000,
             ];
         }
 
@@ -219,14 +279,43 @@ class SalesAIController extends Controller
 
         return $reply;
     }
-    /* =====================
-        CHAT ENTRY
-    ======================*/
+
+    private function isViewOtherIntent($text): bool  // kiem tra y dinh xem mau khac
+    {
+        return preg_match('/mẫu khác|xem khác|đổi kiểu/i', $text);
+    }
+
+    private function isOrderIntent($text): bool // kiem tra y dinh dat hang 
+    {
+        return preg_match('/đặt mua|mua ngay|chốt đơn|mua luôn/i', $text);
+    }
+
+    private function isLoadMoreIntent($text): bool // kiem tra y dinh xem them mau
+    {
+        return preg_match('/xem thêm|còn nữa|thêm mẫu/i', $text);
+    }
+
+    private function detectViewDetailIndex(string $text): ?int
+    {
+        // xem 2 | xem chi tiết 3 | mẫu 1 | chi tiết mẫu 4 | chỉ gõ số 1
+        if (preg_match('/(?:xem|chi tiết|mẫu)?\s*(\d+)/u', $text, $m)) {
+            return (int) $m[1];
+        }
+        return null;
+    }
+
+
+
+
     public function chat(Request $request)
     {
         $message = trim($request->message ?? ''); // trim dung de loai bo khoang trang thua
         $text = $this->normalize($message); // normalize dung de chuan hoa van ban thanh chu thuong khong dau
         /* RESET */
+        // thử match danh mục luôn
+        $keywords = $this->extractKeywords($message); // tu khoa
+
+        $category = $this->matchCategory($keywords); // tim danh muc
         if ($message === '__start__') {
             session()->forget('chat_context');
 
@@ -252,14 +341,14 @@ class SalesAIController extends Controller
             return response()->json(['reply' => '🤖 Anh/chị nhập giúp em nội dung nhé!']);
         }
 
-
-
-
         // kiem tra nguoi dung da chon kieu gi
         $context = session('chat_context');
 
-        if ($context && $context['category'] && !$context['supplier']) {
-
+        // if ($context && $context['category'] && !$context['supplier']) {
+        if (
+            isset($context['category']) &&
+            empty($context['supplier'])
+        ) { // xu ly chon kieu giay voi isset de tranh loi khi chua co category voi isset chi kiem tra ton tai key va empty de kiem tra gia tri null hoac rong
             $supplier = $this->matchSupplierFromText($text, $context['category']);
 
             if ($supplier) {
@@ -278,6 +367,7 @@ class SalesAIController extends Controller
                 ]);
             }
         }
+
         // xu ly chon gia tien
         if (
             $context &&
@@ -287,9 +377,7 @@ class SalesAIController extends Controller
         ) {
 
             $range = $this->detectPriceRange($text);
-
             if ($range) {
-
                 // ✅ LƯU PRICE RANGE
                 session()->put('chat_context.priceRange', $range);
 
@@ -312,8 +400,10 @@ class SalesAIController extends Controller
                 // 👉 BUILD REPLY
                 $reply = "🎯 <b>Sản phẩm phù hợp cho anh/chị:</b><br><br>";
 
+                $ids = [];
+                $index = 1;
                 foreach ($products as $p) {
-
+                    $ids[$index] = $p->id;
                     $reply .= "
     <div style='
         border:1px solid #e5e7eb;
@@ -348,23 +438,202 @@ class SalesAIController extends Controller
             </a>
     </div>
     ";
+                    $index++;
                 }
-
-
-                $reply .= "✨ Anh/chị muốn xem <b>mẫu khác</b> hay <b>đặt mua</b> ngay ạ?";
+                $total = $index - 1; // số mẫu thực tế
+                session()->put('chat_context.last_products', $ids); // luu id san pham vua hien thi de dat hang
+                $numbersText = implode(', ', range(1, $total));
+                $reply .= "
+                    ✨ <b>Anh/chị muốn tiếp theo:</b><br>
+                    • Gõ <b>số mẫu</b> (<b>{$numbersText}</b>) để <b>xem chi tiết</b><br>
+                    • Gõ <b>xem thêm</b> hoặc <b>xem mẫu khác</b> để xem thêm sản phẩm<br>
+                    • Gõ <b>đặt mua</b> kèm <b>số mẫu</b> (ví dụ: <b>đặt mua {$numbersText}</b>) để đặt hàng ngay ạ 💎
+                    ";
 
                 return response()->json(['reply' => $reply]);
             }
         }
+        $index = $this->detectViewDetailIndex($text);
+
+        if ($index) {
+
+            $ids = session('chat_context.last_products', []);
+
+            // ❌ Không có danh sách trước đó
+            if (!isset($ids[$index])) {
+                return response()->json([
+                    'reply' => "⚠️ Em không tìm thấy mẫu <b>{$index}</b> ạ.<br>
+            👉 Anh/chị chọn số trong danh sách em vừa gửi nhé!"
+                ]);
+            }
+
+            $productId = $ids[$index];
+            $product = ShopProduct::find($productId);
+
+            if (!$product) {
+                return response()->json([
+                    'reply' => "❌ Sản phẩm hiện không còn tồn tại ạ."
+                ]);
+            }
+
+            // 👉 TRẢ VỀ CHI TIẾT SÂU
+            $reply = "
+🧐 <b>Chi tiết sản phẩm mẫu {$index}:</b><br><br>
+
+<div style='
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    padding:12px;
+    background:#ffffff;
+'>
+    <img src='{$product->image}'
+         alt='{$product->product_name}'
+         style='width:100%;max-width:260px;border-radius:10px;margin-bottom:10px;'>
+
+    👟 <b>{$product->product_name}</b><br>
+    💰 <b style='color:#1e40af'>" . number_format($product->list_price, 0, ',', '.') . "đ</b><br><br>
+
+    📄 {$product->short_description}<br><br>
+
+    👉 <a href='" . route('product.show', $product->id) . "' target='_blank'
+       style='color:#2563eb;font-weight:600;text-decoration:none'>
+       Xem trang sản phẩm đầy đủ
+    </a><br><br>
+    <button class='btn btn-light rounded-circle shadow-sm add-to-cart'
+            data-id='{$product->id}'
+            title='Thêm vào giỏ hàng'>
+        <i class='ti-shopping-cart'></i>
+    </button>
+    
+</div>
+
+<br>🔎 <b>Anh/chị muốn biết thêm về mẫu này không ạ?</b><br>
+• Chất liệu / form dáng 👕<br>
+• Size & cách chọn size 📏<br>
+• Bảo hành / đổi trả 🔁<br>
+• Còn màu khác không 🎨<br>
+• So sánh với mẫu khác ⚖️<br><br>
+
+👉 Anh/chị chỉ cần gõ ví dụ:
+<b>“chất liệu”</b>, <b>“còn màu gì”</b>, <b>“size L bao nhiêu kg”</b> hoặc <b>“đặt mua”</b> ạ 💬
+
+";
+
+            return response()->json(['reply' => $reply]);
+        }
 
 
-        if ($this->isBuyIntent($text)) { // tin nhan co y dinh mua hang
+        if ($this->isViewOtherIntent($text)) { // kiem tra y dinh xem mau khac
 
-            // thử match danh mục luôn
-            $keywords = $this->extractKeywords($message); // tu khoa
+            session()->forget(['chat_context.supplier', 'chat_context.supplier_text', 'chat_context.priceRange', 'chat_context.offset', 'chat_context.last_products']); // offset de lay them san pham va last_products de luu id san pham vua hien thi
 
-            $category = $this->matchCategory($keywords); // tim danh muc
+            $suppliers = ShopProduct::where('category_id', session('chat_context.category'))
+                ->with('supplier')
+                ->get()
+                ->pluck('supplier.supplier_text')
+                ->unique()
+                ->filter()
+                ->values();
 
+            $reply = "👞 <b>Dạ vâng ạ!</b><br>
+            Anh/chị chọn lại <b>kiểu giày</b> nhé:<br><br>";
+
+            foreach ($suppliers as $sup) {
+                $reply .= "• {$sup}<br>";
+            }
+
+            return response()->json(['reply' => $reply]);
+        }
+        if ($this->isLoadMoreIntent($text)) { // kiem tra y dinh xem them mau
+            $offset = session('chat_context.offset', 0);
+            $ctx = session('chat_context');
+            $total = ShopProduct::where('category_id', $ctx['category'])
+                ->where('supplier_id', $ctx['supplier'])
+                ->whereBetween('list_price', [$ctx['priceRange']['min'], $ctx['priceRange']['max']])
+                ->count();
+            if ($offset + 5 >= $total) {
+                return response()->json([
+                    'reply' => "📦 <b>Em đã gửi hết các mẫu phù hợp rồi ạ.</b><br>
+            👉 Anh/chị muốn <b>xem mẫu khác</b> hay <b>đặt mua</b> ngay ạ?"
+                ]);
+            }
+            $offset += 5;
+            session()->put('chat_context.offset', $offset);
+
+            $products = ShopProduct::where('category_id', $ctx['category'])
+                ->where('supplier_id', $ctx['supplier'])
+                ->whereBetween('list_price', [$ctx['priceRange']['min'], $ctx['priceRange']['max']])
+                ->skip($offset)
+                ->take(5)
+                ->get();
+
+            $reply = "✨ <b>Các mẫu tiếp theo:</b><br><br>";
+            $ids = [];
+            foreach ($products as $p) {
+                $ids[] = $p->id;
+                $reply .= "
+    <div style='
+        border:1px solid #e5e7eb;
+        border-radius:12px;
+        padding:10px;
+        margin-bottom:12px;
+        background:#ffffff;
+    '>
+
+        <img src='{$p->image}'
+             alt='{$p->product_name}'
+             style='width:100%;max-width:220px;border-radius:10px;margin-bottom:8px;'>
+
+        👟 <b>{$p->product_name}</b><br>
+        💰 <b style='color:#1e40af'>" . number_format($p->list_price, 0, ',', '.') . "đ</b><br>
+
+        <a href='" . route('product.show', $p->id) . "' target='_blank'
+           style='color:#2563eb;font-weight:600;text-decoration:none'>
+           Xem chi tiết
+        </a><br><br>
+
+        <button class='btn btn-light rounded-circle shadow-sm add-to-cart'
+            data-id='{$p->id}'
+            title='Thêm vào giỏ hàng'>
+        <i class='ti-shopping-cart'></i>
+    </button>
+
+    </div>
+    ";
+            }
+            session()->put('chat_context.last_products', $ids);
+            $reply .= "
+                    ✨ Anh/chị muốn:
+                    <b>xem thêm</b> • <b>xem mẫu khác</b> • hay <b>đặt mua</b> ngay ạ?
+                    ";
+            return response()->json(['reply' => $reply]);
+        }
+
+        if ($this->isOrderIntent($text)) {
+
+            $productIds = session('chat_context.last_products', []);
+
+            if (empty($productIds)) {
+                return response()->json([
+                    'reply' => "⚠️ Em chưa thấy sản phẩm nào để đặt mua ạ.<br>
+                       Anh/chị thử <b>xem sản phẩm</b> trước nhé!"
+                ]);
+            }
+
+            $reply = "🛒 <b>Dạ vâng ạ!</b><br>
+    Anh/chị vui lòng chọn 1 sản phẩm để xem chi tiết và thêm vào giỏ:<br><br>";
+
+            foreach ($productIds as $id) {
+                $reply .= "👉 <a href='" . route('product.show', $id) . "' target='_blank'>
+                    Xem sản phẩm #" . $id . "
+                   </a><br>";
+            }
+
+            return response()->json(['reply' => $reply]);
+        }
+
+
+        if ($this->isBuyIntent($text) || $category) { // tin nhan co y dinh mua hang
             // Nếu user chỉ nói "mua hàng"
             if (!$category) {
                 return response()->json([
@@ -377,16 +646,22 @@ class SalesAIController extends Controller
                 'category'   => $category->id,
                 'supplier'   => null,
                 'priceRange' => null,
-                'intent'     => 'buy'
+                'intent'     => 'buy',
+                'step'       => 'choose_supplier'
             ]);
 
-            $suppliers = ShopProduct::where('category_id', session('chat_context.category'))
+            $suppliers = ShopProduct::where('category_id', $category->id)
+                ->whereHas('supplier')
                 ->with('supplier')
                 ->get()
                 ->pluck('supplier.supplier_text')
                 ->unique()
                 ->filter()
-                ->values(); // lay danh sach cac danh muc nho khac nhau
+                ->values();
+            $suppliers = $suppliers->reject(
+                fn($s) =>
+                $this->normalize($s) === $this->normalize($category->categories_text)
+            );
 
             $reply  = "👟 <b>Dạ vâng ạ!</b><br>";
             $reply .= "Anh/chị đang quan tâm <b>{$category->categories_text}</b>.<br><br>";
@@ -404,145 +679,5 @@ class SalesAIController extends Controller
             logger(session('chat_context'));
             return response()->json(['reply' => $reply]);
         }
-
-
-        // /* LOAD CONTEXT */
-        // $context = session()->get('chat_context', [
-        //     'category'   => null,
-        //     'supplier'   => null,
-        //     'priceRange' => null,
-        //     'intent'     => null,
-        // ]);
-
-        // /* ===== ANALYZE ===== */
-        // $text     = $this->normalize($message);
-        // $keywords = $this->extractKeywords($message);
-        // $context['intent'] = $this->detectIntent($text);
-
-        // /* 1️⃣ CATEGORY – BẮT BUỘC & LOCK */
-        // if ($category = $this->matchCategory($keywords)) {
-        //     if ($context['category'] && $context['category'] !== $category->id) {
-        //         $context['supplier'] = null; // đổi loại → reset hãng
-        //     }
-        //     $context['category'] = $category->id;
-        // }
-
-        // if (!$context['category']) {
-        //     return response()->json([
-        //         'reply' => '👕 Anh/chị muốn mua <b>giày, áo hay quần</b> để em tư vấn chính xác hơn ạ?'
-        //     ]);
-        // }
-
-        // /* 2️⃣ PRICE */
-        // if ($range = $this->detectPriceRange($text)) {
-        //     $context['priceRange'] = $range;
-        // }
-
-        // if (!$context['priceRange']) {
-        //     return response()->json([
-        //         'reply' => '💰 Anh/chị cho em biết <b>tầm giá mong muốn</b> để em tư vấn chính xác hơn ạ?'
-        //     ]);
-        // }
-
-        // /* 3️⃣ SUPPLIER – CHỈ SAU KHI CÓ CATEGORY */
-        // $supplier = ShopSupplier::where('category_id', $context['category'])
-        //     ->where(function ($q) use ($keywords) {
-        //         foreach ($keywords as $kw) {
-        //             $q->orWhere('supplier_text', 'like', "%$kw%");
-        //         }
-        //     })
-        //     ->first();
-
-        // if ($supplier) {
-        //     $context['supplier'] = $supplier->id;
-        // }
-
-        // session()->put('chat_context', $context);
-
-        // /* ===== QUERY PRODUCTS ===== */
-        // $query = ShopProduct::with(['category', 'supplier', 'discount', 'vouchers'])
-        //     ->where('discontinued', false)
-        //     ->where('category_id', $context['category']);
-
-        // if ($context['supplier']) {
-        //     $query->where('supplier_id', $context['supplier']);
-        // }
-
-        // $query->whereBetween('list_price', [
-        //     $context['priceRange']['min'],
-        //     $context['priceRange']['max']
-        // ]);
-
-        // if ($context['intent'] === 'promotion') {
-        //     $query->where(function ($q) {
-        //         $q->whereHas('discount')
-        //             ->orWhereHas('vouchers');
-        //     });
-        // }
-
-        // $products = $query->orderBy('list_price')->limit(5)->get();
-
-        // /* FALLBACK – NỚI GIÁ */
-        // if ($products->isEmpty()) {
-        //     $products = ShopProduct::with(['category', 'supplier', 'discount', 'vouchers'])
-        //         ->where('discontinued', false)
-        //         ->where('category_id', $context['category'])
-        //         ->when(
-        //             $context['supplier'],
-        //             fn($q) =>
-        //             $q->where('supplier_id', $context['supplier'])
-        //         )
-        //         ->whereBetween('list_price', [
-        //             $context['priceRange']['min'],
-        //             $context['priceRange']['max'] * 1.2
-        //         ])
-        //         ->orderBy('list_price')
-        //         ->limit(3)
-        //         ->get();
-        // }
-
-        // /* ===== BUILD RESPONSE ===== */
-        // if ($context['intent'] === 'compare' && $products->count() >= 2) {
-        //     $p1 = $products[0];
-        //     $p2 = $products[1];
-
-        //     return response()->json([
-        //         'reply' =>
-        //         "📊 <b>So sánh nhanh:</b><br><br>
-        //     <b>{$p1->product_name}</b><br>
-        //     💰 " . number_format($p1->list_price) . "đ<br>
-        //     🏷 {$p1->supplier->supplier_text}<br><br>
-
-        //     <b>{$p2->product_name}</b><br>
-        //     💰 " . number_format($p2->list_price) . "đ<br>
-        //     🏷 {$p2->supplier->supplier_text}<br><br>
-
-        //     👉 Anh/chị muốn em chốt mẫu nào ạ?"
-        //     ]);
-        // }
-
-        // $reply = "🎯 <b>Em gợi ý cho anh/chị:</b><br><br>";
-
-        // foreach ($products as $p) {
-        //     $price = $p->list_price;
-
-        //     if ($p->discount_percent > 0) {
-        //         $price = round($price * (100 - $p->discount_percent) / 100);
-        //         $reply .= "🔥 ";
-        //     }
-
-        //     $reply .= "<b>{$p->product_name}</b><br>";
-        //     $reply .= "💰 " . number_format($price, 0, ',', '.') . "đ<br>";
-
-        //     if ($p->vouchers->count()) {
-        //         $reply .= "🎁 Có voucher áp dụng<br>";
-        //     }
-
-        //     $reply .= "👉 <a href='" . route('product.show', $p->id) . "' target='_blank'>Xem chi tiết</a><br><br>";
-        // }
-
-        // $reply .= "✨ Anh/chị muốn lọc thêm theo <b>thương hiệu</b> hay <b>sale</b> không ạ?";
-
-        // return response()->json(['reply' => $reply]);
     }
 }

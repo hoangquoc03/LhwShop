@@ -123,22 +123,29 @@
                     </form>
                 </li>
 
-
-
-
                 <!-- Yêu thích -->
                 <li class="nav-item mr-3">
                     <a href="{{ route('favorites.index') }}" class="btn btn-light position-relative">
-
                         <i class="ti-heart"></i>
 
-                        <span id="favorite-count" class="nav-shop__circle"
-                            style="{{ count(session('favorites', [])) > 0 ? '' : 'display:none' }}">
-                            {{ count(session('favorites', [])) }}
-                        </span>
+                        @php
+                            if (Auth::guard('customer')->check()) {
+                                $favoriteCount = \App\Models\ShopFavorite::where(
+                                    'customer_id',
+                                    Auth::guard('customer')->id(),
+                                )->count();
+                            } else {
+                                $favoriteCount = count(session('favorites', []));
+                            }
+                        @endphp
 
+                        <span id="favorite-count" class="nav-shop__circle"
+                            style="{{ $favoriteCount > 0 ? '' : 'display:none' }}">
+                            {{ $favoriteCount }}
+                        </span>
                     </a>
                 </li>
+
 
 
 

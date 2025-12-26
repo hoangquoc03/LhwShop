@@ -63,21 +63,6 @@ Route::post('/chat/ai', [SalesAIController::class, 'chat'])
 Route::get('/chat/categories', [SalesAIController::class, 'categories'])
     ->name('chat.categories');
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //                     Frontend
 Route::get('/', [
     HomeController::class,
