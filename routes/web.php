@@ -16,6 +16,7 @@ use App\Http\Controllers\Frontend\RegisterHomeController;
 use App\Http\Controllers\Frontend\ProductController;
 use App\Http\Controllers\Frontend\FavoriteController;
 use App\Http\Controllers\Frontend\CartController;
+use App\Http\Controllers\Frontend\PaymentController;
 
 
 use App\Http\Controllers\Backend\ShopSettingController;
@@ -48,6 +49,7 @@ use App\Http\Controllers\Backend\ShopOrderDetailController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Frontend\ChatController;
 use App\Http\Controllers\AIChatController;
+use App\Http\Controllers\PaymentController as ControllersPaymentController;
 use App\Http\Controllers\SalesAIController;
 //                    errors
 Route::get('/errors/403', [
@@ -62,7 +64,10 @@ Route::post('/chat/ai', [SalesAIController::class, 'chat'])
 
 Route::get('/chat/categories', [SalesAIController::class, 'categories'])
     ->name('chat.categories');
-
+// Payment
+Route::get('/payment/qr/{orderId}', [PaymentController::class, 'qrCode'])->name('payment.qr');
+Route::post('/payment/create', [PaymentController::class, 'create'])->name('payment.create');
+Route::get('/payment/vnpay/return', [PaymentController::class, 'vnpayReturn'])->name('payment.vnpay.return');
 //                     Frontend
 Route::get('/', [
     HomeController::class,

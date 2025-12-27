@@ -380,7 +380,34 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                                     aria-label="Đóng"></button>
                             </div>
-                            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+
+                            <form method="POST" action="{{ route('payment.create') }}">
+                                @csrf
+
+                                <input type="hidden" name="order_id" value="{{ $order->id }}">
+                                <input type="hidden" name="payment_type" id="selectedPaymentType">
+
+                                <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                                    <div class="list-group">
+                                        @foreach ($paymentTypes as $payment)
+                                            <label class="list-group-item d-flex align-items-center payment-option"
+                                                style="cursor:pointer;">
+                                                <input type="radio" name="payment_radio" class="form-check-input me-3"
+                                                    data-type="{{ $payment->code }}">
+                                                <strong>{{ $payment->payment_name }}</strong>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button type="submit" id="submitPayment" class="btn btn-danger" disabled>
+                                        Xác nhận thanh toán
+                                    </button>
+                                </div>
+                            </form>
+
+                            {{-- <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
 
                                 @if ($paymentTypes->count() > 0)
                                     <div class="list-group">
@@ -404,21 +431,27 @@
                                     <p class="text-muted">Chưa có phương thức thanh toán nào.</p>
                                 @endif
 
-                            </div>
-                            <div class="modal-footer">
+                            </div> --}}
+                            {{-- <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
                                 <button type="button" id="confirmPaymentBtn" class="btn btn-danger"
                                     data-bs-dismiss="modal">Xác nhận</button>
-                            </div>
+                            </div> --}}
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-
-
+    <script>
+        document.querySelectorAll('.payment-option input[type=radio]')
+            .forEach(radio => {
+                radio.addEventListener('change', function() {
+                    document.getElementById('selectedPaymentType').value = this.dataset.type;
+                    document.getElementById('submitPayment').disabled = false;
+                });
+            });
+    </script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {

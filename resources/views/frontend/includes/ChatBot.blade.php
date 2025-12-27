@@ -69,7 +69,7 @@
         width: 56px;
         height: 56px;
         border-radius: 50%;
-        background: #1e88e5;
+        background: #0f3c91;
         color: #fff;
         border: none;
         cursor: pointer;

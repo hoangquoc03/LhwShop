@@ -43,7 +43,7 @@
 
                                         {{-- Cột 1: Hãng --}}
                                         <div class="col-md-4">
-                                            <h6 class="dropdown-header">Hãng</h6>
+                                            <h6 class="dropdown-header">Danh mục nhỏ</h6>
                                             @foreach ($item->suppliers as $s)
                                                 <a class="dropdown-item"
                                                     href="{{ route('products.filter', [
@@ -53,8 +53,6 @@
                                                     {{ $s->supplier_text }}
                                                 </a>
                                             @endforeach
-
-
                                         </div>
 
                                         {{-- Cột 2: Mức giá --}}

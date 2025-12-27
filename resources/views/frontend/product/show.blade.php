@@ -469,7 +469,7 @@
                 </div>
 
                 {{-- Add to Cart Button --}}
-                <button type="button" class="btn btn-primary btn-lg w-100 mt-auto py-3 add-to-cart-btn"
+                <button type="button" class="btn btn-primary btn-lg w-100 mt-auto py-3 add-to-cart"
                     data-id="{{ $product->id }}">
                     <i class="fas fa-cart-plus me-2"></i> Thêm vào giỏ hàng
                 </button>
@@ -580,6 +580,7 @@
 
         </div>
     </div>
+    @include('frontend/includes/ChatBot')
 
     {{-- Dynamic CSS (can be moved to a separate file) --}}
     <style>

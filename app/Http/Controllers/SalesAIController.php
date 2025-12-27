@@ -15,41 +15,91 @@ class SalesAIController extends Controller
         $text = mb_strtolower(trim($text));
 
         $map = [
+            // a
             'à' => 'a',
             'á' => 'a',
             'ạ' => 'a',
             'ả' => 'a',
             'ã' => 'a',
+            'â' => 'a',
+            'ầ' => 'a',
+            'ấ' => 'a',
+            'ậ' => 'a',
+            'ẩ' => 'a',
+            'ẫ' => 'a',
+            'ă' => 'a',
+            'ằ' => 'a',
+            'ắ' => 'a',
+            'ặ' => 'a',
+            'ẳ' => 'a',
+            'ẵ' => 'a',
+
+            // e
             'è' => 'e',
             'é' => 'e',
             'ẹ' => 'e',
             'ẻ' => 'e',
             'ẽ' => 'e',
+            'ê' => 'e',
+            'ề' => 'e',
+            'ế' => 'e',
+            'ệ' => 'e',
+            'ể' => 'e',
+            'ễ' => 'e',
+
+            // i
             'ì' => 'i',
             'í' => 'i',
             'ị' => 'i',
             'ỉ' => 'i',
             'ĩ' => 'i',
+
+            // o
             'ò' => 'o',
             'ó' => 'o',
             'ọ' => 'o',
             'ỏ' => 'o',
             'õ' => 'o',
+            'ô' => 'o',
+            'ồ' => 'o',
+            'ố' => 'o',
+            'ộ' => 'o',
+            'ổ' => 'o',
+            'ỗ' => 'o',
+            'ơ' => 'o',
+            'ờ' => 'o',
+            'ớ' => 'o',
+            'ợ' => 'o',
+            'ở' => 'o',
+            'ỡ' => 'o',
+
+            // u
             'ù' => 'u',
             'ú' => 'u',
             'ụ' => 'u',
             'ủ' => 'u',
             'ũ' => 'u',
+            'ư' => 'u',
+            'ừ' => 'u',
+            'ứ' => 'u',
+            'ự' => 'u',
+            'ử' => 'u',
+            'ữ' => 'u',
+
+            // y
             'ỳ' => 'y',
             'ý' => 'y',
             'ỵ' => 'y',
             'ỷ' => 'y',
             'ỹ' => 'y',
+
+            // d
             'đ' => 'd'
         ];
 
         return strtr($text, $map);
     }
+
 
     private function extractKeywords(string $text): array
     { // ham nay dung de lay tu khoa loai bo stopword
@@ -169,28 +219,96 @@ class SalesAIController extends Controller
     {
         $text = mb_strtolower($text, 'UTF-8');
 
+        // BỎ DẤU TIẾNG VIỆT (CỰC QUAN TRỌNG)
+        $text = iconv('UTF-8', 'ASCII//TRANSLIT', $text);
+
         // chuẩn hoá các cách viết khoảng giá → "-"
-        $text = preg_replace(
-            '/\b(đến|den|tới|toi|~|–|—|−)\b/u',
-            '-',
-            $text
-        );
+        $text = preg_replace('/\b(den|toi|~|–|—|−)\b/u', '-', $text);
 
-        // chuẩn hoá "dưới / trên"
-        $text = preg_replace('/\bdưới\b|\bduoi\b/u', 'duoi', $text);
-        $text = preg_replace('/\btrên\b|\btren\b/u', 'tren', $text);
+        // chuẩn hoá dưới / trên
+        $text = preg_replace('/\bduoi\b/u', 'duoi', $text);
+        $text = preg_replace('/\btren\b/u', 'tren', $text);
 
-        // bỏ chữ đơn vị
-        $text = preg_replace('/(triệu|tr|vnd)/u', '', $text);
+        // bỏ đơn vị
+        $text = preg_replace('/(trieu|tr|vnd)/u', '', $text);
 
-        // chỉ giữ số + chữ + - + space
+        // chỉ giữ chữ + số
         $text = preg_replace('/[^0-9a-z\- ]/u', '', $text);
 
         // gộp khoảng trắng
-        $text = preg_replace('/\s+/', ' ', $text);
-
-        return trim($text);
+        return trim(preg_replace('/\s+/', ' ', $text));
     }
+
+    private function giftTypeMap(): array
+    {
+        return [
+            'nu' => [
+                'label' => 'Quà tặng mùa lễ hội cho Nữ',
+                'keywords' => [
+                    'nu',
+                    'cho nu',
+                    'qua tang nu',
+                    'qua cho nu',
+                    'qua tang cho nu'
+                ]
+            ],
+            'nam' => [
+                'label' => 'Quà tặng mùa lễ hội cho Nam',
+                'keywords' => [
+                    'nam',
+                    'cho nam',
+                    'qua tang nam',
+                    'qua cho nam'
+                ]
+            ],
+            'thu_cung' => [
+                'label' => 'Quà tặng cho thú cưng',
+                'keywords' => [
+                    'thu cung',
+                    'cho cho',
+                    'cho meo',
+                    'pet'
+                ]
+            ],
+            'em_be' => [
+                'label' => 'Quà tặng cho Em bé',
+                'keywords' => [
+                    'em be',
+                    'cho be',
+                    'tre em'
+                ]
+            ],
+        ];
+    }
+
+    private function detectGiftType(string $text): ?string
+    {
+        $text = $this->normalizeText($text);
+
+        foreach ($this->giftTypeMap() as $key => $data) {
+            foreach ($data['keywords'] as $kw) {
+                $kw = $this->normalizeText($kw);
+
+                // match chứa từ khóa
+                if (str_contains($text, $kw)) {
+                    return $key;
+                }
+
+                // match mờ theo từng từ
+                foreach (explode(' ', $text) as $word) {
+                    similar_text($word, $kw, $percent);
+                    if ($percent >= 80) {
+                        return $key;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+
+
 
 
 
@@ -236,7 +354,15 @@ class SalesAIController extends Controller
 
         return null;
     }
+    private function isChangeIntent(string $text): bool
+    {
+        $text = $this->normalizeText($text);
 
+        return preg_match(
+            '/\b(mua|tim|chon|doi|khong phai|khac|muon mua|toi muon)\b/u',
+            $text
+        );
+    }
 
 
 
@@ -303,6 +429,29 @@ class SalesAIController extends Controller
         }
         return null;
     }
+    private function detectProductKeyword(string $text): bool
+    {
+        $text = $this->normalizeText($text);
+
+        $products = [
+            'nuoc hoa',
+            'perfume',
+            'tui',
+            'vi',
+            'dong ho',
+            'giay',
+            'that lung',
+        ];
+
+        foreach ($products as $p) {
+            if (str_contains($text, $p)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 
 
 
@@ -468,13 +617,40 @@ class SalesAIController extends Controller
             }
 
             $productId = $ids[$index];
-            $product = ShopProduct::find($productId);
+            $product = ShopProduct::with('discount')->find($productId);
+
 
             if (!$product) {
                 return response()->json([
                     'reply' => "❌ Sản phẩm hiện không còn tồn tại ạ."
                 ]);
             }
+            session()->put('chat_context.current_product', $product->id);
+            // LẤY DISCOUNT ĐÃ LOAD
+            $discount = $product->discount;
+            $listPrice = (float) $product->list_price;
+
+            $finalPrice = $listPrice;
+            $percentOff = 0;
+            $hasDiscount = false;
+
+            if ($discount && $listPrice > 0) {
+                $discountAmount = (float) ($discount->discount_amount ?? 0);
+                $isFixed = (int) ($discount->is_fixed ?? 0);
+
+                if ($isFixed === 0 && $discountAmount > 0) {
+                    // Giảm theo %
+                    $percentOff = min(100, round($discountAmount));
+                    $finalPrice = max(0, $listPrice * (1 - $discountAmount / 100));
+                } elseif ($isFixed === 1 && $discountAmount > 0) {
+                    // Giảm theo số tiền
+                    $finalPrice = max(0, $listPrice - $discountAmount);
+                    $percentOff = min(100, round(($discountAmount / $listPrice) * 100));
+                }
+
+                $hasDiscount = $finalPrice < $listPrice;
+            }
+
 
             // 👉 TRẢ VỀ CHI TIẾT SÂU
             $reply = "
@@ -490,8 +666,22 @@ class SalesAIController extends Controller
          alt='{$product->product_name}'
          style='width:100%;max-width:260px;border-radius:10px;margin-bottom:10px;'>
 
-    👟 <b>{$product->product_name}</b><br>
-    💰 <b style='color:#1e40af'>" . number_format($product->list_price, 0, ',', '.') . "đ</b><br><br>
+    👟 <b>{$product->product_name} </b><br>
+
+" . ($hasDiscount ? "
+    💸 <b style='color:#dc2626'>" . number_format($finalPrice, 0, ',', '.') . "đ</b>
+    <span style='text-decoration:line-through;color:#6b7280;font-size:0.9em;margin-left:6px;'>
+        " . number_format($listPrice, 0, ',', '.') . "đ
+    </span>
+    <span style='display:inline-block;margin-left:6px;padding:2px 6px;
+        background:#ef4444;color:#fff;border-radius:999px;
+        font-size:0.75em;font-weight:600;'>
+        -{$percentOff}%
+    </span>
+" : "
+    💰 <b style='color:#1e40af'>" . number_format($listPrice, 0, ',', '.') . "đ</b>
+") . "
+<br><br>
 
     📄 {$product->short_description}<br><br>
 
@@ -506,23 +696,81 @@ class SalesAIController extends Controller
     </button>
     
 </div>
-
 <br>🔎 <b>Anh/chị muốn biết thêm về mẫu này không ạ?</b><br>
-• Chất liệu / form dáng 👕<br>
-• Size & cách chọn size 📏<br>
-• Bảo hành / đổi trả 🔁<br>
-• Còn màu khác không 🎨<br>
+• Mô tả chi tiết sản phẩm 📋<br>
+• Giá hiện tại & mức giảm giá 💸<br>
+• Tình trạng còn hàng 🏪<br>
+• Sản phẩm mới / sản phẩm nổi bật ⭐<br>
 • So sánh với mẫu khác ⚖️<br><br>
 
 👉 Anh/chị chỉ cần gõ ví dụ:
-<b>“chất liệu”</b>, <b>“còn màu gì”</b>, <b>“size L bao nhiêu kg”</b> hoặc <b>“đặt mua”</b> ạ 💬
-
+<b>“mô tả”</b>, <b>“giảm giá bao nhiêu”</b>, <b>“còn hàng không”</b>, 
+<b>“hàng mới không”</b> hoặc <b>“đặt mua”</b> ạ 💬
 ";
-
             return response()->json(['reply' => $reply]);
         }
 
 
+        $currentProductId = session('chat_context.current_product');
+        if ($currentProductId) {
+
+            $product = ShopProduct::find($currentProductId);
+
+            if (!$product) {
+                session()->forget('chat_context.current_product');
+                return response()->json([
+                    'reply' => "❌ Sản phẩm này hiện không còn tồn tại ạ."
+                ]);
+            }
+            if (preg_match('/(mo\s*ta|chi\s*tiet|thong\s*tin|mieu\s*ta|noi\s*dung)/', $text)) {
+
+                $reply = "📋 <b>Chi tiết sản phẩm {$product->product_name}:</b><br><br>";
+                $reply .= nl2br($product->description ?: 'Hiện chưa có mô tả chi tiết ạ.');
+
+                return response()->json(['reply' => $reply]);
+            }
+
+
+
+
+            if (preg_match('/\b(giam gia|giam|khuyen mai|sale|uu dai)\b/', $text)) {
+                $discountPercent = $product->discount_percent;
+
+                $reply = $discountPercent > 0
+                    ? "💸 Sản phẩm đang giảm <b>{$discountPercent}%</b> 🎉"
+                    : "💰 Hiện sản phẩm chưa có chương trình giảm giá ạ.";
+
+                return response()->json(['reply' => $reply]);
+            }
+
+
+            if (preg_match('/(con\s*hang|ton\s*kho|so\s*luong|co\s*hang|het\s*hang)/', $text)) {
+
+                $reply = $product->quantity_per_unit > 0
+                    ? "🏪 Hiện còn <b>{$product->quantity_per_unit}</b> sản phẩm trong kho."
+                    : "❌ Sản phẩm hiện đã hết hàng.";
+
+                return response()->json(['reply' => $reply]);
+            }
+
+            if (preg_match('/(hang\s*moi|moi|new)/', $text)) {
+
+                $reply = $product->is_new
+                    ? "🆕 Đây là <b>sản phẩm mới</b> của shop ạ!"
+                    : "ℹ️ Sản phẩm này không phải hàng mới.";
+
+                return response()->json(['reply' => $reply]);
+            }
+
+            if (preg_match('/(noi\s*bat|ban\s*chay|hot|best)/', $text)) {
+
+                $reply = $product->is_featured
+                    ? "⭐ Đây là <b>sản phẩm nổi bật</b> của shop!"
+                    : "ℹ️ Sản phẩm này không nằm trong danh sách nổi bật.";
+
+                return response()->json(['reply' => $reply]);
+            }
+        }
         if ($this->isViewOtherIntent($text)) { // kiem tra y dinh xem mau khac
 
             session()->forget(['chat_context.supplier', 'chat_context.supplier_text', 'chat_context.priceRange', 'chat_context.offset', 'chat_context.last_products']); // offset de lay them san pham va last_products de luu id san pham vua hien thi
@@ -634,7 +882,35 @@ class SalesAIController extends Controller
 
 
         if ($this->isBuyIntent($text) || $category) { // tin nhan co y dinh mua hang
-            // Nếu user chỉ nói "mua hàng"
+            // 🔁 Nếu user muốn mua cái khác → reset ngữ cảnh
+            if (
+                session()->has('chat_context.gift_type')
+                && (
+                    $this->detectProductKeyword($text)
+                    || $this->isChangeIntent($text)
+                )
+            ) {
+                session()->forget('chat_context.gift_type');
+
+                return response()->json([
+                    'reply' => "🔄 <b>Dạ vâng ạ!</b><br>
+Em hiểu anh/chị muốn <b>đổi sang sản phẩm khác</b> 😊<br><br>
+👉 Anh/chị đang muốn mua gì tiếp theo ạ?"
+                ]);
+            }
+
+
+            $giftType = $this->detectGiftType($text);
+
+            if ($giftType) {
+                session()->put('chat_context.gift_type', $giftType);
+
+                return response()->json([
+                    'reply' => "👋 <b>Dạ vâng ạ!</b><br><br>
+Anh/chị đang quan tâm <b>{$this->giftTypeMap()[$giftType]['label']}</b> 🎁<br><br>
+👉 Em sẽ gợi ý sản phẩm phù hợp ngay ạ!"
+                ]);
+            }
             if (!$category) {
                 return response()->json([
                     'reply' => $this->replyCategoryList()

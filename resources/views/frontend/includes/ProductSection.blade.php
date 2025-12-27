@@ -139,7 +139,7 @@
                     {{-- Badge % giảm giá --}}
                     @if ($hasDiscount && $percentOff > 0)
                         <span class="position-absolute top-0 start-0 m-2 badge rounded-pill shadow"
-                            style="background: linear-gradient(135deg,#007bff,#00c6ff); font-size:0.95rem; padding:0.4rem 0.7rem;z-index: 10;">
+                            style="background: linear-gradient(135deg,#0f3c91,#1e6bff); font-size:0.95rem; padding:0.4rem 0.7rem;z-index: 10;color: #fff;">
                             -{{ $percentOff }}%
                         </span>
                     @endif

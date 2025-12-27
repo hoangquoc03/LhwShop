@@ -291,6 +291,12 @@ class CartController extends Controller
             $q->where('customer_id', $customer->id);
         })->get();
 
+        $order = ShopOrder::create([
+            'customer_id' => $customer->id,
+            'total'       => $grandTotal,
+            'status'      => 'pending_payment', // chờ thanh toán
+        ]);
+
         return view('frontend.orders.create', compact(
             'cart',
             'customer',
@@ -303,7 +309,8 @@ class CartController extends Controller
             'shippingFee',
             'grandTotal',
             'vouchers',
-            'appliedVoucher'
+            'appliedVoucher',
+            'order'
         ));
     }
 

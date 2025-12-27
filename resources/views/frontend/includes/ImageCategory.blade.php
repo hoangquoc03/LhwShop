@@ -26,6 +26,7 @@
     }
 
     .editorial-slider {
+        margin-bottom: 100px;
         position: relative;
         width: 100%;
         height: 80vh;
