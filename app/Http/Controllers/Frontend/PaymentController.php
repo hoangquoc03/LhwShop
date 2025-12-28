@@ -56,49 +56,88 @@ class PaymentController extends Controller
     }
 
 
-    public function vnpayReturn(Request $request)
+    public function return(Request $request)
     {
         $vnp_HashSecret = config('services.vnpay.hash_secret');
         $inputData = $request->all();
 
-        $vnp_SecureHash = $inputData['vnp_SecureHash'];
+        $secureHash = $inputData['vnp_SecureHash'];
         unset($inputData['vnp_SecureHash'], $inputData['vnp_SecureHashType']);
 
         ksort($inputData);
         $hashData = http_build_query($inputData);
-        $secureHash = hash_hmac('sha512', urldecode($hashData), $vnp_HashSecret);
+        $checkHash = hash_hmac('sha512', urldecode($hashData), $vnp_HashSecret);
 
-        if ($secureHash !== $vnp_SecureHash) {
+        if ($checkHash !== $secureHash) {
             abort(403, 'Sai chữ ký VNPay');
         }
 
-        $order = ShopOrder::findOrFail($request->vnp_TxnRef);
-
         if ($request->vnp_ResponseCode === '00') {
-            $order->status = 'paid';
-            $order->save();
+            session()->put('vnpay_paid', true);
+            $order = ShopOrder::where('vnp_txn_ref', $request->vnp_TxnRef)->first();
+
+            if ($order) {
+                $order->update([
+                    'payment_status' => ShopOrder::PAYMENT_PAID,
+                    'paid_date' => now(),
+                    'order_status' => ShopOrder::STATUS_PENDING,
+                ]);
+            }
 
             return redirect()
-                ->route('order.success', $order->id)
-                ->with('success', 'Thanh toán VNPay thành công');
+                ->route('orders.create')
+                ->with('toast_success', 'Thanh toán VNPay thành công 🎉');
         }
 
-        $order->status = 'failed';
-        $order->save();
 
         return redirect()
-            ->route('order.failed', $order->id)
-            ->with('error', 'Thanh toán thất bại');
+            ->route('orders.create')
+            ->with('toast_error', 'Thanh toán thất bại');
     }
 
-    public function qrCode($orderId)
+
+    public function qr(Request $request)
     {
-        $order = ShopOrder::findOrFail($orderId);
+        $subtotal = (int) $request->subtotal;
+        $voucherDiscount = (int) ($request->voucher_discount ?? 0);
+        $deliveryType = $request->delivery_type;
 
-        $text = "BANK: Vietcombank\nACC: 123456789\nNAME: CÔNG TY ABC\nAMOUNT: {$order->total}\nNOTE: {$order->id}";
+        // 🚚 Chỉ cộng ship khi giao hàng tận nơi
+        $shippingFee = ($deliveryType === 'home') ? 30000 : 0;
 
-        $qr = QrCode::size(300)->generate($text);
+        $grandTotal = max(
+            $subtotal - $voucherDiscount + $shippingFee,
+            0
+        );
 
-        return view('payment.qr', compact('qr', 'order'));
+        $vnp_TmnCode    = config('services.vnpay.tmn_code');
+        $vnp_HashSecret = config('services.vnpay.hash_secret');
+        $vnp_Url        = config('services.vnpay.url');
+        $vnp_Returnurl  = route('vnpay.return');
+
+        $inputData = [
+            "vnp_Version" => "2.1.0",
+            "vnp_Command" => "pay",
+            "vnp_TmnCode" => $vnp_TmnCode,
+            "vnp_Amount" => $grandTotal * 100,
+            "vnp_CurrCode" => "VND",
+            "vnp_TxnRef" => time(),
+            "vnp_OrderInfo" => "Thanh toán đơn hàng",
+            "vnp_OrderType" => "other",
+            "vnp_Locale" => "vn",
+            "vnp_ReturnUrl" => $vnp_Returnurl,
+            "vnp_IpAddr" => $request->ip(),
+            "vnp_CreateDate" => now()->format('YmdHis'),
+        ];
+
+        ksort($inputData);
+        $query = http_build_query($inputData);
+        $hash = hash_hmac('sha512', urldecode($query), $vnp_HashSecret);
+
+        return response()->json([
+            'qr' => 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' . urlencode($vnp_Url . '?' . $query . '&vnp_SecureHash=' . $hash),
+            'amount' => number_format($grandTotal, 0, ',', '.') . '₫',
+            'shipping_fee' => number_format($shippingFee, 0, ',', '.') . '₫'
+        ]);
     }
 }

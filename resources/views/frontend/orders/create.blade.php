@@ -322,6 +322,17 @@
                             </button>
                         </div>
                     </div>
+                    <div id="vnpayBox" class="card shadow-sm d-none mb-3">
+                        <div class="card-header fw-bold text-center">
+                            QUÉT QR THANH TOÁN VNPAY
+                        </div>
+                        <div class="card-body text-center">
+                            <img id="vnpayQr" src="" class="img-fluid mb-3">
+                            <h5 class="text-danger fw-bold" id="vnpayAmount"></h5>
+                            <p class="text-muted">Vui lòng thanh toán để tiếp tục đặt hàng</p>
+                        </div>
+                    </div>
+
 
 
                     <div class="card shadow-sm mb-3">
@@ -367,7 +378,6 @@
 
                     <button type="submit" class="btn btn-primary w-100">Đặt hàng</button>
 
-
                 </form>
                 <!-- Modal chọn phương thức thanh toán -->
                 <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel"
@@ -380,34 +390,7 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                                     aria-label="Đóng"></button>
                             </div>
-
-                            <form method="POST" action="{{ route('payment.create') }}">
-                                @csrf
-
-                                <input type="hidden" name="order_id" value="{{ $order->id }}">
-                                <input type="hidden" name="payment_type" id="selectedPaymentType">
-
-                                <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
-                                    <div class="list-group">
-                                        @foreach ($paymentTypes as $payment)
-                                            <label class="list-group-item d-flex align-items-center payment-option"
-                                                style="cursor:pointer;">
-                                                <input type="radio" name="payment_radio" class="form-check-input me-3"
-                                                    data-type="{{ $payment->code }}">
-                                                <strong>{{ $payment->payment_name }}</strong>
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-
-                                <div class="modal-footer">
-                                    <button type="submit" id="submitPayment" class="btn btn-danger" disabled>
-                                        Xác nhận thanh toán
-                                    </button>
-                                </div>
-                            </form>
-
-                            {{-- <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
 
                                 @if ($paymentTypes->count() > 0)
                                     <div class="list-group">
@@ -416,43 +399,71 @@
                                                 style="cursor:pointer;">
                                                 <input type="radio" name="payment_type" value="{{ $payment->id }}"
                                                     class="form-check-input me-3"
-                                                    @if (!empty($selectedPayment) && $selectedPayment == $payment->id) checked @endif>
+                                                    data-code="{{ strtoupper($payment->payment_code) }}"
+                                                    data-name="{{ $payment->payment_name }}">
                                                 <div>
                                                     <strong>{{ $payment->payment_name }}</strong>
                                                     @if ($payment->description)
-                                                        <div class="small text-muted">{{ $payment->description }}
-                                                        </div>
+                                                        <div class="small text-muted">{{ $payment->description }}</div>
                                                     @endif
                                                 </div>
                                             </label>
                                         @endforeach
+
                                     </div>
                                 @else
                                     <p class="text-muted">Chưa có phương thức thanh toán nào.</p>
                                 @endif
 
-                            </div> --}}
-                            {{-- <div class="modal-footer">
+                            </div>
+                            <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
                                 <button type="button" id="confirmPaymentBtn" class="btn btn-danger"
                                     data-bs-dismiss="modal">Xác nhận</button>
-                            </div> --}}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <script>
-        document.querySelectorAll('.payment-option input[type=radio]')
-            .forEach(radio => {
-                radio.addEventListener('change', function() {
-                    document.getElementById('selectedPaymentType').value = this.dataset.type;
-                    document.getElementById('submitPayment').disabled = false;
-                });
-            });
-    </script>
+    @if (session('toast_success'))
+        <script>
+            Toastify({
+                text: "{{ session('toast_success') }}",
+                duration: 4000,
+                gravity: "top",
+                position: "right",
+                backgroundColor: "#28a745"
+            }).showToast();
+        </script>
+    @endif
 
+    {{-- <script>
+        document.querySelectorAll('input[name="payment_type"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const paymentId = this.value;
+                const paymentCode = this.dataset.code;
+                const paymentName = this.dataset.name;
+
+                document.getElementById('payment_type_id').value = paymentId;
+                document.getElementById('paymentLabel').innerHTML =
+                    'Thanh toán bằng: <b>' + paymentName + '</b>';
+
+                if (paymentCode === 'VNPAY') {
+                    fetch("{{ route('vnpay.qr') }}?amount={{ $grandTotal }}")
+                        .then(res => res.json())
+                        .then(data => {
+                            document.getElementById('vnpayQr').src = data.qr;
+                            document.getElementById('vnpayAmount').innerText = data.amount;
+                            document.getElementById('vnpayBox').classList.remove('d-none');
+                        });
+                } else {
+                    document.getElementById('vnpayBox').classList.add('d-none');
+                }
+            });
+        });
+    </script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
 
@@ -497,8 +508,6 @@
             updateTotal();
         });
     </script>
-
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const confirmBtn = document.getElementById('confirmPaymentBtn');
@@ -519,6 +528,135 @@
                     selected.closest('label').querySelector('strong').innerText +
                     '</b>';
             });
+        });
+    </script> --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const SHIPPING_FEE = 30000;
+
+            let subtotal = {{ $totalAfterProductDiscount }};
+            let voucherDiscount = {{ $voucherDiscount ?? 0 }};
+            let deliveryType = 'store';
+            window.selectedPayment = null;
+
+            function formatVND(n) {
+                return n.toLocaleString('vi-VN') + '₫';
+            }
+
+            function updateTotal() {
+                let shippingFee = deliveryType === 'home' ? SHIPPING_FEE : 0;
+                let grandTotal = Math.max(subtotal - voucherDiscount + shippingFee, 0);
+
+                document.getElementById('shippingFee').innerText = formatVND(shippingFee);
+                document.getElementById('voucherDiscount').innerText = '-' + formatVND(voucherDiscount);
+                document.getElementById('grandTotal').innerText = formatVND(grandTotal);
+
+                return grandTotal;
+            }
+
+            function getGrandTotal() {
+                let shippingFee = deliveryType === 'home' ? SHIPPING_FEE : 0;
+                return Math.max(subtotal - voucherDiscount + shippingFee, 0);
+            }
+
+
+            function loadVNPayQR() {
+                let grandTotal = getGrandTotal();
+
+                console.log('LOAD VNPAY QR', {
+                    subtotal,
+                    voucherDiscount,
+                    deliveryType,
+                    grandTotal,
+                    selectedPayment: window.selectedPayment
+                });
+
+                fetch("{{ route('vnpay.qr') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            subtotal: grandTotal, // 🔥 GỬI TỔNG CUỐI
+                            voucher_discount: 0, // đã trừ rồi
+                            delivery_type: 'store' // không dùng nữa
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        console.log('VNPAY QR RESPONSE:', data);
+
+                        document.getElementById('vnpayQr').src = data.qr;
+                        document.getElementById('vnpayAmount').innerText = data.amount;
+                        document.getElementById('vnpayBox').classList.remove('d-none');
+                    });
+            }
+
+
+
+            /* ===== CHỌN GIAO HÀNG ===== */
+            document.querySelectorAll("input[name='delivery_type']").forEach(el => {
+                el.addEventListener('change', function() {
+                    deliveryType = this.value;
+                    updateTotal();
+
+                    if (window.selectedPayment && window.selectedPayment.code === 'VNPAY') {
+                        loadVNPayQR();
+                    }
+
+                });
+            });
+
+            /* ===== CHỌN VOUCHER ===== */
+            const voucherSelect = document.querySelector("select[name='voucher_id']");
+            if (voucherSelect) {
+                voucherSelect.addEventListener("change", function() {
+                    voucherDiscount = parseInt(
+                        this.options[this.selectedIndex].dataset.discount || 0
+                    );
+                    updateTotal();
+
+                    if (window.selectedPayment && window.selectedPayment.code === 'VNPAY') {
+                        loadVNPayQR();
+                    }
+
+                });
+            }
+
+            /* ===== CHỌN PAYMENT ===== */
+            document.querySelectorAll("input[name='payment_type']").forEach(radio => {
+                radio.addEventListener("change", function() {
+                    window.selectedPayment = {
+                        id: this.value,
+                        code: this.dataset.code,
+                        name: this.dataset.name
+                    };
+                    console.log('SELECTED PAYMENT:', window.selectedPayment);
+                });
+            });
+
+            /* ===== XÁC NHẬN PAYMENT ===== */
+            document.getElementById('confirmPaymentBtn').addEventListener('click', function() {
+                if (!window.selectedPayment) {
+                    alert('Vui lòng chọn phương thức thanh toán');
+                    return;
+                }
+
+                document.getElementById('payment_type_id').value = window.selectedPayment.id;
+                document.getElementById('paymentLabel').innerHTML =
+                    'Thanh toán bằng: <b>' + window.selectedPayment.name + '</b>';
+
+                if (window.selectedPayment.code === 'VNPAY') {
+                    loadVNPayQR();
+                } else {
+                    document.getElementById('vnpayBox').classList.add('d-none');
+                }
+            });
+
+
+            updateTotal();
         });
     </script>
 

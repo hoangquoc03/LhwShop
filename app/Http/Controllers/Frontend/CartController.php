@@ -250,6 +250,17 @@ class CartController extends Controller
         $categories = ShopCategory::all();
         $paymentTypes = ShopPaymentType::all();
         $cities = City::all();
+        $currentOrder = ShopOrder::firstOrCreate(
+            [
+                'customer_id' => $customer->id,
+                'order_status' => ShopOrder::STATUS_PENDING
+            ],
+            [
+                'order_date' => now(),
+                'payment_status' => 'unpaid',
+                'ship_country' => 'Việt Nam',
+            ]
+        );
 
         // 1️⃣ Tổng tiền gốc (chưa giảm)
         $totalBeforeDiscount = collect($cart)->sum(function ($item) {
@@ -285,19 +296,34 @@ class CartController extends Controller
             $totalAfterProductDiscount - $voucherDiscount + $shippingFee,
             0
         );
+        $currentOrder = null;
+
+        if (session('vnpay_paid')) {
+            $currentOrder = (object)[
+                'payment_status' => 'paid'
+            ];
+        }
+        $selectedPaymentCode = null;
+
+        if (session('selected_payment_type_id')) {
+            $paymentType = \App\Models\ShopPaymentType::find(
+                session('selected_payment_type_id')
+            );
+
+            $selectedPaymentCode = $paymentType?->payment_code;
+        }
+
+
 
         // Voucher của khách
         $vouchers = ShopVoucher::whereHas('customers', function ($q) use ($customer) {
             $q->where('customer_id', $customer->id);
         })->get();
 
-        $order = ShopOrder::create([
-            'customer_id' => $customer->id,
-            'total'       => $grandTotal,
-            'status'      => 'pending_payment', // chờ thanh toán
-        ]);
+
 
         return view('frontend.orders.create', compact(
+            'selectedPaymentCode',
             'cart',
             'customer',
             'categories',
@@ -310,7 +336,7 @@ class CartController extends Controller
             'grandTotal',
             'vouchers',
             'appliedVoucher',
-            'order'
+            'currentOrder'
         ));
     }
 
@@ -365,7 +391,6 @@ class CartController extends Controller
                 'payment_type_id' => $request->payment_type_id ?? null,
                 'shipping_fee' => $shippingFee,
             ]);
-
             foreach ($cart as $item) {
 
                 $product = $item->product;

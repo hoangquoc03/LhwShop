@@ -9,6 +9,8 @@ use App\Models\ShopCustomer;
 
 class ShopOrder extends Model
 {
+    const PAYMENT_UNPAID = 'unpaid';
+    const PAYMENT_PAID   = 'paid';
     const STATUS_PENDING   = 'Pending';
     const STATUS_CANCELLED = 'Cancelled';
     const STATUS_DELIVERED = 'Delivered';
@@ -30,8 +32,8 @@ class ShopOrder extends Model
         'ship_country',
         'shipping_fee',
         'payment_type_id',
+        'payment_status',
         'paid_date',
-        'order_status',
         'postal_code',
         'created_at',
         'updated_at',

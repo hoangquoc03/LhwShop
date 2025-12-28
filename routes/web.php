@@ -65,9 +65,18 @@ Route::post('/chat/ai', [SalesAIController::class, 'chat'])
 Route::get('/chat/categories', [SalesAIController::class, 'categories'])
     ->name('chat.categories');
 // Payment
-Route::get('/payment/qr/{orderId}', [PaymentController::class, 'qrCode'])->name('payment.qr');
-Route::post('/payment/create', [PaymentController::class, 'create'])->name('payment.create');
-Route::get('/payment/vnpay/return', [PaymentController::class, 'vnpayReturn'])->name('payment.vnpay.return');
+// routes/web.php
+Route::post('/payment/vnpay/qr', [PaymentController::class, 'qr'])->name('vnpay.qr');
+Route::get('/payment/vnpay/return', [PaymentController::class, 'return'])->name('vnpay.return');
+Route::get('/payment/vnpay/test-success', function () {
+    session()->put('vnpay_paid', true);
+
+    return redirect()
+        ->route('orders.create')
+        ->with('toast_success', 'TEST: Thanh toán VNPay thành công');
+});
+
+
 //                     Frontend
 Route::get('/', [
     HomeController::class,
