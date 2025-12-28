@@ -8,23 +8,17 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use App\Models\ShopOrder;
 
-class ActivateUserMail extends Mailable
+class NewOrderAdminMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $newUser;   // để dùng trong blade
-    public $activationUrl;
+    public $order;
 
-    /**
-     * Create a new message instance.
-     */
-    public function __construct($newUser)
+    public function __construct(ShopOrder $order)
     {
-        $this->newUser = $newUser;
-        $this->activationUrl = route('frontend.register.active-user', [
-            'token' => $newUser->activate_code
-        ]);
+        $this->order = $order;
     }
 
     /**
@@ -33,7 +27,7 @@ class ActivateUserMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Kích hoạt tài khoản của bạn'
+            subject: 'New Order Admin Mail',
         );
     }
 
@@ -43,11 +37,7 @@ class ActivateUserMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'mail.activate-user',
-            with: [
-                'newUser' => $this->newUser,
-                'activationUrl' => $this->activationUrl
-            ]
+            view: 'mail.new_order',
         );
     }
 

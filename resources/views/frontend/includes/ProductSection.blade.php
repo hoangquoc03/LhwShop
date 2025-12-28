@@ -4,6 +4,7 @@
             <h2 class="fw-bold mb-0">{{ $title ?? 'SẢN PHẨM' }}</h2>
             @php
                 $suppliers = $screen->pluck('supplier')->filter()->unique('id');
+                $wrapperId = $wrapperId ?? Str::slug($title) . '-wrapper';
             @endphp
 
             <div class="fw-bold d-flex flex-wrap gap-3">
@@ -99,11 +100,13 @@
             }
         </style>
         <!-- Buttons -->
-        <button class="nav-arrow left" onclick="scrollProducts(-1)">&#8249;</button>
-        <button class="nav-arrow right" onclick="scrollProducts(1)">&#8250;</button>
+        <button class="nav-arrow left" data-target="{{ $wrapperId }}"
+            onclick="scrollProducts(event, -1)">&#8249;</button>
+        <button class="nav-arrow right" data-target="{{ $wrapperId }}"
+            onclick="scrollProducts(event, 1)">&#8250;</button>
 
         <!-- Wrapper -->
-        <div class="products-container featured-products-wrapper">
+        <div class="products-container featured-products-wrapper" id="{{ $wrapperId }}">
             @foreach ($screen as $product)
                 @php
                     $avgRating = (float) ($product->reviews_avg_rating ?? 0);
@@ -234,17 +237,15 @@
 </section>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    function scrollProducts(direction) {
-        const container = document.querySelector('.featured-products-wrapper');
+    function scrollProducts(event, direction) {
+        const targetId = event.currentTarget.dataset.target;
+        const container = document.getElementById(targetId);
         if (!container) return;
 
-        // Lấy 1 card bất kỳ để tính width
         const card = container.querySelector('.card-product');
         if (!card) return;
 
         const gap = parseFloat(getComputedStyle(container).gap) || 16;
-
-        // 5 sản phẩm / 1 hàng → scroll đúng 5 card
         const scrollAmount = (card.offsetWidth + gap) * 5;
 
         container.scrollBy({

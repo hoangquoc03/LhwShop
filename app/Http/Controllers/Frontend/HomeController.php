@@ -105,6 +105,18 @@ class HomeController extends Controller
                 $query->where('categories_code', 'CPL');
             })
             ->get();
+        $bag = ShopProduct::with(['category', 'supplier'])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('category', function ($query) {
+                $query->where('categories_code', 'LKTM');
+            })
+            ->get();
+        $outfit = ShopProduct::with(['category', 'supplier'])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('category', function ($query) {
+                $query->where('categories_code', 'TP');
+            })
+            ->get();
 
 
         $screenIpad = ShopProduct::with(['category', 'supplier'])
@@ -121,6 +133,8 @@ class HomeController extends Controller
         return view(
             'frontend.index',
             compact(
+                'outfit',
+                'bag',
                 'categories',
                 'suppliers',
                 'ImageCategories',

@@ -10,31 +10,42 @@ use App\Models\ShopOrder;
 use App\Models\ShopPaymentType;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
+
 class ShopOrderController extends Controller
 {
     public function index(Request $request)
     {
         $query = ShopOrder::query();
 
+        /* 🔍 Tìm kiếm theo keyword */
         if ($request->filled('keyword')) {
             $keyword = $request->keyword;
             $query->where(function ($q) use ($keyword) {
                 $q->where('ship_address1', 'like', '%' . $keyword . '%')
-                ->orWhere('ship_name', 'like', '%' . $keyword . '%');
+                    ->orWhere('ship_name', 'like', '%' . $keyword . '%');
             });
         }
 
-        $dsShopOrders = $query->paginate(5);
+        /* 🎯 Lọc theo trạng thái đơn hàng */
+        if ($request->filled('status')) {
+            $query->where('order_status', $request->status);
+        }
+
+        $dsShopOrders = $query->latest()->paginate(5)->withQueryString();
+
         $dsAclUsers = AclUser::all();
         $dsShopCustomer = ShopCustomer::all();
         $dsShopPaymentType = ShopPaymentType::all();
 
-        return view('backend.shop_order.index')
-            ->with('dsShopOrders', $dsShopOrders)
-            ->with('dsAclUsers', $dsAclUsers)
-            ->with('dsShopCustomer', $dsShopCustomer)
-            ->with('dsShopPaymentType', $dsShopPaymentType);
+        return view('backend.shop_order.index', compact(
+            'dsShopOrders',
+            'dsAclUsers',
+            'dsShopCustomer',
+            'dsShopPaymentType'
+        ));
     }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -50,6 +61,7 @@ class ShopOrderController extends Controller
             'employee_id'      => 'required|exists:acl_users,id',
             'customer_id'      => 'required|exists:shop_customers,id',
             'payment_type_id'  => 'required|exists:shop_payment_types,id',
+            'ship_phone'       => 'required|string|max:20',
         ], [
             'order_date.required'   => 'Ngày đặt hàng là bắt buộc.',
             'order_date.date'       => 'Ngày đặt hàng không hợp lệ.',
@@ -58,7 +70,7 @@ class ShopOrderController extends Controller
             'shipped_date.after_or_equal' => 'Ngày giao phải sau hoặc bằng ngày đặt.',
 
             'ship_name.required'    => 'Tên người nhận là bắt buộc.',
-            'ship_address1.required'=> 'Địa chỉ giao hàng là bắt buộc.',
+            'ship_address1.required' => 'Địa chỉ giao hàng là bắt buộc.',
 
             'shipping_fee.required' => 'Phí vận chuyển là bắt buộc.',
             'shipping_fee.numeric'  => 'Phí vận chuyển phải là số.',
@@ -67,7 +79,8 @@ class ShopOrderController extends Controller
 
             'employee_id.exists'    => 'Nhân viên không tồn tại.',
             'customer_id.exists'    => 'Khách hàng không tồn tại.',
-            'payment_type_id.exists'=> 'Phương thức thanh toán không tồn tại.',
+            'payment_type_id.exists' => 'Phương thức thanh toán không tồn tại.',
+            'ship_phone.required'   => 'Số điện thoại người nhận là bắt buộc.',
         ]);
 
         if ($validator->fails()) {
@@ -117,7 +130,7 @@ class ShopOrderController extends Controller
             'shipped_date.after_or_equal' => 'Ngày giao phải sau hoặc bằng ngày đặt.',
 
             'ship_name.required'    => 'Tên người nhận là bắt buộc.',
-            'ship_address1.required'=> 'Địa chỉ giao hàng là bắt buộc.',
+            'ship_address1.required' => 'Địa chỉ giao hàng là bắt buộc.',
 
             'shipping_fee.required' => 'Phí vận chuyển là bắt buộc.',
             'shipping_fee.numeric'  => 'Phí vận chuyển phải là số.',
@@ -126,7 +139,7 @@ class ShopOrderController extends Controller
 
             'employee_id.exists'    => 'Nhân viên không tồn tại.',
             'customer_id.exists'    => 'Khách hàng không tồn tại.',
-            'payment_type_id.exists'=> 'Phương thức thanh toán không tồn tại.',
+            'payment_type_id.exists' => 'Phương thức thanh toán không tồn tại.',
         ]);
 
         if ($validator->fails()) {
@@ -162,5 +175,17 @@ class ShopOrderController extends Controller
         toastify()->success('Xóa đơn hàng thành công');
         return redirect()->route('backend.ShopOrder.index');
     }
+    public function printPending()
+    {
+        $orders = ShopOrder::where('order_status', 'Pending')
+            ->latest()
+            ->get();
 
+        $pdf = Pdf::loadView(
+            'backend.shop_order.print_pending',
+            compact('orders')
+        )->setPaper('A4', 'portrait');
+
+        return $pdf->stream('don-hang-cho-xu-ly.pdf');
+    }
 }

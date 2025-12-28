@@ -76,10 +76,18 @@
     </style>
     @include('frontend/includes/CategorySection')
     @include('frontend/includes/HeroSection')
-    @include('frontend/includes/ImageCategory')
     @include('frontend/includes/ProductSection', [
         'title' => 'QUÀ TẶNG',
         'screen' => $screen,
+    ])
+    @include('frontend/includes/ImageCategory')
+    @include('frontend/includes/ProductSection', [
+        'title' => 'TÚI XÁCH VÀ VÍ',
+        'screen' => $bag,
+    ])
+    @include('frontend/includes/ProductSection', [
+        'title' => 'ĐỒ NAM',
+        'screen' => $outfit,
     ])
     @include('frontend/includes/ChatBot')
     <style>

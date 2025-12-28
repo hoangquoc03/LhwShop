@@ -474,13 +474,6 @@ class SalesAIController extends Controller
 
     Em là <b>trợ lý tư vấn mua sắm cao cấp</b> của LW Shop 👔👟<br>
     Chuyên các dòng <b>thời trang luxury & lifestyle</b> chính hãng.<br><br>
-
-    🔹 <b>Em có thể hỗ trợ anh/chị:</b><br>
-    • 👟 Trang phục nam / nữ cao cấp theo nhu cầu & ngân sách<br>
-    • 👔 Thời trang luxury – local brand – hàng tuyển chọn<br>
-    • 👜 Túi xách, phụ kiện, đồng hồ chính hãng<br>
-    • 🎁 Ưu đãi – voucher – sản phẩm đang sale<br><br>
-
     👉 Anh/chị chỉ cần <b>gõ nhu cầu</b> hoặc <b>tên danh mục</b> để em tư vấn chi tiết ạ 💎
     "
             ]);
@@ -521,8 +514,7 @@ class SalesAIController extends Controller
         if (
             $context &&
             $context['category'] &&
-            $context['supplier'] &&
-            !$context['priceRange']
+            $context['supplier']
         ) {
 
             $range = $this->detectPriceRange($text);

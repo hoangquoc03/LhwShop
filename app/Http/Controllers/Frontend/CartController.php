@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Frontend;
 
+use Illuminate\Support\Facades\Mail;
+use App\Mail\NewOrderAdminMail;
 use App\Http\Controllers\Controller;
 use App\Models\ShopCategory;
 use Illuminate\Http\Request;
@@ -423,6 +425,8 @@ class CartController extends Controller
 
 
             DB::commit();
+            Mail::to(config('mail.admin_email'))->send(new NewOrderAdminMail($order));
+
 
             // Xóa giỏ hàng trong DB
             \App\Models\ShopCart::where('customer_id', $customer->id)->delete();

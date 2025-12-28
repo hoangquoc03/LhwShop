@@ -51,6 +51,7 @@ use App\Http\Controllers\Frontend\ChatController;
 use App\Http\Controllers\AIChatController;
 use App\Http\Controllers\PaymentController as ControllersPaymentController;
 use App\Http\Controllers\SalesAIController;
+
 //                    errors
 Route::get('/errors/403', [
     ErrorController::class,
@@ -502,3 +503,7 @@ Route::controller(ShopProductPostController::class)->prefix('backend/ProductPost
     Route::delete('/{id}', 'destroy')->name('destroy');
     Route::post('/batch-delete', 'batchDelete')->name('batchDelete');
 });
+Route::get(
+    'shop-orders/print-pending',
+    [ShopOrderController::class, 'printPending']
+)->name('backend.ShopOrder.printPending');

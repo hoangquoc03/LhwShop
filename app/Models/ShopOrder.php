@@ -33,6 +33,7 @@ class ShopOrder extends Model
         'shipping_fee',
         'payment_type_id',
         'payment_status',
+        'order_status',
         'paid_date',
         'postal_code',
         'created_at',

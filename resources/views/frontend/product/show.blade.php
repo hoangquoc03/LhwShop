@@ -2,6 +2,10 @@
 @section('title')
     {{ $product->product_name }}
 @endsection
+@php
+    $hasSize = $product->variants->whereNotNull('size')->where('size', '!=', '')->count() > 0;
+    $colors = $product->variants->groupBy('color');
+@endphp
 {{-- Star Rating & Review Count --}}
 @php
     $reviewsCount = $product->reviews->count();
@@ -299,9 +303,10 @@
                 <div class="product-gallery">
                     <div class="main-image-display position-relative mb-3 rounded-4 overflow-hidden shadow-sm">
 
-                        <img src="{{ Str::startsWith($product->image, ['http://', 'https://'])
-                            ? $product->image
-                            : asset('storage/uploads/products/' . $product->image) }}"
+                        <img id="mainProductImage"
+                            src="{{ Str::startsWith($product->image, ['http://', 'https://'])
+                                ? $product->image
+                                : asset('storage/uploads/products/' . $product->image) }}"
                             alt="{{ $product->product_name }}"
                             style="height:260px;object-fit:cover;transition: transform .3s;">
                         @if ($hasDiscount && $percentOff > 0)
@@ -319,14 +324,22 @@
                             : asset('storage/uploads/products/' . $product->image) }}"
                             alt="{{ $product->product_name }}" class="img-thumbnail thumb-image active">
 
-                        @foreach ($product->images as $img)
-                            @if ($img->image)
-                                <img src="{{ Str::startsWith($img->image, ['http://', 'https://'])
-                                    ? $img->image
-                                    : asset('storage/uploads/products/' . $img->image) }}"
-                                    alt="{{ $product->product_name }}" class="img-thumbnail thumb-image">
-                            @endif
-                        @endforeach
+                        <div class="d-flex gap-2 flex-wrap mt-3">
+                            @foreach ($product->images as $img)
+                                @if ($img->image)
+                                    @php
+                                        $imageUrl = Str::startsWith($img->image, ['http://', 'https://'])
+                                            ? $img->image
+                                            : asset('storage/uploads/products/' . $img->image);
+                                    @endphp
+
+                                    <img src="{{ $imageUrl }}" data-image="{{ $imageUrl }}"
+                                        alt="{{ $product->product_name }}" class="img-thumbnail thumb-image"
+                                        style="width:80px;height:80px;object-fit:cover;cursor:pointer">
+                                @endif
+                            @endforeach
+                        </div>
+
 
                     </div>
                 </div>
@@ -376,48 +389,132 @@
                             @endif
                         </p>
                     </div>
+                    @if ($product->variants->count())
 
-                    {{-- Variant Select (Grid Style) --}}
-                    @if ($product->variants->count() > 0)
+
                         <div class="mb-4">
-                            <label class="form-label fw-semibold text-dark d-block mb-2">Chọn phiên bản:</label>
+                            <label class="fw-semibold d-block mb-2">Màu sắc</label>
 
-                            <div class="row g-3" id="variantGrid">
-                                @foreach ($product->variants as $variant)
-                                    <div class="col-6 col-md-4">
-                                        <div class="variant-box border rounded-3 p-3 text-center h-100 selectable"
-                                            data-id="{{ $variant->id }}"
-                                            data-price="{{ $variant->calculated_list_price }}"
-                                            data-discounted-price="{{ $variant->calculated_discounted_price }}"
-                                            data-has-discount="{{ $variant->has_discount ? 1 : 0 }}"
-                                            data-percent-off="{{ $variant->calculated_percent_off }}" role="button">
+                            <div class="d-flex gap-3 flex-wrap">
+                                @foreach ($colors as $color => $items)
+                                    @php $firstVariant = $items->first(); @endphp
 
-                                            <div class="fw-semibold mb-2">{{ $variant->variant_name }}</div>
+                                    <div class="color-option selectable" data-color="{{ $color }}"
+                                        data-image="{{ $firstVariant->image }}" data-variant-id="{{ $firstVariant->id }}"
+                                        data-price="{{ $firstVariant->price }}" role="button">
 
-                                            @if ($variant->has_discount)
-                                                <div class="text-danger fw-bold">
-                                                    {{ number_format($variant->calculated_discounted_price, 0, ',', '.') }}đ
-                                                </div>
-                                                <div class="text-muted text-decoration-line-through small">
-                                                    {{ number_format($variant->calculated_list_price, 0, ',', '.') }}đ
-                                                </div>
-                                                <div class="badge bg-success mt-1">
-                                                    -{{ $variant->calculated_percent_off }}%
-                                                </div>
-                                            @else
-                                                <div class="text-dark fw-bold">
-                                                    {{ number_format($variant->calculated_list_price, 0, ',', '.') }}đ
-                                                </div>
-                                            @endif
-                                        </div>
+                                        <img src="{{ $firstVariant->image }}" class="rounded border variant-thumb"
+                                            style="width:164px;height:164px;object-fit:cover;cursor:pointer">
+
+                                        <div class="small mt-1 text-center">{{ $color }}</div>
                                     </div>
                                 @endforeach
                             </div>
 
-                            {{-- Input ẩn để gửi variant_id về form --}}
-                            <input type="hidden" name="variant_id" id="selectedVariantId">
                         </div>
+                        @if ($hasSize)
+                            <div class="mb-4">
+                                <label class="fw-semibold d-block mb-2">Size</label>
+
+                                <div class="d-flex gap-2 flex-wrap" id="sizeGrid">
+                                    @foreach ($product->variants as $variant)
+                                        <button type="button" class="btn btn-outline-dark size-option selectable"
+                                            data-id="{{ $variant->id }}" data-color="{{ $variant->color }}"
+                                            data-price="{{ $variant->price }}" @disabled($variant->stock_quantity <= 0)
+                                            style="display:none">
+                                            {{ $variant->size }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        <input type="hidden" name="variant_id" id="selectedVariantId">
                     @endif
+                    <script>
+                        const hasSize = @json($hasSize);
+
+                        document.querySelectorAll('.color-option').forEach(colorEl => {
+                            colorEl.addEventListener('click', () => {
+                                const color = colorEl.dataset.color;
+                                const image = colorEl.dataset.image;
+                                const variantId = colorEl.dataset.variantId;
+                                const price = colorEl.dataset.price;
+
+                                // active màu
+                                document.querySelectorAll('.color-option').forEach(c => c.classList.remove('active'));
+                                colorEl.classList.add('active');
+
+                                // đổi ảnh
+                                const mainImg = document.getElementById('mainProductImage');
+                                if (mainImg) mainImg.src = image;
+
+                                if (!hasSize) {
+                                    // 👉 KHÔNG CÓ SIZE → chọn luôn variant
+                                    document.getElementById('selectedVariantId').value = variantId;
+
+                                    const priceBox = document.getElementById('productPrice');
+                                    if (priceBox) {
+                                        priceBox.innerText =
+                                            new Intl.NumberFormat('vi-VN').format(price) + 'đ';
+                                    }
+                                    return;
+                                }
+
+                                // 👉 CÓ SIZE → show size theo màu
+                                document.querySelectorAll('.size-option').forEach(btn => {
+                                    btn.style.display = btn.dataset.color === color ? 'inline-block' : 'none';
+                                    btn.classList.remove('active');
+                                });
+                            });
+                        });
+
+                        document.querySelectorAll('.size-option').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                document.querySelectorAll('.size-option').forEach(b => b.classList.remove('active'));
+                                btn.classList.add('active');
+
+                                document.getElementById('selectedVariantId').value = btn.dataset.id;
+
+                                const priceBox = document.getElementById('productPrice');
+                                if (priceBox) {
+                                    priceBox.innerText =
+                                        new Intl.NumberFormat('vi-VN').format(btn.dataset.price) + 'đ';
+                                }
+                            });
+                        });
+                    </script>
+                    <script>
+                        const mainImage = document.getElementById('mainProductImage');
+
+                        /* CLICK ẢNH MÀU (VARIANT) */
+                        document.querySelectorAll('.color-option img').forEach(img => {
+                            img.addEventListener('click', () => {
+                                const image = img.closest('.color-option').dataset.image;
+                                if (mainImage && image) {
+                                    mainImage.src = image;
+                                }
+
+                                // active UI
+                                document.querySelectorAll('.variant-thumb').forEach(i => i.classList.remove('active'));
+                                img.classList.add('active');
+                            });
+                        });
+
+                        /* CLICK ẢNH PHỤ (GALLERY) */
+                        document.querySelectorAll('.thumb-image').forEach(thumb => {
+                            thumb.addEventListener('click', () => {
+                                const image = thumb.dataset.image || thumb.src;
+                                if (mainImage && image) {
+                                    mainImage.src = image;
+                                }
+
+                                document.querySelectorAll('.thumb-image').forEach(t => t.classList.remove('active'));
+                                thumb.classList.add('active');
+                            });
+                        });
+                    </script>
+
 
                     {{-- Script chọn box --}}
                     <script>
@@ -437,22 +534,7 @@
                         });
                     </script>
 
-                    {{-- Style nhẹ --}}
-                    <style>
-                        .variant-box {
-                            cursor: pointer;
-                            transition: 0.2s;
-                        }
 
-                        .variant-box:hover {
-                            border-color: #0f3c91;
-                            box-shadow: 0 0 8px rgba(13, 110, 253, 0.3);
-                        }
-
-                        .variant-box.border-primary {
-                            border-width: 2px !important;
-                        }
-                    </style>
 
 
                     {{-- Quantity Control --}}
