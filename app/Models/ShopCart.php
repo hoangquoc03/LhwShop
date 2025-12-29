@@ -15,6 +15,7 @@ class ShopCart extends Model
         'customer_id',
         'product_id',
         'quantity',
+        'variant_id',
     ];
 
     public function customer()
@@ -25,5 +26,9 @@ class ShopCart extends Model
     public function product()
     {
         return $this->belongsTo(ShopProduct::class, 'product_id');
+    }
+    public function variant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 }

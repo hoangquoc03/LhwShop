@@ -129,10 +129,12 @@ class HomeController extends Controller
                 $query->where('categories_code', 'LTVP');
             })
             ->get();
+        $posts = ShopProductPost::all(['id', 'image', 'title', 'content']);
 
         return view(
             'frontend.index',
             compact(
+                'posts',
                 'outfit',
                 'bag',
                 'categories',

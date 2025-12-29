@@ -3,11 +3,6 @@
     {{ $product->product_name }}
 @endsection
 @php
-    $hasSize = $product->variants->whereNotNull('size')->where('size', '!=', '')->count() > 0;
-    $colors = $product->variants->groupBy('color');
-@endphp
-{{-- Star Rating & Review Count --}}
-@php
     $reviewsCount = $product->reviews->count();
     $avgRating = $reviewsCount ? $product->reviews->avg('rating') : 0;
     $rating = round($avgRating);
@@ -389,154 +384,59 @@
                             @endif
                         </p>
                     </div>
+
+                    @php
+                        $hasColor = $product->variants->whereNotNull('color')->where('color', '!=', '')->count() > 0;
+
+                        $hasSize = $product->variants->whereNotNull('size')->where('size', '!=', '')->count() > 0;
+
+                        $colors = $hasColor ? $product->variants->groupBy('color') : collect();
+                    @endphp
                     @if ($product->variants->count())
 
+                        {{-- ===== CHỌN MÀU ===== --}}
+                        @if ($hasColor)
+                            <div class="mb-4">
+                                <label class="fw-semibold d-block mb-2">Màu sắc</label>
 
-                        <div class="mb-4">
-                            <label class="fw-semibold d-block mb-2">Màu sắc</label>
+                                <div class="d-flex gap-3 flex-wrap">
+                                    @foreach ($colors as $color => $items)
+                                        @php $firstVariant = $items->first(); @endphp
 
-                            <div class="d-flex gap-3 flex-wrap">
-                                @foreach ($colors as $color => $items)
-                                    @php $firstVariant = $items->first(); @endphp
+                                        <div class="color-option selectable" data-color="{{ $color }}"
+                                            data-image="{{ $firstVariant->image }}"
+                                            data-variant-id="{{ $firstVariant->id }}"
+                                            data-price="{{ $firstVariant->price }}" role="button">
 
-                                    <div class="color-option selectable" data-color="{{ $color }}"
-                                        data-image="{{ $firstVariant->image }}" data-variant-id="{{ $firstVariant->id }}"
-                                        data-price="{{ $firstVariant->price }}" role="button">
+                                            <img src="{{ $firstVariant->image }}" class="rounded border variant-thumb"
+                                                style="width:164px;height:164px;object-fit:cover;cursor:pointer">
 
-                                        <img src="{{ $firstVariant->image }}" class="rounded border variant-thumb"
-                                            style="width:164px;height:164px;object-fit:cover;cursor:pointer">
-
-                                        <div class="small mt-1 text-center">{{ $color }}</div>
-                                    </div>
-                                @endforeach
+                                            <div class="small mt-1 text-center">{{ $color }}</div>
+                                        </div>
+                                    @endforeach
+                                </div>
                             </div>
-
-                        </div>
+                        @endif
+                        {{-- ===== CHỌN SIZE ===== --}}
                         @if ($hasSize)
                             <div class="mb-4">
                                 <label class="fw-semibold d-block mb-2">Size</label>
 
-                                <div class="d-flex gap-2 flex-wrap" id="sizeGrid">
+                                <div class="size-grid" id="sizeGrid">
                                     @foreach ($product->variants as $variant)
-                                        <button type="button" class="btn btn-outline-dark size-option selectable"
-                                            data-id="{{ $variant->id }}" data-color="{{ $variant->color }}"
-                                            data-price="{{ $variant->price }}" @disabled($variant->stock_quantity <= 0)
-                                            style="display:none">
+                                        <button type="button" class="size-option selectable" data-id="{{ $variant->id }}"
+                                            data-color="{{ $variant->color }}" data-price="{{ $variant->price }}"
+                                            @disabled($variant->stock_quantity <= 0)
+                                            style="{{ $hasColor ? 'display:none' : 'display:inline-flex' }}">
                                             {{ $variant->size }}
                                         </button>
                                     @endforeach
                                 </div>
                             </div>
                         @endif
-
                         <input type="hidden" name="variant_id" id="selectedVariantId">
+
                     @endif
-                    <script>
-                        const hasSize = @json($hasSize);
-
-                        document.querySelectorAll('.color-option').forEach(colorEl => {
-                            colorEl.addEventListener('click', () => {
-                                const color = colorEl.dataset.color;
-                                const image = colorEl.dataset.image;
-                                const variantId = colorEl.dataset.variantId;
-                                const price = colorEl.dataset.price;
-
-                                // active màu
-                                document.querySelectorAll('.color-option').forEach(c => c.classList.remove('active'));
-                                colorEl.classList.add('active');
-
-                                // đổi ảnh
-                                const mainImg = document.getElementById('mainProductImage');
-                                if (mainImg) mainImg.src = image;
-
-                                if (!hasSize) {
-                                    // 👉 KHÔNG CÓ SIZE → chọn luôn variant
-                                    document.getElementById('selectedVariantId').value = variantId;
-
-                                    const priceBox = document.getElementById('productPrice');
-                                    if (priceBox) {
-                                        priceBox.innerText =
-                                            new Intl.NumberFormat('vi-VN').format(price) + 'đ';
-                                    }
-                                    return;
-                                }
-
-                                // 👉 CÓ SIZE → show size theo màu
-                                document.querySelectorAll('.size-option').forEach(btn => {
-                                    btn.style.display = btn.dataset.color === color ? 'inline-block' : 'none';
-                                    btn.classList.remove('active');
-                                });
-                            });
-                        });
-
-                        document.querySelectorAll('.size-option').forEach(btn => {
-                            btn.addEventListener('click', () => {
-                                document.querySelectorAll('.size-option').forEach(b => b.classList.remove('active'));
-                                btn.classList.add('active');
-
-                                document.getElementById('selectedVariantId').value = btn.dataset.id;
-
-                                const priceBox = document.getElementById('productPrice');
-                                if (priceBox) {
-                                    priceBox.innerText =
-                                        new Intl.NumberFormat('vi-VN').format(btn.dataset.price) + 'đ';
-                                }
-                            });
-                        });
-                    </script>
-                    <script>
-                        const mainImage = document.getElementById('mainProductImage');
-
-                        /* CLICK ẢNH MÀU (VARIANT) */
-                        document.querySelectorAll('.color-option img').forEach(img => {
-                            img.addEventListener('click', () => {
-                                const image = img.closest('.color-option').dataset.image;
-                                if (mainImage && image) {
-                                    mainImage.src = image;
-                                }
-
-                                // active UI
-                                document.querySelectorAll('.variant-thumb').forEach(i => i.classList.remove('active'));
-                                img.classList.add('active');
-                            });
-                        });
-
-                        /* CLICK ẢNH PHỤ (GALLERY) */
-                        document.querySelectorAll('.thumb-image').forEach(thumb => {
-                            thumb.addEventListener('click', () => {
-                                const image = thumb.dataset.image || thumb.src;
-                                if (mainImage && image) {
-                                    mainImage.src = image;
-                                }
-
-                                document.querySelectorAll('.thumb-image').forEach(t => t.classList.remove('active'));
-                                thumb.classList.add('active');
-                            });
-                        });
-                    </script>
-
-
-                    {{-- Script chọn box --}}
-                    <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const boxes = document.querySelectorAll('.variant-box');
-                            const hiddenInput = document.getElementById('selectedVariantId');
-
-                            boxes.forEach(box => {
-                                box.addEventListener('click', function() {
-                                    // Bỏ chọn các box khác
-                                    boxes.forEach(b => b.classList.remove('border-primary', 'shadow'));
-                                    // Chọn box hiện tại
-                                    this.classList.add('border-primary', 'shadow');
-                                    hiddenInput.value = this.dataset.id;
-                                });
-                            });
-                        });
-                    </script>
-
-
-
-
                     {{-- Quantity Control --}}
                     <div class="mb-4">
                         <label for="quantityInput" class="form-label fw-semibold text-dark">Số lượng:</label>
@@ -551,10 +451,14 @@
                 </div>
 
                 {{-- Add to Cart Button --}}
-                <button type="button" class="btn btn-primary btn-lg w-100 mt-auto py-3 add-to-cart"
-                    data-id="{{ $product->id }}">
+                <button type="button" class="btn btn-primary btn-lg w-100 mt-auto py-3" data-id="{{ $product->id }}"
+                    id="addToCartBtn">
                     <i class="fas fa-cart-plus me-2"></i> Thêm vào giỏ hàng
                 </button>
+
+
+
+
             </div>
 
 
@@ -594,22 +498,29 @@
                     {{-- Reviews Tab --}}
                     <div class="tab-pane fade" id="reviews" role="tabpanel" aria-labelledby="reviews-tab">
                         <div class="reviews-list">
-                            @forelse($product->reviews as $review)
-                                <div class="card mb-3 shadow-sm border-0 review-card">
+                            @forelse($product->reviews as $index => $review)
+                                <div
+                                    class="card mb-3 shadow-sm border-0 review-card
+        {{ $index >= 2 ? 'd-none extra-review' : '' }}">
+
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <h6 class="card-title mb-0 fw-bold text-dark">
-                                                {{ $review->user->name ?? 'Khách' }}</h6>
+                                                {{ $review->user->name ?? 'Khách' }}
+                                            </h6>
                                             <small class="text-muted">{{ $review->created_at->format('d/m/Y') }}</small>
                                         </div>
+
                                         <div class="text-warning mb-2">
                                             @for ($i = 1; $i <= 5; $i++)
                                                 @if ($i <= $review->rating)
                                                     <i class="fas fa-star"></i>
-                                                @else<i class="far fa-star"></i>
+                                                @else
+                                                    <i class="far fa-star"></i>
                                                 @endif
                                             @endfor
                                         </div>
+
                                         <p class="card-text text-secondary">{{ $review->comment }}</p>
                                     </div>
                                 </div>
@@ -619,36 +530,62 @@
                                     người đầu tiên!
                                 </div>
                             @endforelse
-                        </div>
+                            @if ($product->reviews->count() > 2)
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-outline-primary px-4" id="toggleReviewsBtn">
+                                        Xem thêm đánh giá
+                                    </button>
+                                </div>
+                            @endif
 
-                        {{-- Review Form --}}
-                        <div class="mt-5 p-4 border rounded-3 bg-light">
-                            <h5 class="mb-3 text-dark fw-bold">Viết đánh giá của bạn</h5>
-                            <form action="" method="POST" id="reviewForm"> {{-- Cần cập nhật action --}}
-                                @csrf
-                                <input type="hidden" name="product_id" value="{{ $product->id }}">
-                                <div class="mb-3">
-                                    <label for="rating" class="form-label fw-semibold">Xếp hạng:</label>
-                                    <div class="d-flex gap-1 rating-stars-interactive" id="ratingStars">
-                                        <i class="far fa-star text-warning fa-lg" data-rating="1"></i>
-                                        <i class="far fa-star text-warning fa-lg" data-rating="2"></i>
-                                        <i class="far fa-star text-warning fa-lg" data-rating="3"></i>
-                                        <i class="far fa-star text-warning fa-lg" data-rating="4"></i>
-                                        <i class="far fa-star text-warning fa-lg" data-rating="5"></i>
-                                        <input type="hidden" name="rating" id="selectedRating" value="0"
-                                            required>
-                                    </div>
-                                    <div class="invalid-feedback">Vui lòng chọn số sao.</div>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="comment" class="form-label fw-semibold">Bình luận:</label>
-                                    <textarea class="form-control" name="comment" id="comment" rows="5"
-                                        placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..." required></textarea>
-                                    <div class="invalid-feedback">Vui lòng nhập bình luận.</div>
-                                </div>
-                                <button type="submit" class="btn btn-primary btn-lg mt-3">Gửi đánh giá</button>
-                            </form>
                         </div>
+                        {{-- Review Form --}}
+                        @if (Auth::check() && $hasOrdered)
+                            <div class="mt-5 p-4 border rounded-3 bg-light">
+                                <h5 class="mb-3 text-dark fw-bold">Viết đánh giá của bạn</h5>
+
+                                <form action="{{ route('reviews.store') }}" method="POST" id="reviewForm">
+                                    @csrf
+                                    <input type="hidden" name="product_id" value="{{ $product->id }}">
+
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Xếp hạng:</label>
+                                        <div class="d-flex gap-1 rating-stars-interactive" id="ratingStars">
+                                            @for ($i = 1; $i <= 5; $i++)
+                                                <i class="far fa-star text-warning fa-lg"
+                                                    data-rating="{{ $i }}"></i>
+                                            @endfor
+                                            <input type="hidden" name="rating" id="selectedRating" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Bình luận:</label>
+                                        <textarea class="form-control" name="comment" rows="5" placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
+                                            required></textarea>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary btn-lg mt-3">
+                                        Gửi đánh giá
+                                    </button>
+                                </form>
+                            </div>
+                        @elseif(Auth::guard('customer')->check())
+                            {{-- Đã đăng nhập nhưng CHƯA mua --}}
+                            <div class="alert alert-warning text-center mt-4">
+                                <i class="fas fa-lock me-2"></i>
+                                Bạn cần mua sản phẩm này để có thể viết đánh giá.
+                            </div>
+                        @else
+                            {{-- Chưa đăng nhập --}}
+                            <div class="alert alert-info text-center mt-4">
+                                <i class="fas fa-sign-in-alt me-2"></i>
+                                Vui lòng <a href="{{ route('frontend.login.index') }}" class="fw-bold">đăng nhập</a> để
+                                đánh giá sản
+                                phẩm.
+                            </div>
+                        @endif
+
                     </div>
                 </div>
             </div>
@@ -663,7 +600,82 @@
         </div>
     </div>
     @include('frontend/includes/ChatBot')
+    <style>
+        /* ===== SIZE GRID (Luxury spacing) ===== */
+        .size-grid {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
 
+        /* ===== SIZE OPTION – LUXURY BLUE ===== */
+        .size-option {
+            min-width: 56px;
+            height: 44px;
+            padding: 0 16px;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 12px;
+            border: 1.5px solid #c7d2fe;
+
+            background: linear-gradient(180deg, #ffffff, #f8fafc);
+            color: #1e3a8a;
+
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.6px;
+
+            cursor: pointer;
+            transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ===== HOVER – LUXURY FEEL ===== */
+        .size-option:hover:not(:disabled) {
+            border-color: #2563eb;
+            color: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.18);
+        }
+
+        /* ===== ACTIVE – CHỌN SIZE ===== */
+        .size-option.active {
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            color: #ffffff;
+            border-color: #1e3a8a;
+
+            box-shadow:
+                0 10px 25px rgba(37, 99, 235, 0.35),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+        }
+
+        /* ===== ACTIVE HOVER ===== */
+        .size-option.active:hover {
+            transform: none;
+        }
+
+        /* ===== DISABLED – HẾT HÀNG ===== */
+        .size-option:disabled {
+            background: #f1f5f9;
+            border-color: #e5e7eb;
+            color: #9ca3af;
+            cursor: not-allowed;
+            box-shadow: none;
+            position: relative;
+        }
+
+        /* Gạch chéo tinh tế */
+        .size-option:disabled::after {
+            content: "";
+            position: absolute;
+            width: 110%;
+            height: 1.5px;
+            background: #cbd5e1;
+            transform: rotate(-18deg);
+        }
+    </style>
     {{-- Dynamic CSS (can be moved to a separate file) --}}
     <style>
         .luxury-star {
@@ -937,324 +949,192 @@
             }
         }
     </style>
+
+
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const select = document.getElementById("variantSelect");
-            const priceEl = document.querySelector(".product-price");
-            const originalPriceEl = document.querySelector(".original-price");
-            const percentOffEl = document.querySelector(".percent-off");
+        const hasColor = @json($hasColor);
+        const hasSize = @json($hasSize);
 
-            if (select) {
-                function updatePrice() {
-                    const option = select.options[select.selectedIndex];
-                    const price = Number(option.dataset.price); // giá gốc (số thô)
-                    const discountedPrice = Number(option.dataset.discountedPrice); // giá sau giảm
-                    const hasDiscount = option.dataset.hasDiscount === "1";
-                    const percentOff = Number(option.dataset.percentOff);
+        let selectedVariantId = null;
 
-                    if (hasDiscount && discountedPrice < price) {
-                        priceEl.textContent = discountedPrice.toLocaleString("vi-VN") + " ₫";
-                        originalPriceEl.textContent = price.toLocaleString("vi-VN") + " ₫";
-                        originalPriceEl.style.display = "inline";
-                        percentOffEl.textContent = `- ${percentOff}%`;
-                        percentOffEl.style.display = "inline-block";
-                    } else {
-                        priceEl.textContent = price.toLocaleString("vi-VN") + " ₫";
-                        originalPriceEl.style.display = "none";
-                        percentOffEl.style.display = "none";
-                    }
+        /* ================= CHỌN MÀU ================= */
+        document.querySelectorAll('.color-option').forEach(colorEl => {
+            colorEl.addEventListener('click', () => {
+                const color = colorEl.dataset.color;
+                const image = colorEl.dataset.image;
+                const variantId = colorEl.dataset.variantId;
+                const price = colorEl.dataset.price;
+
+                document.querySelectorAll('.color-option').forEach(c => c.classList.remove('active'));
+                colorEl.classList.add('active');
+
+                const mainImg = document.getElementById('mainProductImage');
+                if (mainImg && image) mainImg.src = image;
+
+                // 👉 KHÔNG CÓ SIZE
+                if (!hasSize) {
+                    selectedVariantId = variantId;
+                    document.getElementById('selectedVariantId').value = variantId;
+                    updatePrice(price);
+                    return;
                 }
 
-                select.addEventListener("change", updatePrice);
-                updatePrice(); // chạy ngay khi load
-            }
+                // 👉 CÓ SIZE → FILTER SIZE
+                selectedVariantId = null;
+                document.getElementById('selectedVariantId').value = '';
+
+                document.querySelectorAll('.size-option').forEach(btn => {
+                    btn.style.display = btn.dataset.color === color ? 'inline-flex' : 'none';
+                    btn.classList.remove('active');
+                });
+            });
         });
-    </script>
-    {{-- JavaScript --}}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const variantSelect = document.getElementById('variantSelect');
-            const productPriceSpan = document.querySelector('.product-price');
-            const discountedPriceSpan = document.querySelector('.discounted-price');
-            const mainImage = document.getElementById('mainImage');
-            const thumbImages = document.querySelectorAll('.thumb-image');
-            const quantityInput = document.getElementById('quantityInput');
-            const minusBtn = document.getElementById('minusBtn');
-            const plusBtn = document.getElementById('plusBtn');
-            const addToCartBtn = document.querySelector('.add-to-cart-btn');
-            const productTabs = new bootstrap.Tab(document.getElementById(
-                'description-tab')); // Initialize Bootstrap Tab
 
-            // --- Image Gallery Logic ---
-            // Set initial active thumbnail
-            if (thumbImages.length > 0) {
-                thumbImages[0].classList.add('active');
-            }
+        /* ================= CHỌN SIZE ================= */
+        document.querySelectorAll('.size-option').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.size-option').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
 
-            // Thumbnail click event
-            thumbImages.forEach(thumb => {
-                thumb.addEventListener('click', function() {
-                    // Update main image source
-                    mainImage.src = this.dataset.src;
+                selectedVariantId = btn.dataset.id;
+                document.getElementById('selectedVariantId').value = selectedVariantId;
 
-                    // Remove active class from all thumbnails
-                    thumbImages.forEach(t => t.classList.remove('active'));
-                    // Add active class to clicked thumbnail
-                    this.classList.add('active');
-                });
+                updatePrice(btn.dataset.price);
+                console.log('Selected variant:', selectedVariantId);
             });
+        });
 
-            // --- Price & Variant Logic ---
-            if (variantSelect) {
-                variantSelect.addEventListener('change', function() {
-                    const selectedOption = this.options[this.selectedIndex];
-                    const price = parseFloat(selectedOption.dataset.price);
-                    const originalListPrice = parseFloat("{{ $listPrice }}"); // From controller
-                    let displayedListPrice = originalListPrice; // Base for comparison
-
-                    // If the selected variant itself has an original price (not just a discounted one)
-                    // you would need another data attribute for that variant's original price.
-                    // For now, we're assuming product's $listPrice is the general reference.
-
-                    productPriceSpan.textContent = price.toLocaleString('vi-VN') + ' ₫';
-
-                    if (discountedPriceSpan) {
-                        // This logic assumes $listPrice is the *product's* original price
-                        // If variants have distinct original prices, you'd need `data-original-price` on each option
-                        if (price <
-                            originalListPrice
-                        ) { // Compare variant's discounted price with product's list price
-                            discountedPriceSpan.style.display = 'inline';
-                            discountedPriceSpan.textContent = originalListPrice.toLocaleString('vi-VN') +
-                                ' ₫';
-                        } else {
-                            // If variant price is not lower than product's general list price, hide strikethrough
-                            discountedPriceSpan.style.display = 'none';
-                        }
-                    }
-                });
-                // Trigger change on load to set initial price correctly if variants exist
-                variantSelect.dispatchEvent(new Event('change'));
+        function updatePrice(price) {
+            const priceBox = document.getElementById('productPrice');
+            if (priceBox) {
+                priceBox.innerText =
+                    new Intl.NumberFormat('vi-VN').format(price) + 'đ';
             }
+        }
 
-            // --- Quantity Controls ---
-            minusBtn.addEventListener('click', function() {
-                let quantity = parseInt(quantityInput.value);
-                if (quantity > 1) {
-                    quantityInput.value = quantity - 1;
+        if (!window.cartEventBound) {
+            window.cartEventBound = true;
+
+            const addBtn = document.getElementById('addToCartBtn');
+            let isAddingToCart = false;
+
+            addBtn.addEventListener('click', () => {
+                if (isAddingToCart) return;
+                isAddingToCart = true;
+
+                const productId = addBtn.dataset.id;
+                const quantity = document.getElementById('quantityInput').value;
+
+                if ((hasColor || hasSize) && !selectedVariantId) {
+                    alert('Vui lòng chọn đầy đủ phiên bản sản phẩm');
+                    isAddingToCart = false;
+                    return;
                 }
-            });
 
-            plusBtn.addEventListener('click', function() {
-                let quantity = parseInt(quantityInput.value);
-                quantityInput.value = quantity + 1;
-            });
+                const formData = new FormData();
+                formData.append('product_id', productId);
+                formData.append('quantity', quantity);
+                if (selectedVariantId) {
+                    formData.append('variant_id', selectedVariantId);
+                }
 
-            // --- Add to Cart Functionality (AJAX placeholder) ---
-            addToCartBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const productId = this.dataset.id;
-                const selectedVariantId = variantSelect ? variantSelect.value : null;
-                const quantity = quantityInput.value;
-
-                // In a real application, you'd send an AJAX request here
-                console.log(
-                    `Adding Product ID: ${productId}, Variant ID: ${selectedVariantId}, Quantity: ${quantity} to cart.`
-                );
-
-                // Example using Fetch API
-                /*
-                fetch('/api/cart/add', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') // If using CSRF token
-                    },
-                    body: JSON.stringify({
-                        product_id: productId,
-                        variant_id: selectedVariantId,
-                        quantity: quantity
+                fetch("{{ route('cart.add') }}", {
+                        method: "POST",
+                        headers: {
+                            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                            "Accept": "application/json"
+                        },
+                        body: formData
                     })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Sản phẩm đã được thêm vào giỏ hàng!'); // Replace with a more elegant notification (e.g., Toast)
-                        // Update cart count on the page
-                    } else {
-                        alert('Có lỗi xảy ra: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error adding to cart:', error);
-                    alert('Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng.');
-                });
-                */
-                alert(`Đã thêm ${quantity} sản phẩm vào giỏ hàng!`); // Placeholder for demonstration
-            });
-
-            // --- Rating Stars Interaction (for review form) ---
-            const ratingStarsContainer = document.getElementById('ratingStars');
-            const selectedRatingInput = document.getElementById('selectedRating');
-
-            if (ratingStarsContainer) {
-                const stars = ratingStarsContainer.querySelectorAll('i');
-
-                stars.forEach(star => {
-                    star.addEventListener('mouseover', function() {
-                        const currentRating = parseInt(this.dataset.rating);
-                        highlightStars(currentRating);
-                    });
-
-                    star.addEventListener('click', function() {
-                        const clickedRating = parseInt(this.dataset.rating);
-                        selectedRatingInput.value = clickedRating;
-                        highlightStars(clickedRating); // Persist selection
-                        ratingStarsContainer.classList.add(
-                            'rated'); // Add a class to indicate it's rated
-                    });
-                });
-
-                ratingStarsContainer.addEventListener('mouseleave', function() {
-                    if (!ratingStarsContainer.classList.contains('rated')) {
-                        highlightStars(0); // Reset if not yet rated
-                    } else {
-                        highlightStars(parseInt(selectedRatingInput.value)); // Restore selected rating
-                    }
-                });
-
-                function highlightStars(rating) {
-                    stars.forEach(s => {
-                        if (parseInt(s.dataset.rating) <= rating) {
-                            s.classList.remove('far');
-                            s.classList.add('fas');
-                        } else {
-                            s.classList.remove('fas');
-                            s.classList.add('far');
-                        }
-                    });
-                }
-
-                // Initial state based on hidden input value (if form pre-filled)
-                highlightStars(parseInt(selectedRatingInput.value));
-            }
-
-            // --- Scroll to Reviews Tab ---
-            const reviewsLink = document.querySelector('.reviews-link');
-            if (reviewsLink) {
-                reviewsLink.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    // Activate the reviews tab
-                    const reviewsTabButton = document.getElementById('reviews-tab');
-                    const bsReviewsTab = new bootstrap.Tab(reviewsTabButton);
-                    bsReviewsTab.show();
-
-                    // Scroll to the tab content
-                    document.getElementById('productTabs').scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                });
-            }
-        });
-    </script>
-
-
-
-    <script>
-        $(document).ready(function() {
-            $(document).on("click", ".btn-remove-favorite", function(e) {
-                e.preventDefault();
-                let item = $(this).closest(".favorite-item");
-                let productId = item.data("id");
-
-                $.ajax({
-                    url: "{{ route('favorites.remove') }}",
-                    type: "POST",
-                    data: {
-                        product_id: productId,
-                        _token: "{{ csrf_token() }}"
-                    },
-                    success: function(res) {
-                        if (res.success) {
-                            // Xoá sản phẩm khỏi DOM
-                            item.remove();
-
-                            // Cập nhật số yêu thích trên navbar
-                            $(".nav-shop__circle").text(res.count);
-                            $("#favorite-list").html(res.html);
-                            // Nếu hết sản phẩm thì hiển thị thông báo
-                            if (res.count === 0) {
-                                $("#favorite-list").html(
-                                    "<p>Chưa có sản phẩm yêu thích nào.</p>");
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            const cartCountEl = document.querySelector('.cart-count');
+                            if (cartCountEl) {
+                                cartCountEl.textContent = data.cart_count;
+                                cartCountEl.style.display = data.cart_count > 0 ?
+                                    'inline-flex' :
+                                    'none';
                             }
-
-                            // Thông báo
                             Toastify({
-                                text: "Đã xóa sản phẩm khỏi yêu thích",
+                                text: "Thêm sản phẩm thành công",
                                 duration: 3000,
                                 gravity: "top",
                                 position: "right",
-                                backgroundColor: "#ff6b6b",
+                                backgroundColor: "#28a745",
                             }).showToast();
+                        } else {
+                            alert(data.message || 'Có lỗi xảy ra');
                         }
-                    },
-                    error: function() {
-                        Toastify({
-                            text: "Có lỗi xảy ra!",
-                            duration: 3000,
-                            gravity: "top",
-                            position: "right",
-                            backgroundColor: "#ff6b6b",
-                        }).showToast();
-                    }
-                });
+                    })
+                    .finally(() => {
+                        isAddingToCart = false;
+                    });
             });
-        });
+        }
     </script>
+
+
+
+
 
     <script>
-        function showSpinner() {
-            document.getElementById("loading-overlay").style.display = "flex";
-        }
+        const mainImage = document.getElementById('mainProductImage');
 
-        function hideSpinner() {
-            document.getElementById("loading-overlay").style.display = "none";
-        }
-
-        // AJAX nút "Xem thêm"
-        $("#load-more").on("click", function(e) {
-            e.preventDefault();
-            $.ajax({
-                url: $(this).data("next-page"),
-                method: "GET",
-                beforeSend: function() {
-                    showSpinner();
-                },
-                success: function(res) {
-                    $("#product-list").append(res);
-                },
-                complete: function() {
-                    hideSpinner();
+        /* CLICK ẢNH MÀU (VARIANT) */
+        document.querySelectorAll('.color-option img').forEach(img => {
+            img.addEventListener('click', () => {
+                const image = img.closest('.color-option').dataset.image;
+                if (mainImage && image) {
+                    mainImage.src = image;
                 }
+
+                // active UI
+                document.querySelectorAll('.variant-thumb').forEach(i => i.classList.remove('active'));
+                img.classList.add('active');
             });
         });
 
-        // Spinner khi rời trang (reload / redirect)
-        window.addEventListener("beforeunload", function() {
-            showSpinner();
-        });
+        /* CLICK ẢNH PHỤ (GALLERY) */
+        document.querySelectorAll('.thumb-image').forEach(thumb => {
+            thumb.addEventListener('click', () => {
+                const image = thumb.dataset.image || thumb.src;
+                if (mainImage && image) {
+                    mainImage.src = image;
+                }
 
-        // Spinner khi click sort
-        document.querySelectorAll('a[href*="?sort="]').forEach(link => {
-            link.addEventListener("click", function() {
-                showSpinner();
+                document.querySelectorAll('.thumb-image').forEach(t => t.classList.remove('active'));
+                thumb.classList.add('active');
             });
         });
     </script>
+
+
+
+
+
+
 
 
 @endsection
+<script>
+    const toggleBtn = document.getElementById('toggleReviewsBtn');
+
+    if (toggleBtn) {
+        let expanded = false;
+
+        toggleBtn.addEventListener('click', () => {
+            document.querySelectorAll('.extra-review').forEach(el => {
+                el.classList.toggle('d-none');
+            });
+
+            expanded = !expanded;
+            toggleBtn.innerText = expanded ?
+                'Thu gọn đánh giá' :
+                'Xem thêm đánh giá';
+        });
+    }
+</script>
 
 <style>
     #floating-buttons {
@@ -1616,226 +1496,4 @@
 </style>
 
 @section('user.js')
-    <script>
-        document.querySelectorAll('.btn-qty').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                let id = this.dataset.id;
-                let input = document.querySelector(`.qty-input[data-id="${id}"]`);
-                let currentQty = parseInt(input.value);
-
-                if (this.dataset.type === "plus") {
-                    currentQty++;
-                } else if (this.dataset.type === "minus" && currentQty > 1) {
-                    currentQty--;
-                }
-
-                fetch(`/cart/update/${id}`, {
-                        method: "POST",
-                        headers: {
-                            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            quantity: currentQty
-                        })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            input.value = data.quantity;
-
-                            // update giá sản phẩm
-                            let itemRow = document.querySelector(`.cart-item[data-id="${id}"]`);
-                            itemRow.querySelector(".item-subtotal").innerText = data.subtotal;
-
-                            // update tổng tiền
-                            document.querySelector(".cart-total").innerText = data.total;
-                        }
-                    });
-            });
-        });
-    </script>
-
-    <script>
-        document.querySelectorAll('.ripple').forEach(button => {
-            button.addEventListener('click', function(e) {
-                const circle = document.createElement("span");
-                circle.classList.add("ripple-effect");
-
-                const rect = button.getBoundingClientRect();
-                const size = Math.max(rect.width, rect.height);
-                circle.style.width = circle.style.height = size + 'px';
-                circle.style.left = e.clientX - rect.left - size / 2 + "px";
-                circle.style.top = e.clientY - rect.top - size / 2 + "px";
-
-                this.appendChild(circle);
-
-                // Xóa ripple sau khi animation xong
-                setTimeout(() => circle.remove(), 600);
-            });
-        });
-    </script>
-
-    <script>
-        $(document).ready(function() {
-            $(".btn-remove-favorite").on("click", function() {
-                let btn = $(this);
-                let item = btn.closest(".favorite-item");
-                let productId = item.data("id");
-
-                $.ajax({
-                    url: "/favorites/remove",
-                    type: "POST",
-                    data: {
-                        product_id: productId,
-                        _token: "{{ csrf_token() }}"
-                    },
-                    success: function(res) {
-                        if (res.success) {
-                            item.remove();
-
-                            Toastify({
-                                text: "Đã xóa sản phẩm khỏi yêu thích",
-                                duration: 3000,
-                                gravity: "top",
-                                position: "right",
-                                backgroundColor: "#ff6b6b",
-                            }).showToast();
-                        }
-                    },
-                    error: function() {
-                        Toastify({
-                            text: "Có lỗi xảy ra!",
-                            duration: 3000,
-                            gravity: "top",
-                            position: "right",
-                            backgroundColor: "#ff6b6b",
-                        }).showToast();
-                    }
-                });
-            });
-        });
-    </script>
-
-    <script>
-        $(document).ready(function() {
-            $('.btn-favorite').on('click', function() {
-                let btn = $(this);
-                let productId = btn.data('id');
-
-                $.ajax({
-                    url: '/favorites/add', // Route Laravel thêm yêu thích
-                    type: 'POST',
-                    data: {
-                        product_id: productId,
-                        _token: '{{ csrf_token() }}'
-                    },
-                    success: function(res) {
-                        if (res.success) {
-                            // Đổi màu icon tim
-                            btn.find('i').addClass('text-primary');
-
-                            // Kiểm tra trùng trước khi append dropdown
-                            if ($('#favorite-list').find('[data-id="' + productId + '"]')
-                                .length === 0) {
-                                let product = res.product;
-                                let html = `
-                            <div class="d-flex align-items-center mb-2" data-id="${product.id}">
-                                <img src="${product.image}" class="mr-2 rounded" alt="${product.name}" style="width:40px;height:40px;object-fit:cover;">
-                                <div>
-                                    <p class="mb-0 small">${product.name}</p>
-                                    <span class="text-danger small">${product.price}</span>
-                                </div>
-                            </div>
-                        `;
-                                $('#favorite-list').prepend(html);
-                            }
-
-                            // Cập nhật số lượng
-                            $('.nav-shop__circle').text($('#favorite-list > div').length);
-
-                            // Hiển thị toast
-                            Toastify({
-                                text: `"${res.product.name}" đã thêm vào danh sách yêu thích`,
-                                duration: 3000,
-                                gravity: "top",
-                                position: "right",
-                                backgroundColor: "#4fbe87",
-                            }).showToast();
-                        }
-                    },
-                    error: function() {
-                        Toastify({
-                            text: "Có lỗi xảy ra!",
-                            duration: 3000,
-                            gravity: "top",
-                            position: "right",
-                            backgroundColor: "#ff6b6b",
-                        }).showToast();
-                    }
-                });
-            });
-
-            // Hover dropdown show
-            $('.nav-item.dropdown').hover(
-                function() {
-                    $(this).addClass('show');
-                    $(this).find('.dropdown-menu').addClass('show');
-                },
-                function() {
-                    $(this).removeClass('show');
-                    $(this).find('.dropdown-menu').removeClass('show');
-                }
-            );
-        });
-    </script>
-
-
-
-
-    <script>
-        $(document).ready(function() {
-            var $carousel = $(".hero-carousel");
-
-            $carousel.owlCarousel({
-                items: 1,
-                loop: true,
-                margin: 10,
-                autoplay: true,
-                autoplayTimeout: 4000,
-                autoplayHoverPause: true,
-                nav: true,
-                dots: true
-            });
-
-            // Gắn class active cho slide hiện tại
-            $carousel.on('changed.owl.carousel', function(event) {
-                var index = event.item.index; // index slide hiện tại
-                $(".hero-carousel__slide").removeClass("active");
-                $(".owl-item").eq(index).find(".hero-carousel__slide").addClass("active");
-            });
-
-            // Kích hoạt slide đầu tiên khi load
-            $(".owl-item.active .hero-carousel__slide").addClass("active");
-        });
-    </script>
-
-    <script>
-        new Swiper(".mySwiper", {
-            loop: true,
-            autoplay: {
-                delay: 4000,
-                disableOnInteraction: false,
-            },
-            navigation: {
-                nextEl: ".swiper-button-next",
-                prevEl: ".swiper-button-prev",
-            },
-            effect: "fade",
-            speed: 1200
-        });
-    </script>
 @endsection

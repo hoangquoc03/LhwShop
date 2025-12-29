@@ -28,4 +28,8 @@ class ProductVariant extends Model
     {
         return $this->belongsTo(ShopProduct::class, 'product_id', 'id');
     }
+    public function carts()
+    {
+        return $this->hasMany(ShopCart::class, 'variant_id', 'id');
+    }
 }

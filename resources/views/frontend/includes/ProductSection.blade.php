@@ -260,7 +260,7 @@
 
         $(document).on('click', '.add-to-cart', function(e) {
             e.preventDefault();
-
+            e.stopImmediatePropagation();
             let productId = $(this).data('id');
 
             $.ajax({

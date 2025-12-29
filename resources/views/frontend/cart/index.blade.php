@@ -218,6 +218,93 @@
 
                                     <div class="flex-grow-1">
                                         <h6 class="mb-1 fw-bold">{{ $item['name'] ?? 'Product' }}</h6>
+                                        {{-- VARIANT HIỆN TẠI --}}
+                                        @if (!empty($item['size']) || !empty($item['color']))
+                                            <div class="small text-muted mb-2">
+                                                @if (!empty($item['color']))
+                                                    Màu: <span class="fw-semibold">{{ $item['color'] }}</span>
+                                                @endif
+
+                                                @if (!empty($item['size']))
+                                                    | Size: <span class="fw-semibold">{{ $item['size'] }}</span>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        {{-- VARIANT OPTIONS --}}
+                                        @if (!empty($item['variants']))
+                                            <div class="variant-box mb-3" data-key="{{ $id }}"
+                                                data-variants='@json($item['variants']['map'])'>
+
+                                                {{-- COLOR --}}
+                                                @if ($item['variants']['colors']->count())
+                                                    <label class="form-label mb-1 fw-semibold">Màu sắc</label>
+                                                    <select class="form-select form-select-sm mb-2 variant-color">
+                                                        <option value="">-- Chọn màu --</option>
+                                                        @foreach ($item['variants']['colors'] as $color)
+                                                            <option value="{{ $color }}"
+                                                                @selected($color == $item['color'])>
+                                                                {{ $color }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                @endif
+
+                                                {{-- SIZE --}}
+                                                @if ($item['variants']['sizes']->count())
+                                                    <label class="form-label mb-1 fw-semibold">Size</label>
+                                                    <select class="form-select form-select-sm variant-size">
+                                                        <option value="">-- Chọn size --</option>
+                                                        @foreach ($item['variants']['sizes'] as $size)
+                                                            <option value="{{ $size }}"
+                                                                @selected($size == $item['size'])>
+                                                                {{ $size }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                @endif
+
+                                                <input type="hidden" class="variant-id" value="{{ $item['variant_id'] }}">
+                                            </div>
+                                        @endif
+
+
+
+
+
+
+
+
+                                        {{-- @if (!empty($item['size']) || !empty($item['color']))
+                                            <div class="small text-muted mb-2">
+                                                @if (!empty($item['color']))
+                                                    Màu:
+                                                    <span class="fw-semibold">{{ $item['color'] }}</span>
+                                                @endif
+
+                                                @if (!empty($item['size']))
+                                                    | Size:
+                                                    <span class="fw-semibold">{{ $item['size'] }}</span>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        @if (!empty($item['variants']['sizes']))
+                                            <select class="form-select form-select-sm mb-2 variant-select"
+                                                data-id="{{ $id }}" data-type="size">
+                                                @foreach ($item['variants']['sizes'] as $size)
+                                                    <option value="{{ $size }}" @selected($size == $item['size'])>
+                                                        {{ $size }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        @endif --}}
+
+
+
+
+
+
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="item-subtotal text-primary fw-bold fs-6">
                                                 {{ number_format(($item['price'] ?? 0) * ($item['quantity'] ?? 1), 0, ',', '.') }}₫
@@ -320,6 +407,61 @@
             </div>
         @endif
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.variant-box').forEach(box => {
+                const variantMap = JSON.parse(box.dataset.variants);
+                const colorSelect = box.querySelector('.variant-color');
+                const sizeSelect = box.querySelector('.variant-size');
+                const variantInput = box.querySelector('.variant-id');
+
+                function updateVariant() {
+                    const color = colorSelect?.value || '';
+                    const size = sizeSelect?.value || '';
+                    const key = color + '|' + size;
+
+                    if (variantMap[key]) {
+                        variantInput.value = variantMap[key].id;
+
+                        console.log('Variant selected:', variantMap[key]);
+                        // 👉 sau này gắn AJAX update cart tại đây
+                    }
+                }
+
+                colorSelect?.addEventListener('change', updateVariant);
+                sizeSelect?.addEventListener('change', updateVariant);
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('change', function(e) {
+            if (!e.target.classList.contains('variant-select')) return;
+
+            const cartId = e.target.dataset.id;
+            const type = e.target.dataset.type;
+            const value = e.target.value;
+
+            fetch('{{ route('cart.updateVariant') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cart_id: cartId,
+                        type: type,
+                        value: value
+                    })
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        location.reload();
+                    }
+                });
+        });
+    </script>
 
     <script>
         $(document).ready(function() {

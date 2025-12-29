@@ -101,6 +101,8 @@ Route::get('/login/facebook/callback', [LoginHomeController::class, 'handleFaceb
 
 Route::get('/product/{id}', [ProductController::class, 'show'])->name('product.show');
 
+Route::post('/cart/update-variant', [CartController::class, 'updateVariant'])
+    ->name('cart.updateVariant');
 
 Route::get('/products/category/{id}', [ProductController::class, 'byCategory'])->name('products.byCategory');
 Route::get('/products/supplier/{id}', [ProductController::class, 'bySupplier'])->name('products.bySupplier');

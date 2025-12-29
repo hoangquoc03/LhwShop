@@ -19,6 +19,7 @@ use App\Models\City;
 use App\Models\District;
 use App\Models\Ward;
 use App\Models\ShopVoucher;
+use App\Models\ProductVariant;
 use Illuminate\Support\Str;
 
 class CartController extends Controller
@@ -27,43 +28,93 @@ class CartController extends Controller
 
     public function add(Request $request)
     {
+        $request->validate([
+            'product_id' => 'required|exists:shop_products,id',
+            'variant_id' => 'nullable|exists:shop_product_variants,id',
+            'quantity'   => 'nullable|integer|min:1'
+        ]);
+
+        $qty = $request->quantity ?? 1;
+
         $product = ShopProduct::findOrFail($request->product_id);
 
-        // ===== CHUẨN HÓA IMAGE (LUÔN LÀ URL) =====
-        $image = $product->image;
-        if (!Str::startsWith($image, ['http://', 'https://'])) {
-            $image = asset('storage/uploads/products/' . $image);
+        // ===== VARIANT =====
+        $variant = null;
+        if ($request->filled('variant_id')) {
+            $variant = ProductVariant::where('id', $request->variant_id)
+                ->where('product_id', $product->id)
+                ->firstOrFail();
+
+            if ($variant->stock_quantity < $qty) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sản phẩm không đủ tồn kho'
+                ]);
+            }
         }
+
+        // ===== IMAGE =====
+        $imageSource = $variant?->image ?: $product->image;
+        $image = Str::startsWith($imageSource, ['http://', 'https://'])
+            ? $imageSource
+            : asset('storage/uploads/products/' . $imageSource);
+
+        // ===== PRICE =====
+        $price = $variant?->price ?? $product->list_price;
+
+        // ===== CART KEY =====
+        $cartKey = $variant
+            ? $product->id . '_' . $variant->id
+            : (string) $product->id;
 
         // ===== SESSION CART =====
         $cart = session()->get('cart', []);
 
-        if (isset($cart[$product->id])) {
-            $cart[$product->id]['quantity'] += 1;
-
-            // đảm bảo image luôn đúng
-            $cart[$product->id]['image'] = $image;
+        if (isset($cart[$cartKey])) {
+            $cart[$cartKey]['quantity'] += $qty;
         } else {
-            $cart[$product->id] = [
-                'name'     => $product->product_name,
-                'price'    => $product->list_price,
-                'quantity' => 1,
-                'image'    => $image,
+            $cart[$cartKey] = [
+                'product_id' => $product->id,
+                'variant_id' => $variant?->id,
+                'name'       => $product->product_name,
+                'variant'    => $variant
+                    ? trim(($variant->color ?? '') . ' ' . ($variant->size ?? ''))
+                    : null,
+                'price'      => $price,
+                'quantity'   => $qty,
+                'image'      => $image,
             ];
         }
 
         session()->put('cart', $cart);
 
-        // ===== DB CART (GUARD CUSTOMER) =====
+        // ===== DB CART =====
         if (Auth::guard('customer')->check()) {
-            $cartDb = ShopCart::firstOrNew([
-                'customer_id' => Auth::guard('customer')->id(),
-                'product_id'  => $product->id,
-            ]);
 
-            $cartDb->quantity = ($cartDb->quantity ?? 0) + 1;
+            $cartQuery = ShopCart::where('customer_id', Auth::guard('customer')->id())
+                ->where('product_id', $product->id);
+
+            if ($variant) {
+                $cartQuery->where('variant_id', $variant->id);
+            } else {
+                $cartQuery->whereNull('variant_id');
+            }
+
+            $cartDb = $cartQuery->first();
+
+            if ($cartDb) {
+                $cartDb->quantity += $qty;
+            } else {
+                $cartDb = new ShopCart([
+                    'customer_id' => Auth::guard('customer')->id(),
+                    'product_id'  => $product->id,
+                    'variant_id'  => $variant?->id,
+                    'quantity'    => $qty,
+                ]);
+            }
             $cartDb->save();
         }
+
 
         return response()->json([
             'success'    => true,
@@ -73,58 +124,97 @@ class CartController extends Controller
 
 
 
+
+
     public function index()
     {
-        $sessionCart = session()->get('cart', []);
+        $cart = [];
 
+        // ===== NẾU ĐÃ LOGIN → LẤY DB =====
         if (Auth::guard('customer')->check()) {
-            $dbCart = ShopCart::where('customer_id', Auth::guard('customer')->id())->get();
+
+            $dbCart = ShopCart::with(['product', 'variant'])
+                ->where('customer_id', Auth::guard('customer')->id())
+                ->get();
 
             foreach ($dbCart as $item) {
-                $product = $item->product;
-                if (!$product) continue;
 
-                $originalPrice = (float) $product->list_price; // Giá gốc
-                $discountedPrice = $originalPrice;
+                if (!$item->product) continue;
+
+                $product = $item->product;
+                $variant = $item->variant;
+
+                // ===== CART KEY =====
+                $key = $variant
+                    ? $product->id . '_' . $variant->id
+                    : (string) $product->id;
+
+                // ===== PRICE =====
+                $originalPrice = $variant?->price ?? $product->list_price;
+                $price = $originalPrice;
 
                 if ($product->discount_percent > 0) {
-                    $discountedPrice = $originalPrice * (1 - $product->discount_percent / 100);
+                    $price = $originalPrice * (1 - $product->discount_percent / 100);
                 }
 
-                $sessionCart[$item->product_id] = [
-                    'name'             => $product->product_name ?? 'Product',
-                    'price'            => $discountedPrice, // Giá đã giảm
-                    'original_price'   => $originalPrice,   // Giá gốc để hiển thị gạch
+                $cart[$key] = [
+                    'product_id'       => $product->id,
+                    'variant_id'       => $variant?->id,
+
+                    'name'             => $product->product_name,
+                    'price'            => $price,
+                    'original_price'   => $originalPrice,
                     'quantity'         => $item->quantity,
-                    'image'            => $product->image
-                        ? (Str::startsWith($product->image, ['http://', 'https://'])
+
+                    // ===== VARIANT =====
+                    'color'            => $variant?->color,
+                    'size'             => $variant?->size,
+
+                    // ===== IMAGE =====
+                    'image' => $variant?->image
+                        ? (Str::startsWith($variant->image, ['http://', 'https://'])
+                            ? $variant->image
+                            : asset('storage/uploads/products/' . $variant->image))
+                        : (Str::startsWith($product->image, ['http://', 'https://'])
                             ? $product->image
-                            : asset('storage/uploads/products/' . $product->image))
-                        : asset('storage/uploads/default.png'),
+                            : asset('storage/uploads/products/' . $product->image)),
+
                     'discount_percent' => $product->discount_percent ?? 0,
                 ];
             }
 
-            session()->put('cart', $sessionCart);
+            session()->put('cart', $cart);
         }
 
-        // Đảm bảo mọi item có key cần thiết
-        foreach ($sessionCart as $id => $item) {
-            if (!isset($item['image'])) $sessionCart[$id]['image'] = asset('storage/uploads/default.png');
-            if (!isset($item['name'])) $sessionCart[$id]['name'] = 'Product';
-            if (!isset($item['price'])) $sessionCart[$id]['price'] = 0;
-            if (!isset($item['original_price'])) $sessionCart[$id]['original_price'] = $item['price'];
-            if (!isset($item['quantity'])) $sessionCart[$id]['quantity'] = 1;
-            if (!isset($item['discount_percent'])) $sessionCart[$id]['discount_percent'] = 0;
-        }
-
-        $cart = $sessionCart;
+        // ===== GUEST =====
+        $cart = session('cart', []);
 
         $total = collect($cart)->sum(fn($i) => $i['price'] * $i['quantity']);
-        $totalBeforeDiscount = collect($cart)->sum(fn($i) => $i['original_price'] * $i['quantity']);
 
-        return view('frontend.cart.index', compact('cart', 'total', 'totalBeforeDiscount'));
+        return view('frontend.cart.index', compact('cart', 'total'));
     }
+
+    public function updateVariant(Request $request)
+    {
+        $cart = session()->get('cart', []);
+
+        if (!isset($cart[$request->cart_id])) {
+            return response()->json(['error' => true]);
+        }
+
+        if ($request->type === 'size') {
+            $cart[$request->cart_id]['size'] = $request->value;
+        }
+
+        if ($request->type === 'color') {
+            $cart[$request->cart_id]['color'] = $request->value;
+        }
+
+        session()->put('cart', $cart);
+
+        return response()->json(['success' => true]);
+    }
+
 
 
 

@@ -7,6 +7,8 @@ use App\Models\ShopProduct;
 use App\Models\ShopCategory;
 use App\Models\ShopSupplier;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
+use App\Models\ShopOrder;
 
 class ProductController extends Controller
 {
@@ -340,8 +342,20 @@ class ProductController extends Controller
         }
 
         $categories = ShopCategory::all();
+        $hasOrdered = false;
 
+        if (Auth::check()) {
+            $userId = Auth::id();
+
+            $hasOrdered = ShopOrder::where('product_id', $product->id)
+                ->whereHas('order', function ($q) use ($userId) {
+                    $q->where('user_id', $userId)
+                        ->where('order_status', 'Completed'); // hoặc 'paid'
+                })
+                ->exists();
+        }
         return view('frontend.product.show', compact(
+            'hasOrdered',
             'product',
             'reviewsCount',
             'avgRating',
