@@ -196,29 +196,42 @@ class CartController extends Controller
 
     public function updateVariant(Request $request)
     {
+        $request->validate([
+            'cart_key'   => 'required',
+            'variant_id' => 'required|exists:shop_product_variants,id',
+        ]);
+
         $cart = session()->get('cart', []);
 
-        if (!isset($cart[$request->cart_id])) {
-            return response()->json(['error' => true]);
+        if (!isset($cart[$request->cart_key])) {
+            return response()->json(['success' => false]);
         }
 
-        if ($request->type === 'size') {
-            $cart[$request->cart_id]['size'] = $request->value;
-        }
+        $variant = \App\Models\ProductVariant::with('product')
+            ->find($request->variant_id);
 
-        if ($request->type === 'color') {
-            $cart[$request->cart_id]['color'] = $request->value;
+        // 👉 Update SESSION
+        $cart[$request->cart_key]['variant_id'] = $variant->id;
+        $cart[$request->cart_key]['color'] = $variant->color;
+        $cart[$request->cart_key]['size']  = $variant->size;
+        $cart[$request->cart_key]['price'] = $variant->price;
+
+        if ($variant->image) {
+            $cart[$request->cart_key]['image'] = $variant->image;
         }
 
         session()->put('cart', $cart);
 
+        // 👉 Update DB nếu login
+        if (auth('customer')->check()) {
+            \App\Models\ShopCart::where('customer_id', auth('customer')->id())
+                ->where('product_id', $variant->product_id)
+                ->update([
+                    'variant_id' => $variant->id
+                ]);
+        }
         return response()->json(['success' => true]);
     }
-
-
-
-
-
 
     public function remove($id)
     {
@@ -239,10 +252,6 @@ class CartController extends Controller
         // Redirect về trang giỏ hàng
         return redirect()->route('cart.index')->with('success', 'Đã xóa sản phẩm khỏi giỏ hàng.');
     }
-
-
-
-
     public function update(Request $request, $id)
     {
         $cart = session()->get('cart', []);
@@ -438,7 +447,7 @@ class CartController extends Controller
     {
         $customer = Auth::guard('customer')->user();
         $cart = \App\Models\ShopCart::where('customer_id', $customer->id)
-            ->with('product')
+            ->with(['product', 'variant'])
             ->get();
 
         if ($cart->isEmpty()) {
@@ -486,12 +495,12 @@ class CartController extends Controller
             foreach ($cart as $item) {
 
                 $product = $item->product;
-
                 // % giảm của sản phẩm
                 $discountPercent = $product->discount_percent ?? 0;
-
+                $variant = $item->variant;
                 // Giá gốc
-                $unitPrice = $product->list_price;
+                $unitPrice = $variant?->price ?? $product->list_price;
+
 
                 // Số tiền giảm trên 1 sản phẩm
                 $discountAmount = $discountPercent > 0
@@ -502,10 +511,9 @@ class CartController extends Controller
                     'order_id'            => $order->id,
                     'product_id'          => $product->id,
                     'quantity'            => $item->quantity,
-
+                    'variant_id' => $variant?->id,
                     // GIÁ CHUẨN
                     'unit_price'          => $unitPrice,
-
                     // DISCOUNT
                     'discount_percentage' => $discountPercent,
                     'discount_amount'     => $discountAmount,

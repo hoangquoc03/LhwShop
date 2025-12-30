@@ -181,12 +181,40 @@
                                                 alt="{{ $detail->product->product_name ?? 'Product' }}" width="60"
                                                 height="60" class="rounded shadow-sm" style="object-fit: cover;">
 
-
                                         </td>
-                                        <td>{{ $detail->product->product_name }}</td>
+                                        <td>
+                                            <div class="fw-semibold">
+                                                {{ $detail->product->product_name }}
+                                            </div>
+
+                                            {{-- VARIANT --}}
+                                            @if ($detail->variant)
+                                                <div class="small text-muted mt-1">
+                                                    @if ($detail->variant->color)
+                                                        Màu: <span class="fw-semibold">{{ $detail->variant->color }}</span>
+                                                    @endif
+
+                                                    @if ($detail->variant->size)
+                                                        @if ($detail->variant->color)
+                                                            |
+                                                        @endif
+                                                        Size: <span class="fw-semibold">{{ $detail->variant->size }}</span>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </td>
+
                                         <td>{{ $detail->quantity }}</td>
                                         <td>{{ number_format($detail->unit_price, 0, ',', '.') }}₫</td>
-                                        <td>{{ number_format($detail->quantity * $detail->unit_price, 0, ',', '.') }}₫</td>
+                                        @php
+                                            $priceAfterDiscount = $detail->unit_price - ($detail->discount_amount ?? 0);
+                                            $lineTotal = $detail->quantity * $priceAfterDiscount;
+                                        @endphp
+
+                                        <td>
+                                            {{ number_format($lineTotal, 0, ',', '.') }}₫
+                                        </td>
+
                                     </tr>
                                 @endforeach
                             </tbody>

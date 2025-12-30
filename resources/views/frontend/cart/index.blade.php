@@ -3,6 +3,7 @@
     Giỏ hàng của bạn
 @endsection
 
+
 @section('page-style')
     <style>
         .luxury-title-product {
@@ -236,8 +237,8 @@
                                             <div class="variant-box mb-3" data-key="{{ $id }}"
                                                 data-variants='@json($item['variants']['map'])'>
 
-                                                {{-- COLOR --}}
-                                                @if ($item['variants']['colors']->count())
+                                                {{-- COLOR (chỉ hiện nếu có) --}}
+                                                @if (!empty($item['variants']['colors']))
                                                     <label class="form-label mb-1 fw-semibold">Màu sắc</label>
                                                     <select class="form-select form-select-sm mb-2 variant-color">
                                                         <option value="">-- Chọn màu --</option>
@@ -251,7 +252,7 @@
                                                 @endif
 
                                                 {{-- SIZE --}}
-                                                @if ($item['variants']['sizes']->count())
+                                                @if (!empty($item['variants']['sizes']))
                                                     <label class="form-label mb-1 fw-semibold">Size</label>
                                                     <select class="form-select form-select-sm variant-size">
                                                         <option value="">-- Chọn size --</option>
@@ -267,43 +268,6 @@
                                                 <input type="hidden" class="variant-id" value="{{ $item['variant_id'] }}">
                                             </div>
                                         @endif
-
-
-
-
-
-
-
-
-                                        {{-- @if (!empty($item['size']) || !empty($item['color']))
-                                            <div class="small text-muted mb-2">
-                                                @if (!empty($item['color']))
-                                                    Màu:
-                                                    <span class="fw-semibold">{{ $item['color'] }}</span>
-                                                @endif
-
-                                                @if (!empty($item['size']))
-                                                    | Size:
-                                                    <span class="fw-semibold">{{ $item['size'] }}</span>
-                                                @endif
-                                            </div>
-                                        @endif
-
-                                        @if (!empty($item['variants']['sizes']))
-                                            <select class="form-select form-select-sm mb-2 variant-select"
-                                                data-id="{{ $id }}" data-type="size">
-                                                @foreach ($item['variants']['sizes'] as $size)
-                                                    <option value="{{ $size }}" @selected($size == $item['size'])>
-                                                        {{ $size }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        @endif --}}
-
-
-
-
-
 
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="item-subtotal text-primary fw-bold fs-6">
@@ -336,7 +300,6 @@
                                 </div>
                                 <hr>
                             @endforeach
-
                         </div>
                     </div>
                 </div>
@@ -410,30 +373,55 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+
             document.querySelectorAll('.variant-box').forEach(box => {
+
                 const variantMap = JSON.parse(box.dataset.variants);
                 const colorSelect = box.querySelector('.variant-color');
                 const sizeSelect = box.querySelector('.variant-size');
-                const variantInput = box.querySelector('.variant-id');
+                const cartKey = box.dataset.key;
 
                 function updateVariant() {
-                    const color = colorSelect?.value || '';
-                    const size = sizeSelect?.value || '';
-                    const key = color + '|' + size;
+                    const color = colorSelect ? colorSelect.value : '';
+                    const size = sizeSelect ? sizeSelect.value : '';
 
-                    if (variantMap[key]) {
-                        variantInput.value = variantMap[key].id;
+                    // KEY ĐÚNG THEO JSON
+                    const mapKey = (color ?? '') + '|' + (size ?? '');
 
-                        console.log('Variant selected:', variantMap[key]);
-                        // 👉 sau này gắn AJAX update cart tại đây
+                    if (!variantMap[mapKey]) {
+                        console.warn('❌ Variant not found:', mapKey);
+                        return;
                     }
+
+                    fetch("{{ route('cart.updateVariant') }}", {
+                            method: "POST",
+                            headers: {
+                                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                cart_key: cartKey,
+                                variant_id: variantMap[mapKey].id
+                            })
+                        })
+                        .then(res => res.json())
+                        .then(res => {
+                            if (res.success) {
+                                location.reload();
+                            }
+                        });
                 }
 
                 colorSelect?.addEventListener('change', updateVariant);
                 sizeSelect?.addEventListener('change', updateVariant);
             });
+
         });
     </script>
+
+
+
+
     <script>
         document.addEventListener('change', function(e) {
             if (!e.target.classList.contains('variant-select')) return;
@@ -982,47 +970,6 @@
             });
         });
     </script>
-
-    {{-- <script>
-        $(document).ready(function() {
-            $(".btn-remove-favorite").on("click", function() {
-                let btn = $(this);
-                let item = btn.closest(".favorite-item");
-                let productId = item.data("id");
-
-                $.ajax({
-                    url: "/favorites/remove",
-                    type: "POST",
-                    data: {
-                        product_id: productId,
-                        _token: "{{ csrf_token() }}"
-                    },
-                    success: function(res) {
-                        if (res.success) {
-                            item.remove();
-
-                            Toastify({
-                                text: "Đã xóa sản phẩm khỏi yêu thích",
-                                duration: 3000,
-                                gravity: "top",
-                                position: "right",
-                                backgroundColor: "#ff6b6b",
-                            }).showToast();
-                        }
-                    },
-                    error: function() {
-                        Toastify({
-                            text: "Có lỗi xảy ra!",
-                            duration: 3000,
-                            gravity: "top",
-                            position: "right",
-                            backgroundColor: "#ff6b6b",
-                        }).showToast();
-                    }
-                });
-            });
-        });
-    </script> --}}
 
     <script>
         $(document).ready(function() {

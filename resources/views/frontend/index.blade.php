@@ -81,6 +81,7 @@
         'screen' => $screen,
     ])
     @include('frontend/includes/ImageCategory')
+    @include('frontend.includes.PostImage', ['post_id' => 6])
     @include('frontend/includes/ProductSection', [
         'title' => 'TÚI XÁCH VÀ VÍ',
         'screen' => $bag,
@@ -89,7 +90,18 @@
         'title' => 'ĐỒ NAM',
         'screen' => $outfit,
     ])
+    @include('frontend.includes.PostImage', ['post_id' => 5])
+    @include('frontend/includes/ProductSection', [
+        'title' => 'ĐỒ NỮ',
+        'screen' => $outfitNu,
+    ])
+    @include('frontend.includes.PostImage', ['post_id' => 3])
+    @include('frontend/includes/ProductSection', [
+        'title' => 'GIÀY',
+        'screen' => $giay,
+    ])
     @include('frontend/includes/ChatBot')
+
     <style>
         /* Khoảng cách giữa các ảnh */
         .custom-gap {

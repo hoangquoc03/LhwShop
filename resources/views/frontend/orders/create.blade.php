@@ -185,6 +185,17 @@
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="fw-bold">{{ $item['name'] }}</div>
+                                    @if (!empty($item['color']) || !empty($item['size']))
+                                        <small class="text-muted d-block">
+                                            @if (!empty($item['color']))
+                                                Màu: <strong>{{ $item['color'] }}</strong>
+                                            @endif
+
+                                            @if (!empty($item['size']))
+                                                | Size: <strong>{{ $item['size'] }}</strong>
+                                            @endif
+                                        </small>
+                                    @endif
                                     <small class="text-muted">Số lượng: x{{ $item['quantity'] }}</small>
                                 </div>
                                 <div class="fw-bold text-danger">

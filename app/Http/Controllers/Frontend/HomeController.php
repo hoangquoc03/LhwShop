@@ -117,24 +117,31 @@ class HomeController extends Controller
                 $query->where('categories_code', 'TP');
             })
             ->get();
-
-
+        $outfitNu = ShopProduct::with(['category', 'supplier'])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('category', function ($query) {
+                $query->where('categories_code', 'PHONE');
+            })
+            ->get();
         $screenIpad = ShopProduct::with(['category', 'supplier'])
             ->whereHas('category', function ($query) {
                 $query->where('categories_code', 'MTB');
             })
             ->get();
-        $LAPTOP = ShopProduct::with(['category', 'supplier'])
+        $giay = ShopProduct::with(['category', 'supplier'])
             ->whereHas('category', function ($query) {
                 $query->where('categories_code', 'LTVP');
             })
             ->get();
-        $posts = ShopProductPost::all(['id', 'image', 'title', 'content']);
+        $post = ShopProductPost::select('id', 'image', 'title', 'content')
+            ->findOrFail(5);
+
 
         return view(
             'frontend.index',
             compact(
-                'posts',
+                'outfitNu',
+                'post',
                 'outfit',
                 'bag',
                 'categories',
@@ -150,7 +157,7 @@ class HomeController extends Controller
                 'watch',
                 'screen',
                 'screenIpad',
-                'LAPTOP',
+                'giay',
                 'ProductPost'
             )
         );

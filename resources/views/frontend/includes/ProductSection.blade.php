@@ -7,13 +7,13 @@
                 $wrapperId = $wrapperId ?? Str::slug($title) . '-wrapper';
             @endphp
 
-            <div class="fw-bold d-flex flex-wrap gap-3">
+            {{-- <div class="fw-bold d-flex flex-wrap gap-3">
                 @foreach ($suppliers as $supplier)
                     <span class="chip">
                         {{ $supplier->supplier_text }}
                     </span>
                 @endforeach
-            </div>
+            </div> --}}
         </div>
 
         <style>

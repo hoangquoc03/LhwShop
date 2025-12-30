@@ -171,37 +171,65 @@ class SalesAIController extends Controller
     {
         $categories = ShopCategory::all();
 
-        // 1️⃣ ƯU TIÊN MATCH CHUỖI ĐẦY ĐỦ
-        $fullText = implode(' ', $keywords);
+        // Ghép keyword thành chuỗi
+        $text = implode(' ', $keywords);
 
         foreach ($categories as $cat) {
-            $name = $this->normalize($cat->categories_text);
+            $catName = $this->normalize($cat->categories_text);
 
-            if ($name === $fullText) {
+            // ✅ Match theo cụm từ
+            if (str_contains($catName, 'nuoc hoa') && str_contains($text, 'nuoc hoa')) {
                 return $cat;
             }
-        }
 
-        // 2️⃣ MATCH TỪ KHÓA QUAN TRỌNG (BỎ TỪ CHUNG)
-        $stopWords = ['do', 'ao', 'quan', 'vay'];
+            if (str_contains($catName, 'giay') && str_contains($text, 'giay')) {
+                return $cat;
+            }
 
-        foreach ($categories as $cat) {
-            $name = $this->normalize($cat->categories_text);
-
-            foreach ($keywords as $kw) {
-                if (in_array($kw, $stopWords)) {
-                    continue;
-                }
-
-                if (str_contains($name, $kw)) {
-                    return $cat;
-                }
+            if (str_contains($catName, 'ao') && str_contains($text, 'ao')) {
+                return $cat;
+            }
+            if (str_contains($catName, 'qua tang') && str_contains($text, 'qua tang')) {
+                return $cat;
+            }
+            if (str_contains($catName, 'lam dep') && str_contains($text, 'lam dep')) {
+                return $cat;
+            }
+            if (str_contains($catName, 'tui xach') && str_contains($text, 'tui xach')) {
+                return $cat;
+            }
+            if (str_contains($catName, 'vi') && str_contains($text, 'vi')) {
+                return $cat;
+            }
+            if (str_contains($catName, 'do nam') && str_contains($text, 'do nam')) {
+                return $cat;
+            }
+            if (str_contains($catName, 'do nu') && str_contains($text, 'do nu')) {
+                return $cat;
             }
         }
 
         return null;
     }
+    private function isChangeSupplierIntent(string $text): bool
+    {
+        $text = $this->normalize($text);
 
+        $keywords = [
+            'dong khac',
+            'doi dong',
+            'khac',
+            'xem dong khac',
+        ];
+
+        foreach ($keywords as $kw) {
+            if (str_contains($text, $kw)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /* =====================
         MATCH SUPPLIER
@@ -874,6 +902,42 @@ class SalesAIController extends Controller
 
 
         if ($this->isBuyIntent($text) || $category) { // tin nhan co y dinh mua hang
+
+            // 🔁 ĐỔI DÒNG TRONG CÙNG CATEGORY
+            if (
+                session()->has('chat_context.category')
+                && $this->isChangeSupplierIntent($text)
+            ) {
+                $categoryId = session('chat_context.category');
+                $category   = ShopCategory::find($categoryId);
+
+                // reset supplier + price
+                session()->put('chat_context.supplier', null);
+                session()->put('chat_context.priceRange', null);
+                session()->put('chat_context.step', 'choose_supplier');
+
+                $suppliers = ShopProduct::where('category_id', $categoryId)
+                    ->whereHas('supplier')
+                    ->with('supplier')
+                    ->get()
+                    ->pluck('supplier.supplier_text')
+                    ->unique()
+                    ->filter()
+                    ->values();
+
+                $reply  = "🔄 <b>Dạ vâng ạ!</b><br>";
+                $reply .= "Anh/chị đang xem <b>{$category->categories_text}</b>.<br><br>";
+                $reply .= "Hiện có các <b>dòng</b> sau:<br><br>";
+
+                foreach ($suppliers as $sup) {
+                    $reply .= "• {$sup}<br>";
+                }
+
+                $reply .= "<br>👉 Anh/chị gõ <b>tên dòng</b> muốn xem nhé!";
+
+                return response()->json(['reply' => $reply]);
+            }
+
             // 🔁 Nếu user muốn mua cái khác → reset ngữ cảnh
             if (
                 session()->has('chat_context.gift_type')
@@ -886,9 +950,57 @@ class SalesAIController extends Controller
 
                 return response()->json([
                     'reply' => "🔄 <b>Dạ vâng ạ!</b><br>
-Em hiểu anh/chị muốn <b>đổi sang sản phẩm khác</b> 😊<br><br>
-👉 Anh/chị đang muốn mua gì tiếp theo ạ?"
+                    Em hiểu anh/chị muốn <b>đổi sang sản phẩm khác</b> 😊<br><br>
+                    👉 Anh/chị đang muốn mua gì tiếp theo ạ?"
                 ]);
+            }
+            if ($category) {
+
+                session()->put('chat_context', [
+                    'category'   => $category->id,
+                    'supplier'   => null,
+                    'priceRange' => null,
+                    'intent'     => 'buy',
+                    'step'       => 'choose_supplier'
+                ]);
+
+                $suppliers = ShopProduct::where('category_id', $category->id)
+                    ->whereHas('supplier')
+                    ->with('supplier')
+                    ->get()
+                    ->pluck('supplier.supplier_text')
+                    ->unique()
+                    ->filter()
+                    ->values();
+
+                $suppliers = $suppliers->reject(
+                    fn($s) =>
+                    $this->normalize($s) === $this->normalize($category->categories_text)
+                );
+                $emojiMap = [
+                    'Nước hoa' => '🧴',
+                    'Giày'     => '👟',
+                    'Áo'       => '👕',
+                    'Túi'      => '👜',
+                ];
+                $emoji = $emojiMap[$category->categories_text] ?? '🛍️';
+
+                $reply  = "{$emoji} <b>Dạ vâng ạ!</b><br>";
+                $reply .= "Anh/chị đang quan tâm <b>{$category->categories_text}</b>.<br><br>";
+
+                if ($suppliers->isEmpty()) {
+                    $reply .= "👉 Hiện chưa phân loại chi tiết.<br>";
+                    $reply .= "Anh/chị cho em xin <b>tầm giá</b> để em tư vấn nhé!";
+                } else {
+                    $reply .= "Trong đó em có các <b>dòng</b> sau:<br><br>";
+                    foreach ($suppliers as $sup) {
+                        $reply .= "• {$sup}<br>";
+                    }
+                    $reply .= "<br>👉 Anh/chị gõ <b>tên dòng</b> mình thích nhé!";
+                }
+
+                //logger(session('chat_context'));
+                return response()->json(['reply' => $reply]);
             }
 
 
@@ -899,53 +1011,50 @@ Em hiểu anh/chị muốn <b>đổi sang sản phẩm khác</b> 😊<br><br>
 
                 return response()->json([
                     'reply' => "👋 <b>Dạ vâng ạ!</b><br><br>
-Anh/chị đang quan tâm <b>{$this->giftTypeMap()[$giftType]['label']}</b> 🎁<br><br>
-👉 Em sẽ gợi ý sản phẩm phù hợp ngay ạ!"
+                    Anh/chị đang quan tâm <b>{$this->giftTypeMap()[$giftType]['label']}</b> 🎁<br><br>
+                    👉 Em sẽ gợi ý sản phẩm phù hợp ngay ạ!"
                 ]);
             }
-            if (!$category) {
-                return response()->json([
-                    'reply' => $this->replyCategoryList()
-                ]);
-            }
-
-            // Nếu user nói rõ: mua giày / xem áo
-            session()->put('chat_context', [
-                'category'   => $category->id,
-                'supplier'   => null,
-                'priceRange' => null,
-                'intent'     => 'buy',
-                'step'       => 'choose_supplier'
+            return response()->json([
+                'reply' => $this->replyCategoryList()
             ]);
-
-            $suppliers = ShopProduct::where('category_id', $category->id)
-                ->whereHas('supplier')
-                ->with('supplier')
-                ->get()
-                ->pluck('supplier.supplier_text')
-                ->unique()
-                ->filter()
-                ->values();
-            $suppliers = $suppliers->reject(
-                fn($s) =>
-                $this->normalize($s) === $this->normalize($category->categories_text)
-            );
-
-            $reply  = "👟 <b>Dạ vâng ạ!</b><br>";
-            $reply .= "Anh/chị đang quan tâm <b>{$category->categories_text}</b>.<br><br>";
-
-            if ($suppliers->isEmpty()) {
-                $reply .= "👉 Hiện chưa phân loại kiểu chi tiết.<br>";
-                $reply .= "Anh/chị cho em xin <b>tầm giá</b> để em tư vấn nhé!";
-            } else {
-                $reply .= "Trong đó em có các <b>kiểu</b> sau:<br><br>";
-                foreach ($suppliers as $sup) {
-                    $reply .= "• {$sup}<br>";
-                }
-                $reply .= "<br>👉 Anh/chị gõ <b>tên kiểu</b> mình thích nhé!";
-            }
-            logger(session('chat_context'));
-            return response()->json(['reply' => $reply]);
         }
     }
 }
+ // Nếu user nói rõ: mua giày / xem áo
+        // session()->put('chat_context', [
+        //     'category'   => $category->id,
+        //     'supplier'   => null,
+        //     'priceRange' => null,
+        //     'intent'     => 'buy',
+        //     'step'       => 'choose_supplier'
+        // ]);
+
+        // $suppliers = ShopProduct::where('category_id', $category->id)
+        //     ->whereHas('supplier')
+        //     ->with('supplier')
+        //     ->get()
+        //     ->pluck('supplier.supplier_text')
+        //     ->unique()
+        //     ->filter()
+        //     ->values();
+        // $suppliers = $suppliers->reject(
+        //     fn($s) =>
+        //     $this->normalize($s) === $this->normalize($category->categories_text)
+        // );
+
+        // $reply  = "👟 <b>Dạ vâng ạ!</b><br>";
+        // $reply .= "Anh/chị đang quan tâm <b>{$category->categories_text}</b>.<br><br>";
+
+        // if ($suppliers->isEmpty()) {
+        //     $reply .= "👉 Hiện chưa phân loại kiểu chi tiết.<br>";
+        //     $reply .= "Anh/chị cho em xin <b>tầm giá</b> để em tư vấn nhé!";
+        // } else {
+        //     $reply .= "Trong đó em có các <b>kiểu</b> sau:<br><br>";
+        //     foreach ($suppliers as $sup) {
+        //         $reply .= "• {$sup}<br>";
+        //     }
+        //     $reply .= "<br>👉 Anh/chị gõ <b>tên kiểu</b> mình thích nhé!";
+        // }
+        // logger(session('chat_context'));
+        // return response()->json(['reply' => $reply]);

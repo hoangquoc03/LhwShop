@@ -96,8 +96,6 @@ Route::post('/login-home', [
 Route::get('/login/facebook', [LoginHomeController::class, 'redirectToFacebook'])->name('login.facebook');
 Route::get('/login/facebook/callback', [LoginHomeController::class, 'handleFacebookCallback']);
 
-//            products
-
 
 Route::get('/product/{id}', [ProductController::class, 'show'])->name('product.show');
 
