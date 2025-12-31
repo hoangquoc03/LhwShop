@@ -451,12 +451,19 @@ class SalesAIController extends Controller
 
     private function detectViewDetailIndex(string $text): ?int
     {
-        // xem 2 | xem chi tiết 3 | mẫu 1 | chi tiết mẫu 4 | chỉ gõ số 1
-        if (preg_match('/(?:xem|chi tiết|mẫu)?\s*(\d+)/u', $text, $m)) {
+        // ❌ Bỏ qua câu nói về giá
+        if (preg_match('/(trieu|nghin|k|\-)/u', $text)) {
+            return null;
+        }
+
+        // ✅ Các pattern hợp lệ để xem chi tiết
+        if (preg_match('/^\s*(?:xem|chi tiết|mẫu)?\s*(\d{1,2})\s*$/u', $text, $m)) {
             return (int) $m[1];
         }
+
         return null;
     }
+
     private function detectProductKeyword(string $text): bool
     {
         $text = $this->normalizeText($text);
@@ -490,20 +497,57 @@ class SalesAIController extends Controller
         $text = $this->normalize($message); // normalize dung de chuan hoa van ban thanh chu thuong khong dau
         /* RESET */
         // thử match danh mục luôn
-        $keywords = $this->extractKeywords($message); // tu khoa
+        $keywords = $this->extractKeywords($message); // tu khóa
+        $category = $this->matchCategory($keywords);
+        // ✅ USER GÕ TRỰC TIẾP DANH MỤC (CHƯA CÓ CONTEXT)
+        if ($category && !session()->has('chat_context.category')) {
 
-        $category = $this->matchCategory($keywords); // tim danh muc
+            session()->forget('chat_context');
+
+            session()->put('chat_context', [
+                'category'   => $category->id,
+                'supplier'   => null,
+                'priceRange' => null,
+                'step'       => 'choose_supplier',
+            ]);
+
+            $suppliers = ShopProduct::where('category_id', $category->id)
+                ->whereHas('supplier')
+                ->with('supplier')
+                ->get()
+                ->pluck('supplier.supplier_text')
+                ->unique()
+                ->filter()
+                ->values();
+
+            $reply  = "👜 <b>Dạ vâng ạ!</b><br>";
+            $reply .= "Anh/chị đang quan tâm <b>{$category->categories_text}</b>.<br><br>";
+
+            if ($suppliers->isEmpty()) {
+                $reply .= "👉 Hiện chưa phân loại chi tiết.<br>";
+                $reply .= "Anh/chị cho em xin <b>tầm giá</b> để em tư vấn nhé!";
+            } else {
+                $reply .= "Trong đó em có các <b>dòng</b> sau:<br><br>";
+                foreach ($suppliers as $sup) {
+                    $reply .= "• {$sup}<br>";
+                }
+                $reply .= "<br>👉 Anh/chị gõ <b>tên dòng</b> mình thích nhé!";
+            }
+
+            return response()->json(['reply' => $reply]);
+        }
+
         if ($message === '__start__') {
             session()->forget('chat_context');
 
             return response()->json([
                 'reply' => "
-    👋 <b>Chào mừng anh/chị đến với <span style='color:#1e40af'>LW SHOP</span></b> ✨<br><br>
+                👋 <b>Chào mừng anh/chị đến với <span style='color:#1e40af'>LW SHOP</span></b> ✨<br><br>
 
-    Em là <b>trợ lý tư vấn mua sắm cao cấp</b> của LW Shop 👔👟<br>
-    Chuyên các dòng <b>thời trang luxury & lifestyle</b> chính hãng.<br><br>
-    👉 Anh/chị chỉ cần <b>gõ nhu cầu</b> hoặc <b>tên danh mục</b> để em tư vấn chi tiết ạ 💎
-    "
+                Em là <b>trợ lý tư vấn mua sắm cao cấp</b> của LW Shop 👔👟<br>
+                Chuyên các dòng <b>thời trang luxury & lifestyle</b> chính hãng.<br><br>
+                👉 Anh/chị chỉ cần <b>gõ nhu cầu</b> hoặc <b>tên danh mục</b> để em tư vấn chi tiết ạ 💎
+                "
             ]);
         }
 
@@ -514,10 +558,123 @@ class SalesAIController extends Controller
         // kiem tra nguoi dung da chon kieu gi
         $context = session('chat_context');
 
-        // if ($context && $context['category'] && !$context['supplier']) {
+        $index = null;
+
+        if (session('chat_context.step') === 'viewing_products') {
+            $index = $this->detectViewDetailIndex($text);
+            if ($index !== null) {
+
+                $ids = session('chat_context.last_products', []);
+
+                // ❌ Không có danh sách trước đó
+                if (!isset($ids[$index])) {
+                    return response()->json([
+                        'reply' => "⚠️ Em không tìm thấy mẫu <b>{$index}</b> ạ.<br>
+            👉 Anh/chị chọn số trong danh sách em vừa gửi nhé!"
+                    ]);
+                }
+
+                $productId = $ids[$index];
+                $product = ShopProduct::with(['discount', 'variants'])->find($productId);
+
+                if (!$product) {
+                    return response()->json([
+                        'reply' => "❌ Sản phẩm hiện không còn tồn tại ạ."
+                    ]);
+                }
+                session()->put('chat_context.current_product', $product->id);
+                session()->put('chat_context.step', 'viewing_detail');
+
+                // LẤY DISCOUNT ĐÃ LOAD
+                $discount = $product->discount;
+                $listPrice = (float) $product->list_price;
+
+                $finalPrice = $listPrice;
+                $percentOff = 0;
+                $hasDiscount = false;
+
+                if ($discount && $listPrice > 0) {
+                    $discountAmount = (float) ($discount->discount_amount ?? 0);
+                    $isFixed = (int) ($discount->is_fixed ?? 0);
+
+                    if ($isFixed === 0 && $discountAmount > 0) {
+                        // Giảm theo %
+                        $percentOff = min(100, round($discountAmount));
+                        $finalPrice = max(0, $listPrice * (1 - $discountAmount / 100));
+                    } elseif ($isFixed === 1 && $discountAmount > 0) {
+                        // Giảm theo số tiền
+                        $finalPrice = max(0, $listPrice - $discountAmount);
+                        $percentOff = min(100, round(($discountAmount / $listPrice) * 100));
+                    }
+
+                    $hasDiscount = $finalPrice < $listPrice;
+                }
+
+
+                // 👉 TRẢ VỀ CHI TIẾT SÂU
+                $reply = "
+                🧐 <b>Chi tiết sản phẩm mẫu {$index}:</b><br><br>
+
+                <div style='
+                    border:1px solid #e5e7eb;
+                    border-radius:12px;
+                    padding:12px;
+                    background:#ffffff;
+                '>
+                    <img src='{$product->image}'
+                        alt='{$product->product_name}'
+                        style='width:100%;max-width:260px;border-radius:10px;margin-bottom:10px;'>
+
+                    👟 <b>{$product->product_name} </b><br>
+
+                " . ($hasDiscount ? "
+                    💸 <b style='color:#dc2626'>" . number_format($finalPrice, 0, ',', '.') . "đ</b>
+                    <span style='text-decoration:line-through;color:#6b7280;font-size:0.9em;margin-left:6px;'>
+                        " . number_format($listPrice, 0, ',', '.') . "đ
+                    </span>
+                    <span style='display:inline-block;margin-left:6px;padding:2px 6px;
+                        background:#ef4444;color:#fff;border-radius:999px;
+                        font-size:0.75em;font-weight:600;'>
+                        -{$percentOff}%
+                    </span>
+                " : "
+                    💰 <b style='color:#1e40af'>" . number_format($listPrice, 0, ',', '.') . "đ</b>
+                ") . "
+                <br><br>
+
+                    📄 {$product->short_description}<br><br>
+
+                    👉 <a href='" . route('product.show', $product->id) . "' target='_blank'
+                    style='color:#2563eb;font-weight:600;text-decoration:none'>
+                    Xem trang sản phẩm đầy đủ
+                    </a><br><br>
+                    <button class='btn btn-light rounded-circle shadow-sm add-to-cart'
+                            data-id='{$product->id}'
+                            title='Thêm vào giỏ hàng'>
+                        <i class='ti-shopping-cart'></i>
+                    </button>
+                    
+                </div>
+                <br>🔎 <b>Anh/chị muốn biết thêm về mẫu này không ạ?</b><br>
+                • Mô tả chi tiết sản phẩm 📋<br>
+                • Giá hiện tại & mức giảm giá 💸<br>
+                • Tình trạng còn hàng 🏪<br>
+                • Sản phẩm mới / sản phẩm nổi bật ⭐<br>
+                • So sánh với mẫu khác ⚖️<br><br>
+
+                👉 Anh/chị chỉ cần gõ ví dụ:
+                <b>“mô tả”</b>, <b>“giảm giá bao nhiêu”</b>, <b>“còn hàng không”</b>, 
+                <b>“size,mau”</b> hoặc <b>“đặt mua”</b> ạ 💬
+                ";
+                return response()->json(['reply' => $reply]);
+            }
+        }
+
         if (
-            isset($context['category']) &&
-            empty($context['supplier'])
+            $context &&
+            $context['category'] &&
+            !$context['supplier'] &&
+            session('chat_context.step') !== 'viewing_products'
         ) { // xu ly chon kieu giay voi isset de tranh loi khi chua co category voi isset chi kiem tra ton tai key va empty de kiem tra gia tri null hoac rong
             $supplier = $this->matchSupplierFromText($text, $context['category']);
 
@@ -526,29 +683,43 @@ class SalesAIController extends Controller
                 // ✅ LƯU ID KIỂU VÀO SESSION
                 session()->put('chat_context.supplier', $supplier->id);
                 session()->put('chat_context.supplier_text', $supplier->supplier_text);
-
+                session()->put('chat_context.step', 'choose_price');
                 return response()->json([
                     'reply' => "👞 <b>Dạ vâng ạ!</b><br>
-            Anh/chị đã chọn kiểu <b>{$supplier->supplier_text}</b>.<br><br>
-            💰 Anh/chị cho em xin <b>tầm giá</b> mong muốn nhé:<br>
-            • Dưới 50 triệu<br>
-            • 50 – 80 triệu<br>
-            • Trên 80 triệu"
+                    Anh/chị đã chọn kiểu <b>{$supplier->supplier_text}</b>.<br><br>
+                    💰 Anh/chị cho em xin <b>tầm giá</b> mong muốn nhé:<br>
+                    • Dưới 50 triệu<br>
+                    • 50 – 80 triệu<br>
+                    • Trên 80 triệu"
                 ]);
             }
         }
+        if (
+            session('chat_context.step') === 'viewing_detail'
+            && $this->detectPriceRange($text)
+        ) {
+            return response()->json([
+                'reply' => "ℹ️ Anh/chị đang xem chi tiết sản phẩm.<br>
+        👉 Gõ <b>xem thêm</b> hoặc <b>quay lại danh sách</b> để chọn sản phẩm khác ạ."
+            ]);
+        }
+
 
         // xu ly chon gia tien
         if (
             $context &&
             $context['category'] &&
-            $context['supplier']
+            $context['supplier'] &&
+            session('chat_context.step') === 'choose_price'
         ) {
 
             $range = $this->detectPriceRange($text);
             if ($range) {
                 // ✅ LƯU PRICE RANGE
                 session()->put('chat_context.priceRange', $range);
+                session()->put('chat_context.last_products', []);
+                session()->put('chat_context.last_index', 1);
+                session()->put('chat_context.offset', 0);
 
                 // 👉 QUERY SẢN PHẨM
                 $products = ShopProduct::where('category_id', $context['category'])
@@ -569,49 +740,53 @@ class SalesAIController extends Controller
                 // 👉 BUILD REPLY
                 $reply = "🎯 <b>Sản phẩm phù hợp cho anh/chị:</b><br><br>";
 
-                $ids = [];
-                $index = 1;
+                $ids = session('chat_context.last_products', []);
+                $startIndex = session('chat_context.last_index', 1);
                 foreach ($products as $p) {
-                    $ids[$index] = $p->id;
+                    $ids[$startIndex] = $p->id;
+
                     $reply .= "
-    <div style='
-        border:1px solid #e5e7eb;
-        border-radius:12px;
-        padding:10px;
-        margin-bottom:12px;
-        background:#ffffff;
-    '>
-        <img src='{$p->image}'
-             alt='{$p->product_name}'
-             style='
-                width:100%;
-                max-width:220px;
-                border-radius:10px;
-                display:block;
-                margin-bottom:8px;
-             '>
+                    <div style='
+                        border:1px solid #e5e7eb;
+                        border-radius:12px;
+                        padding:10px;
+                        margin-bottom:12px;
+                        background:#ffffff;
+                    '>
+                        <img src='{$p->image}'
+                            alt='{$p->product_name}'
+                            style='
+                                width:100%;
+                                max-width:220px;
+                                border-radius:10px;
+                                display:block;
+                                margin-bottom:8px;
+                            '>
 
-        👟 <b>{$p->product_name}</b><br>
-        💰 <b style='color:#1e40af'>" . number_format($p->list_price, 0, ',', '.') . "đ</b><br>
+                        👟 <b>{$p->product_name}</b><br>
+                        💰 <b style='color:#1e40af'>" . number_format($p->list_price, 0, ',', '.') . "đ</b><br>
 
-        👉 <a href='" . route('product.show', $p->id) . "' 
-              target='_blank'
-              style='
-                display:inline-block;
-                margin-top:6px;
-                color:#2563eb;
-                font-weight:600;
-                text-decoration:none;
-              '>
-              Xem chi tiết
-            </a>
-    </div>
-    ";
-                    $index++;
+                        👉 <a href='" . route('product.show', $p->id) . "' 
+                            target='_blank'
+                            style='
+                                display:inline-block;
+                                margin-top:6px;
+                                color:#2563eb;
+                                font-weight:600;
+                                text-decoration:none;
+                            '>
+                            Xem chi tiết
+                            </a>
+                    </div>
+                    ";
+                    $startIndex++;
                 }
-                $total = $index - 1; // số mẫu thực tế
-                session()->put('chat_context.last_products', $ids); // luu id san pham vua hien thi de dat hang
-                $numbersText = implode(', ', range(1, $total));
+                $total = count($ids); // số mẫu thực tế
+                session()->put('chat_context.last_products', $ids);
+                session()->put('chat_context.last_index', $startIndex);
+                session()->put('chat_context.offset', 0);
+                session()->put('chat_context.step', 'viewing_products');
+                $numbersText = implode(', ', array_keys($ids));
                 $reply .= "
                     ✨ <b>Anh/chị muốn tiếp theo:</b><br>
                     • Gõ <b>số mẫu</b> (<b>{$numbersText}</b>) để <b>xem chi tiết</b><br>
@@ -622,125 +797,74 @@ class SalesAIController extends Controller
                 return response()->json(['reply' => $reply]);
             }
         }
-        $index = $this->detectViewDetailIndex($text);
 
-        if ($index) {
-
-            $ids = session('chat_context.last_products', []);
-
-            // ❌ Không có danh sách trước đó
-            if (!isset($ids[$index])) {
-                return response()->json([
-                    'reply' => "⚠️ Em không tìm thấy mẫu <b>{$index}</b> ạ.<br>
-            👉 Anh/chị chọn số trong danh sách em vừa gửi nhé!"
-                ]);
-            }
-
-            $productId = $ids[$index];
-            $product = ShopProduct::with('discount')->find($productId);
-
-
-            if (!$product) {
-                return response()->json([
-                    'reply' => "❌ Sản phẩm hiện không còn tồn tại ạ."
-                ]);
-            }
-            session()->put('chat_context.current_product', $product->id);
-            // LẤY DISCOUNT ĐÃ LOAD
-            $discount = $product->discount;
-            $listPrice = (float) $product->list_price;
-
-            $finalPrice = $listPrice;
-            $percentOff = 0;
-            $hasDiscount = false;
-
-            if ($discount && $listPrice > 0) {
-                $discountAmount = (float) ($discount->discount_amount ?? 0);
-                $isFixed = (int) ($discount->is_fixed ?? 0);
-
-                if ($isFixed === 0 && $discountAmount > 0) {
-                    // Giảm theo %
-                    $percentOff = min(100, round($discountAmount));
-                    $finalPrice = max(0, $listPrice * (1 - $discountAmount / 100));
-                } elseif ($isFixed === 1 && $discountAmount > 0) {
-                    // Giảm theo số tiền
-                    $finalPrice = max(0, $listPrice - $discountAmount);
-                    $percentOff = min(100, round(($discountAmount / $listPrice) * 100));
-                }
-
-                $hasDiscount = $finalPrice < $listPrice;
-            }
-
-
-            // 👉 TRẢ VỀ CHI TIẾT SÂU
-            $reply = "
-🧐 <b>Chi tiết sản phẩm mẫu {$index}:</b><br><br>
-
-<div style='
-    border:1px solid #e5e7eb;
-    border-radius:12px;
-    padding:12px;
-    background:#ffffff;
-'>
-    <img src='{$product->image}'
-         alt='{$product->product_name}'
-         style='width:100%;max-width:260px;border-radius:10px;margin-bottom:10px;'>
-
-    👟 <b>{$product->product_name} </b><br>
-
-" . ($hasDiscount ? "
-    💸 <b style='color:#dc2626'>" . number_format($finalPrice, 0, ',', '.') . "đ</b>
-    <span style='text-decoration:line-through;color:#6b7280;font-size:0.9em;margin-left:6px;'>
-        " . number_format($listPrice, 0, ',', '.') . "đ
-    </span>
-    <span style='display:inline-block;margin-left:6px;padding:2px 6px;
-        background:#ef4444;color:#fff;border-radius:999px;
-        font-size:0.75em;font-weight:600;'>
-        -{$percentOff}%
-    </span>
-" : "
-    💰 <b style='color:#1e40af'>" . number_format($listPrice, 0, ',', '.') . "đ</b>
-") . "
-<br><br>
-
-    📄 {$product->short_description}<br><br>
-
-    👉 <a href='" . route('product.show', $product->id) . "' target='_blank'
-       style='color:#2563eb;font-weight:600;text-decoration:none'>
-       Xem trang sản phẩm đầy đủ
-    </a><br><br>
-    <button class='btn btn-light rounded-circle shadow-sm add-to-cart'
-            data-id='{$product->id}'
-            title='Thêm vào giỏ hàng'>
-        <i class='ti-shopping-cart'></i>
-    </button>
-    
-</div>
-<br>🔎 <b>Anh/chị muốn biết thêm về mẫu này không ạ?</b><br>
-• Mô tả chi tiết sản phẩm 📋<br>
-• Giá hiện tại & mức giảm giá 💸<br>
-• Tình trạng còn hàng 🏪<br>
-• Sản phẩm mới / sản phẩm nổi bật ⭐<br>
-• So sánh với mẫu khác ⚖️<br><br>
-
-👉 Anh/chị chỉ cần gõ ví dụ:
-<b>“mô tả”</b>, <b>“giảm giá bao nhiêu”</b>, <b>“còn hàng không”</b>, 
-<b>“hàng mới không”</b> hoặc <b>“đặt mua”</b> ạ 💬
-";
-            return response()->json(['reply' => $reply]);
-        }
 
 
         $currentProductId = session('chat_context.current_product');
         if ($currentProductId) {
 
-            $product = ShopProduct::find($currentProductId);
+            $product = ShopProduct::with(['variants', 'discount'])
+                ->find($currentProductId);
 
             if (!$product) {
                 session()->forget('chat_context.current_product');
                 return response()->json([
                     'reply' => "❌ Sản phẩm này hiện không còn tồn tại ạ."
                 ]);
+            }
+
+
+            $variants = $product->variants->where('is_active', true);
+
+            // ❓ HỎI SIZE
+            if (preg_match('/(size|so|kich\s*co)/', $text)) {
+
+                $sizes = $variants
+                    ->pluck('size')
+                    ->filter()
+                    ->unique()
+                    ->sort()
+                    ->values();
+
+                if ($sizes->isEmpty()) {
+                    return response()->json([
+                        'reply' => "ℹ️ Sản phẩm này hiện chưa có phân loại size ạ."
+                    ]);
+                }
+
+                $reply = "📏 <b>Size hiện có của {$product->product_name}:</b><br><br>";
+                foreach ($sizes as $s) {
+                    $reply .= "• Size {$s}<br>";
+                }
+
+                $reply .= "<br>👉 Anh/chị muốn xem <b>màu</b> hay <b>kiểm tra tồn kho</b> size nào không ạ?";
+
+                return response()->json(['reply' => $reply]);
+            }
+
+            // ❓ HỎI MÀU
+            if (preg_match('/(mau|color)/', $text)) {
+
+                $colors = $variants
+                    ->pluck('color')
+                    ->filter()
+                    ->unique()
+                    ->values();
+
+                if ($colors->isEmpty()) {
+                    return response()->json([
+                        'reply' => "ℹ️ Sản phẩm này hiện chỉ có 1 màu tiêu chuẩn ạ."
+                    ]);
+                }
+
+                $reply = "🎨 <b>Màu hiện có của {$product->product_name}:</b><br><br>";
+                foreach ($colors as $c) {
+                    $reply .= "• {$c}<br>";
+                }
+
+                $reply .= "<br>👉 Anh/chị muốn xem <b>size</b> hay kiểm tra <b>còn hàng</b> màu nào không ạ?";
+
+                return response()->json(['reply' => $reply]);
             }
             if (preg_match('/(mo\s*ta|chi\s*tiet|thong\s*tin|mieu\s*ta|noi\s*dung)/', $text)) {
 
@@ -751,14 +875,15 @@ class SalesAIController extends Controller
             }
 
 
-
-
             if (preg_match('/\b(giam gia|giam|khuyen mai|sale|uu dai)\b/', $text)) {
-                $discountPercent = $product->discount_percent;
+                $discount = $product->discount;
 
-                $reply = $discountPercent > 0
-                    ? "💸 Sản phẩm đang giảm <b>{$discountPercent}%</b> 🎉"
-                    : "💰 Hiện sản phẩm chưa có chương trình giảm giá ạ.";
+                if ($discount) {
+                    $reply = "💸 Sản phẩm đang có chương trình giảm giá 🎉";
+                } else {
+                    $reply = "💰 Hiện sản phẩm chưa có chương trình giảm giá ạ.";
+                }
+
 
                 return response()->json(['reply' => $reply]);
             }
@@ -793,7 +918,18 @@ class SalesAIController extends Controller
         }
         if ($this->isViewOtherIntent($text)) { // kiem tra y dinh xem mau khac
 
-            session()->forget(['chat_context.supplier', 'chat_context.supplier_text', 'chat_context.priceRange', 'chat_context.offset', 'chat_context.last_products']); // offset de lay them san pham va last_products de luu id san pham vua hien thi
+            session()->forget([
+                'chat_context.supplier',
+                'chat_context.supplier_text',
+                'chat_context.priceRange',
+                'chat_context.offset',
+                'chat_context.last_products',
+                'chat_context.last_index',
+                'chat_context.current_product',
+            ]);
+
+            session()->put('chat_context.step', 'choose_supplier');
+
 
             $suppliers = ShopProduct::where('category_id', session('chat_context.category'))
                 ->with('supplier')
@@ -812,7 +948,10 @@ class SalesAIController extends Controller
 
             return response()->json(['reply' => $reply]);
         }
-        if ($this->isLoadMoreIntent($text)) { // kiem tra y dinh xem them mau
+        if (
+            $this->isLoadMoreIntent($text)
+            && session('chat_context.step') === 'viewing_products'
+        ) { // kiem tra y dinh xem them mau
             $offset = session('chat_context.offset', 0);
             $ctx = session('chat_context');
             $total = ShopProduct::where('category_id', $ctx['category'])
@@ -827,7 +966,8 @@ class SalesAIController extends Controller
             }
             $offset += 5;
             session()->put('chat_context.offset', $offset);
-
+            $ids = session('chat_context.last_products', []);
+            $startIndex = session('chat_context.last_index', 1);
             $products = ShopProduct::where('category_id', $ctx['category'])
                 ->where('supplier_id', $ctx['supplier'])
                 ->whereBetween('list_price', [$ctx['priceRange']['min'], $ctx['priceRange']['max']])
@@ -836,40 +976,42 @@ class SalesAIController extends Controller
                 ->get();
 
             $reply = "✨ <b>Các mẫu tiếp theo:</b><br><br>";
-            $ids = [];
+
             foreach ($products as $p) {
-                $ids[] = $p->id;
+                $ids[$startIndex] = $p->id;
+                $startIndex++;
                 $reply .= "
-    <div style='
-        border:1px solid #e5e7eb;
-        border-radius:12px;
-        padding:10px;
-        margin-bottom:12px;
-        background:#ffffff;
-    '>
+                <div style='
+                    border:1px solid #e5e7eb;
+                    border-radius:12px;
+                    padding:10px;
+                    margin-bottom:12px;
+                    background:#ffffff;
+                '>
 
-        <img src='{$p->image}'
-             alt='{$p->product_name}'
-             style='width:100%;max-width:220px;border-radius:10px;margin-bottom:8px;'>
+                    <img src='{$p->image}'
+                        alt='{$p->product_name}'
+                        style='width:100%;max-width:220px;border-radius:10px;margin-bottom:8px;'>
 
-        👟 <b>{$p->product_name}</b><br>
-        💰 <b style='color:#1e40af'>" . number_format($p->list_price, 0, ',', '.') . "đ</b><br>
+                    👟 <b>{$p->product_name}</b><br>
+                    💰 <b style='color:#1e40af'>" . number_format($p->list_price, 0, ',', '.') . "đ</b><br>
 
-        <a href='" . route('product.show', $p->id) . "' target='_blank'
-           style='color:#2563eb;font-weight:600;text-decoration:none'>
-           Xem chi tiết
-        </a><br><br>
+                    <a href='" . route('product.show', $p->id) . "' target='_blank'
+                    style='color:#2563eb;font-weight:600;text-decoration:none'>
+                    Xem chi tiết
+                    </a><br><br>
 
-        <button class='btn btn-light rounded-circle shadow-sm add-to-cart'
-            data-id='{$p->id}'
-            title='Thêm vào giỏ hàng'>
-        <i class='ti-shopping-cart'></i>
-    </button>
+                    <button class='btn btn-light rounded-circle shadow-sm add-to-cart'
+                        data-id='{$p->id}'
+                        title='Thêm vào giỏ hàng'>
+                    <i class='ti-shopping-cart'></i>
+                </button>
 
-    </div>
-    ";
+                </div>
+                ";
             }
             session()->put('chat_context.last_products', $ids);
+            session()->put('chat_context.last_index', $startIndex);
             $reply .= "
                     ✨ Anh/chị muốn:
                     <b>xem thêm</b> • <b>xem mẫu khác</b> • hay <b>đặt mua</b> ngay ạ?
@@ -879,7 +1021,20 @@ class SalesAIController extends Controller
 
         if ($this->isOrderIntent($text)) {
 
+
+            $index = $this->detectViewDetailIndex($text);
             $productIds = session('chat_context.last_products', []);
+
+            if ($index && isset($productIds[$index])) {
+                $id = $productIds[$index];
+                return response()->json([
+                    'reply' => "🛒 <b>Dạ vâng ạ!</b><br>
+            Anh/chị có thể đặt mua sản phẩm tại đây 👉 
+            <a href='" . route('product.show', $id) . "' target='_blank'>
+                Xem & đặt mua ngay
+            </a>"
+                ]);
+            }
 
             if (empty($productIds)) {
                 return response()->json([
@@ -889,7 +1044,7 @@ class SalesAIController extends Controller
             }
 
             $reply = "🛒 <b>Dạ vâng ạ!</b><br>
-    Anh/chị vui lòng chọn 1 sản phẩm để xem chi tiết và thêm vào giỏ:<br><br>";
+            Anh/chị vui lòng chọn 1 sản phẩm để xem chi tiết và thêm vào giỏ:<br><br>";
 
             foreach ($productIds as $id) {
                 $reply .= "👉 <a href='" . route('product.show', $id) . "' target='_blank'>
@@ -954,15 +1109,26 @@ class SalesAIController extends Controller
                     👉 Anh/chị đang muốn mua gì tiếp theo ạ?"
                 ]);
             }
-            if ($category) {
+            if ($category && session()->has('chat_context.category')) {
 
-                session()->put('chat_context', [
-                    'category'   => $category->id,
-                    'supplier'   => null,
-                    'priceRange' => null,
-                    'intent'     => 'buy',
-                    'step'       => 'choose_supplier'
-                ]);
+                if (session('chat_context.category') != $category->id) {
+                    session()->forget('chat_context');
+
+                    // ⛔ DỪNG LUỒNG TẠI ĐÂY
+                    session()->put('chat_context', [
+                        'category' => $category->id,
+                        'supplier' => null,
+                        'priceRange' => null,
+                        'step' => 'choose_supplier',
+                    ]);
+
+                    return response()->json([
+                        'reply' => "⌚ <b>Dạ vâng ạ!</b><br>
+            Anh/chị đang quan tâm <b>{$category->categories_text}</b>.<br>
+            👉 Em sẽ tư vấn ngay ạ!"
+                    ]);
+                }
+
 
                 $suppliers = ShopProduct::where('category_id', $category->id)
                     ->whereHas('supplier')
@@ -1021,40 +1187,3 @@ class SalesAIController extends Controller
         }
     }
 }
- // Nếu user nói rõ: mua giày / xem áo
-        // session()->put('chat_context', [
-        //     'category'   => $category->id,
-        //     'supplier'   => null,
-        //     'priceRange' => null,
-        //     'intent'     => 'buy',
-        //     'step'       => 'choose_supplier'
-        // ]);
-
-        // $suppliers = ShopProduct::where('category_id', $category->id)
-        //     ->whereHas('supplier')
-        //     ->with('supplier')
-        //     ->get()
-        //     ->pluck('supplier.supplier_text')
-        //     ->unique()
-        //     ->filter()
-        //     ->values();
-        // $suppliers = $suppliers->reject(
-        //     fn($s) =>
-        //     $this->normalize($s) === $this->normalize($category->categories_text)
-        // );
-
-        // $reply  = "👟 <b>Dạ vâng ạ!</b><br>";
-        // $reply .= "Anh/chị đang quan tâm <b>{$category->categories_text}</b>.<br><br>";
-
-        // if ($suppliers->isEmpty()) {
-        //     $reply .= "👉 Hiện chưa phân loại kiểu chi tiết.<br>";
-        //     $reply .= "Anh/chị cho em xin <b>tầm giá</b> để em tư vấn nhé!";
-        // } else {
-        //     $reply .= "Trong đó em có các <b>kiểu</b> sau:<br><br>";
-        //     foreach ($suppliers as $sup) {
-        //         $reply .= "• {$sup}<br>";
-        //     }
-        //     $reply .= "<br>👉 Anh/chị gõ <b>tên kiểu</b> mình thích nhé!";
-        // }
-        // logger(session('chat_context'));
-        // return response()->json(['reply' => $reply]);
