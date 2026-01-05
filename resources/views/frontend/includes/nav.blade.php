@@ -120,6 +120,11 @@
                         <div id="search-suggestions" class="lux-suggestions"></div>
                     </form>
                 </li>
+                <li class="nav-item mr-3">
+                    <a href="#" class="btn btn-light position-relative">
+                        <i class="ti-filter"></i>Thử đồ
+                    </a>
+                </li>
 
                 <!-- Yêu thích -->
                 <li class="nav-item mr-3">
