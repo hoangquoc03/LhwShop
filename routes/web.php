@@ -92,6 +92,10 @@ Route::post('/login-home', [
     LoginHomeController::class,
     'login'
 ])->name('frontend.login.post');
+Route::get('/thu-do', function () {
+    return view('frontend.includes.TryOnClothes');
+})->name('frontend.tryOnClothes');
+
 
 Route::get('/login/facebook', [LoginHomeController::class, 'redirectToFacebook'])->name('login.facebook');
 Route::get('/login/facebook/callback', [LoginHomeController::class, 'handleFacebookCallback']);
