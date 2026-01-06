@@ -20,6 +20,8 @@ class ShopOrder extends Model
     protected $fillable = [
         'employee_id',
         'customer_id',
+        'voucher_id',
+        'voucher_discount',
         'order_date',
         'shipped_date',
         'ship_name',
@@ -93,6 +95,14 @@ class ShopOrder extends Model
 
     public function getTotalAttribute()
     {
-        return $this->subtotal + $this->shipping_fee;
+        return max(
+            $this->subtotal - ($this->voucher_discount ?? 0) + $this->shipping_fee,
+            0
+        );
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(ShopOrder::class, 'order_id');
     }
 }

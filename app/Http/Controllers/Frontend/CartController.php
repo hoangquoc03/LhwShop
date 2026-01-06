@@ -465,7 +465,7 @@ class CartController extends Controller
             'ward'       => 'nullable|exists:wards,id',
             'delivery_type' => 'required|in:store,home',
             'payment_type_id' => 'required|exists:shop_payment_types,id',
-
+            'voucher_discount' => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -491,6 +491,7 @@ class CartController extends Controller
                 'order_status'  => \App\Models\ShopOrder::STATUS_PENDING,
                 'payment_type_id' => $request->payment_type_id ?? null,
                 'shipping_fee' => $shippingFee,
+                'voucher_discount' => $request->voucher_discount ?? 0,
             ]);
             foreach ($cart as $item) {
 

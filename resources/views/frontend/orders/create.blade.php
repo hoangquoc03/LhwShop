@@ -317,6 +317,8 @@
                             @endif
                         </div>
                     </div>
+                    <input type="hidden" name="voucher_discount" id="voucher_discount_input" value="0">
+
                     <input type="hidden" name="payment_type_id" id="payment_type_id">
                     {{-- 💳 Thông tin thanh toán --}}
                     <div class="card shadow-sm mb-3">
@@ -450,97 +452,6 @@
         </script>
     @endif
 
-    {{-- <script>
-        document.querySelectorAll('input[name="payment_type"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                const paymentId = this.value;
-                const paymentCode = this.dataset.code;
-                const paymentName = this.dataset.name;
-
-                document.getElementById('payment_type_id').value = paymentId;
-                document.getElementById('paymentLabel').innerHTML =
-                    'Thanh toán bằng: <b>' + paymentName + '</b>';
-
-                if (paymentCode === 'VNPAY') {
-                    fetch("{{ route('vnpay.qr') }}?amount={{ $grandTotal }}")
-                        .then(res => res.json())
-                        .then(data => {
-                            document.getElementById('vnpayQr').src = data.qr;
-                            document.getElementById('vnpayAmount').innerText = data.amount;
-                            document.getElementById('vnpayBox').classList.remove('d-none');
-                        });
-                } else {
-                    document.getElementById('vnpayBox').classList.add('d-none');
-                }
-            });
-        });
-    </script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-
-            // ===== GIÁ TRỊ BAN ĐẦU TỪ CONTROLLER =====
-            let baseTotal = {{ $totalAfterProductDiscount }};
-            let shippingFee = {{ $shippingFee ?? 0 }};
-            let voucherDiscount = {{ $voucherDiscount ?? 0 }};
-
-            // ===== UPDATE UI =====
-            function updateTotal() {
-                let finalTotal = baseTotal + shippingFee - voucherDiscount;
-
-                document.getElementById("shippingFee").textContent =
-                    shippingFee.toLocaleString("vi-VN") + "₫";
-
-                document.getElementById("voucherDiscount").textContent =
-                    "-" + voucherDiscount.toLocaleString("vi-VN") + "₫";
-
-                document.getElementById("grandTotal").textContent =
-                    finalTotal.toLocaleString("vi-VN") + "₫";
-            }
-
-            // ===== CHỌN HÌNH THỨC GIAO HÀNG =====
-            document.querySelectorAll("input[name='delivery_type']").forEach(el => {
-                el.addEventListener("change", function() {
-                    shippingFee = this.value === "home" ? 30000 : 0;
-                    updateTotal();
-                });
-            });
-
-            // ===== CHỌN VOUCHER =====
-            const voucherSelect = document.querySelector("select[name='voucher_id']");
-            if (voucherSelect) {
-                voucherSelect.addEventListener("change", function() {
-                    voucherDiscount = parseInt(
-                        this.options[this.selectedIndex].dataset.discount || 0
-                    );
-                    updateTotal();
-                });
-            }
-
-            updateTotal();
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const confirmBtn = document.getElementById('confirmPaymentBtn');
-            const labelSpan = document.getElementById('paymentLabel');
-            const hiddenInput = document.getElementById('payment_type_id');
-
-            confirmBtn.addEventListener('click', function() {
-                const selected = document.querySelector('input[name="payment_type"]:checked');
-
-                if (!selected) {
-                    alert('Vui lòng chọn phương thức thanh toán');
-                    return;
-                }
-
-                hiddenInput.value = selected.value;
-
-                labelSpan.innerHTML = 'Thanh toán bằng: <b>' +
-                    selected.closest('label').querySelector('strong').innerText +
-                    '</b>';
-            });
-        });
-    </script> --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
 
@@ -562,7 +473,14 @@
                 document.getElementById('shippingFee').innerText = formatVND(shippingFee);
                 document.getElementById('voucherDiscount').innerText = '-' + formatVND(voucherDiscount);
                 document.getElementById('grandTotal').innerText = formatVND(grandTotal);
-
+                const voucherEl = document.getElementById('voucherDiscount');
+                if (voucherDiscount > 0) {
+                    voucherEl.innerText = '-' + formatVND(voucherDiscount);
+                    voucherEl.closest('.d-flex').style.display = 'flex';
+                } else {
+                    voucherEl.innerText = '-0₫';
+                    voucherEl.closest('.d-flex').style.display = 'none';
+                }
                 return grandTotal;
             }
 
@@ -591,7 +509,7 @@
                         },
                         body: JSON.stringify({
                             subtotal: grandTotal, // 🔥 GỬI TỔNG CUỐI
-                            voucher_discount: 0, // đã trừ rồi
+                            voucher_discount: voucherDiscount,
                             delivery_type: 'store' // không dùng nữa
                         })
                     })
@@ -627,7 +545,12 @@
                     voucherDiscount = parseInt(
                         this.options[this.selectedIndex].dataset.discount || 0
                     );
+
+                    // 🔥 GỬI VỀ BACKEND
+                    document.getElementById('voucher_discount_input').value = voucherDiscount;
+
                     updateTotal();
+
 
                     if (window.selectedPayment && window.selectedPayment.code === 'VNPAY') {
                         loadVNPayQR();

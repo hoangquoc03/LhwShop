@@ -142,53 +142,69 @@
 
     <script>
         $(document).ready(function() {
-            $(document).on("click", ".btn-remove-favorite", function(e) {
-                e.preventDefault();
-                let item = $(this).closest(".favorite-item");
-                let productId = item.data("id");
 
-                $.ajax({
-                    url: "{{ route('favorites.remove') }}",
-                    type: "POST",
-                    data: {
-                        product_id: productId,
-                        _token: "{{ csrf_token() }}"
-                    },
-                    success: function(res) {
-                        if (res.success) {
-                            // Xoá sản phẩm khỏi DOM
-                            item.remove();
+            $(document)
+                .off("click", ".btn-remove-favorite")
+                .on("click", ".btn-remove-favorite", function(e) {
 
-                            // Cập nhật số yêu thích trên navbar
-                            $(".nav-shop__circle").text(res.count);
-                            $("#favorite-list").html(res.html);
-                            // Nếu hết sản phẩm thì hiển thị thông báo
-                            if (res.count === 0) {
-                                $("#favorite-list").html(
-                                    "<p>Chưa có sản phẩm yêu thích nào.</p>");
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+
+                    let item = $(this).closest(".favorite-item");
+                    let productId = item.data("id");
+
+                    $.ajax({
+                        url: "{{ route('favorites.remove') }}",
+                        type: "POST",
+                        data: {
+                            product_id: productId,
+                            _token: "{{ csrf_token() }}"
+                        },
+                        success: function(res) {
+                            if (res.success) {
+
+                                // Xoá item
+                                item.remove();
+
+                                // 🔥 UPDATE SỐ YÊU THÍCH
+                                const $count = $("#favorite-count");
+
+                                if (res.count > 0) {
+                                    $count.text(res.count).show();
+                                } else {
+                                    $count.hide();
+                                }
+
+                                // Update dropdown
+                                $("#favorite-list").html(res.html);
+
+                                if (res.count === 0) {
+                                    $("#favorite-list").html(
+                                        "<p>Chưa có sản phẩm yêu thích nào.</p>"
+                                    );
+                                }
+
+                                Toastify({
+                                    text: "Đã xóa sản phẩm khỏi yêu thích",
+                                    duration: 3000,
+                                    gravity: "top",
+                                    position: "right",
+                                    backgroundColor: "#ff6b6b",
+                                }).showToast();
                             }
-
-                            // Thông báo
+                        },
+                        error: function() {
                             Toastify({
-                                text: "Đã xóa sản phẩm khỏi yêu thích",
+                                text: "Có lỗi xảy ra!",
                                 duration: 3000,
                                 gravity: "top",
                                 position: "right",
                                 backgroundColor: "#ff6b6b",
                             }).showToast();
                         }
-                    },
-                    error: function() {
-                        Toastify({
-                            text: "Có lỗi xảy ra!",
-                            duration: 3000,
-                            gravity: "top",
-                            position: "right",
-                            backgroundColor: "#ff6b6b",
-                        }).showToast();
-                    }
+                    });
                 });
-            });
+
         });
     </script>
 @endsection

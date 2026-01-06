@@ -291,47 +291,50 @@
 
     });
 </script>
+
 <script>
     $(document).ready(function() {
 
-        $(document).on('click', '.btn-favorite', function(e) {
-            e.preventDefault();
+        $(document)
+            .off('click', '.btn-favorite') // 🔥 QUAN TRỌNG
+            .on('click', '.btn-favorite', function(e) {
 
-            let productId = $(this).data('id');
-            let icon = $(this).find('i');
+                e.preventDefault();
+                e.stopImmediatePropagation(); // 🔥 NGĂN EVENT LẶP
 
-            $.ajax({
-                url: "{{ route('favorites.add') }}",
-                type: "POST",
-                data: {
-                    _token: "{{ csrf_token() }}",
-                    product_id: productId
-                },
-                success: function(res) {
-                    if (res.success) {
+                let productId = $(this).data('id');
+                let icon = $(this).find('i');
 
-                        // ❤️ đổi màu tim
-                        icon.addClass('text-primary');
+                $.ajax({
+                    url: "{{ route('favorites.add') }}",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        product_id: productId
+                    },
+                    success: function(res) {
+                        if (res.success) {
 
-                        // ❤️ cập nhật số trên navbar
-                        $('#favorite-count')
-                            .text(res.count)
-                            .show();
+                            icon.addClass('text-primary');
 
-                        Toastify({
-                            text: "Đã thêm vào yêu thích",
-                            duration: 3000,
-                            gravity: "top",
-                            position: "right",
-                            backgroundColor: "#e91e63",
-                        }).showToast();
+                            $('#favorite-count')
+                                .text(res.count)
+                                .show();
+
+                            Toastify({
+                                text: "Đã thêm vào yêu thích",
+                                duration: 3000,
+                                gravity: "top",
+                                position: "right",
+                                backgroundColor: "#e91e63",
+                            }).showToast();
+                        }
+                    },
+                    error: function(xhr) {
+                        console.log(xhr.responseText);
                     }
-                },
-                error: function(xhr) {
-                    console.log(xhr.responseText);
-                }
+                });
             });
-        });
 
     });
 </script>

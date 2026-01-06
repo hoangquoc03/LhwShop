@@ -77,25 +77,47 @@ class FavoriteController extends Controller
     public function remove(Request $request)
     {
         $productId = $request->input('product_id');
-        $favorites = session('favorites', []);
 
-        if (($key = array_search($productId, $favorites)) !== false) {
-            unset($favorites[$key]);
-            session(['favorites' => $favorites]);
+        // ✅ NẾU ĐÃ ĐĂNG NHẬP → XÓA DB
+        if (Auth::guard('customer')->check()) {
+
+            \App\Models\ShopFavorite::where('customer_id', Auth::guard('customer')->id())
+                ->where('product_id', $productId)
+                ->delete();
+
+            $count = \App\Models\ShopFavorite::where('customer_id', Auth::guard('customer')->id())
+                ->count();
+
+            $favoriteProducts = \App\Models\ShopProduct::whereIn(
+                'id',
+                \App\Models\ShopFavorite::where('customer_id', Auth::guard('customer')->id())
+                    ->pluck('product_id')
+            )->take(3)->get();
         }
+        // ✅ CHƯA ĐĂNG NHẬP → XÓA SESSION
+        else {
+            $favorites = session('favorites', []);
 
-        $favorites = array_values($favorites); // reset lại index
-        session(['favorites' => $favorites]);
+            if (($key = array_search($productId, $favorites)) !== false) {
+                unset($favorites[$key]);
+            }
 
-        // Lấy lại 3 sản phẩm mới nhất
-        $favoriteProducts = \App\Models\ShopProduct::whereIn('id', $favorites)->take(3)->get();
+            $favorites = array_values($favorites);
+            session(['favorites' => $favorites]);
+
+            $count = count($favorites);
+
+            $favoriteProducts = \App\Models\ShopProduct::whereIn('id', $favorites)
+                ->take(3)
+                ->get();
+        }
 
         $html = view('frontend.includes.favorite_dropdown', compact('favoriteProducts'))->render();
 
         return response()->json([
             'success' => true,
-            'count' => count($favorites),
-            'html'   => $html
+            'count'   => $count,
+            'html'    => $html
         ]);
     }
 }

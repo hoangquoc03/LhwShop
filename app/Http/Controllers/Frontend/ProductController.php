@@ -9,6 +9,7 @@ use App\Models\ShopSupplier;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use App\Models\ShopOrder;
+use App\Models\ShopOrderDetail;
 
 class ProductController extends Controller
 {
@@ -347,10 +348,10 @@ class ProductController extends Controller
         if (Auth::check()) {
             $userId = Auth::id();
 
-            $hasOrdered = ShopOrder::where('product_id', $product->id)
+            $hasOrdered = ShopOrderDetail::where('product_id', $product->id)
                 ->whereHas('order', function ($q) use ($userId) {
-                    $q->where('user_id', $userId)
-                        ->where('order_status', 'Completed'); // hoặc 'paid'
+                    $q->where('employee_id', $userId)
+                        ->where('order_status', 'Completed');
                 })
                 ->exists();
         }
