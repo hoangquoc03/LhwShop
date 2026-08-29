@@ -122,10 +122,32 @@
                 </li>
 
                 <li class="nav-item mr-3">
-                    <a href="{{ route('frontend.tryOnClothes') }}" class="btn btn-light position-relative">
-                        <i class="ti-filter"></i>Thử đồ
-                    </a>
+                    <button class="btn btn-light position-relative" id="openAiModal">
+                        <i class="ti-filter"></i> Gợi ý
+                    </button>
                 </li>
+                <div id="aiModal" class="ai-modal">
+                    <div class="ai-modal-content">
+
+                        <div class="ai-header">
+                            <h4>✨ AI Gợi ý Outfit</h4>
+                            <span id="closeAiModal">&times;</span>
+                        </div>
+
+                        <textarea id="outfitPrompt" placeholder="Ví dụ: Tôi muốn mặc đi cafe với bạn vào buổi tối, phong cách Hàn Quốc..."></textarea>
+
+                        <button id="generateOutfit" class="btn btn-dark w-100 mt-3">
+                            Tạo gợi ý
+                        </button>
+
+                        <div id="loading" style="display:none">
+                            AI đang suy nghĩ...
+                        </div>
+
+                        <div id="result" class="mt-4"></div>
+
+                    </div>
+                </div>
 
                 <!-- Yêu thích -->
                 <li class="nav-item mr-3">
@@ -282,6 +304,83 @@
 </nav>
 
 <style>
+    .ai-modal {
+        display: none;
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, .6);
+        z-index: 9999;
+    }
+
+    .ai-modal-content {
+
+        width: 600px;
+        max-width: 90%;
+        background: white;
+
+        margin: 60px auto;
+
+        border-radius: 12px;
+
+        padding: 25px;
+
+        animation: popup .3s ease;
+    }
+
+    @keyframes popup {
+
+        from {
+            transform: translateY(-30px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .ai-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ai-header span {
+        cursor: pointer;
+        font-size: 28px;
+    }
+
+    #outfitPrompt {
+
+        width: 100%;
+        height: 130px;
+
+        padding: 15px;
+
+        border: 1px solid #ddd;
+
+        border-radius: 8px;
+
+        resize: none;
+    }
+
+    .outfit-card {
+
+        margin-top: 20px;
+
+        border: 1px solid #eee;
+
+        border-radius: 10px;
+
+        padding: 15px;
+
+        background: #fafafa;
+    }
+
     /* .nav-right {
         padding-right: 45px;
     } */
@@ -560,7 +659,23 @@
         text-overflow: ellipsis;
     }
 </style>
+<script>
+    const modal = document.getElementById('aiModal');
 
+    document.getElementById('openAiModal').onclick = () => {
+        modal.style.display = 'block';
+    }
+
+    document.getElementById('closeAiModal').onclick = () => {
+        modal.style.display = 'none';
+    }
+
+    window.onclick = (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    }
+</script>
 <script>
     function updateCartCount(count) {
         const cartBadge = document.querySelector('.cart-count');

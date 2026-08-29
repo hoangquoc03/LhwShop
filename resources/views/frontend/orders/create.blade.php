@@ -335,7 +335,8 @@
                             </button>
                         </div>
                     </div>
-                    <div id="vnpayBox" class="card shadow-sm d-none mb-3">
+
+                    {{-- <div id="vnpayBox" class="card shadow-sm d-none mb-3">
                         <div class="card-header fw-bold text-center">
                             QUÉT QR THANH TOÁN VNPAY
                         </div>
@@ -343,6 +344,24 @@
                             <img id="vnpayQr" src="" class="img-fluid mb-3">
                             <h5 class="text-danger fw-bold" id="vnpayAmount"></h5>
                             <p class="text-muted">Vui lòng thanh toán để tiếp tục đặt hàng</p>
+                        </div>
+                    </div> --}}
+                    <div id="vnpayBox" class="card shadow-sm d-none mb-3">
+                        <div class="card-header fw-bold text-center">
+                            QUÉT QR THANH TOÁN
+                        </div>
+
+                        <div class="card-body text-center">
+                            <img id="vnpayQr" src="" class="img-fluid mb-3">
+
+                            <h5 class="text-danger fw-bold" id="vnpayAmount"></h5>
+
+                            <p class="mb-1 fw-bold">LE HONG QUOC</p>
+                            <p class="text-muted">VietinBank - 102865379777</p>
+
+                            <p class="text-muted">
+                                Vui lòng thanh toán để tiếp tục đặt hàng
+                            </p>
                         </div>
                     </div>
 
@@ -490,37 +509,58 @@
             }
 
 
+            // function loadVNPayQR() {
+            //     let grandTotal = getGrandTotal();
+
+            //     console.log('LOAD VNPAY QR', {
+            //         subtotal,
+            //         voucherDiscount,
+            //         deliveryType,
+            //         grandTotal,
+            //         selectedPayment: window.selectedPayment
+            //     });
+
+            //     fetch("{{ route('vnpay.qr') }}", {
+            //             method: 'POST',
+            //             headers: {
+            //                 'Content-Type': 'application/json',
+            //                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            //             },
+            //             body: JSON.stringify({
+            //                 subtotal: grandTotal,
+            //                 voucher_discount: voucherDiscount,
+            //                 delivery_type: 'store'
+            //             })
+            //         })
+            //         .then(res => res.json())
+            //         .then(data => {
+            //             console.log('VNPAY QR RESPONSE:', data);
+
+            //             document.getElementById('vnpayQr').src = data.qr;
+            //             document.getElementById('vnpayAmount').innerText = data.amount;
+            //             document.getElementById('vnpayBox').classList.remove('d-none');
+            //         });
+            // }
             function loadVNPayQR() {
+
                 let grandTotal = getGrandTotal();
 
-                console.log('LOAD VNPAY QR', {
-                    subtotal,
-                    voucherDiscount,
-                    deliveryType,
-                    grandTotal,
-                    selectedPayment: window.selectedPayment
-                });
+                // Nội dung chuyển khoản
+                let description = "Thanh toan don hang";
 
-                fetch("{{ route('vnpay.qr') }}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({
-                            subtotal: grandTotal, // 🔥 GỬI TỔNG CUỐI
-                            voucher_discount: voucherDiscount,
-                            delivery_type: 'store' // không dùng nữa
-                        })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        console.log('VNPAY QR RESPONSE:', data);
+                // Format số tiền
+                document.getElementById('vnpayAmount').innerText =
+                    grandTotal.toLocaleString('vi-VN') + 'đ';
 
-                        document.getElementById('vnpayQr').src = data.qr;
-                        document.getElementById('vnpayAmount').innerText = data.amount;
-                        document.getElementById('vnpayBox').classList.remove('d-none');
-                    });
+                // Tạo QR VietQR
+                let qrUrl =
+                    `https://img.vietqr.io/image/ICB-102865379777-compact2.png?amount=${grandTotal}&addInfo=${encodeURIComponent(description)}&accountName=LE%20HONG%20QUOC`;
+
+                // Gán ảnh QR
+                document.getElementById('vnpayQr').src = qrUrl;
+
+                // Hiện box
+                document.getElementById('vnpayBox').classList.remove('d-none');
             }
 
 
