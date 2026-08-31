@@ -122,25 +122,31 @@
                 </li>
 
                 <li class="nav-item mr-3">
-                    <button class="btn btn-light position-relative" id="openAiModal">
-                        <i class="ti-filter"></i> Gợi ý
+                    <button type="button" class="btn btn-light position-relative" id="openAiModal">
+                        <i class="ti-filter"></i>
+                        Gợi ý
                     </button>
                 </li>
-                <div id="aiModal" class="ai-modal">
+
+                <div id="aiModal" class="ai-modal" style="display: none;">
                     <div class="ai-modal-content">
 
                         <div class="ai-header">
                             <h4>✨ AI Gợi ý Outfit</h4>
-                            <span id="closeAiModal">&times;</span>
+
+                            <span id="closeAiModal" style="cursor:pointer;">
+                                &times;
+                            </span>
                         </div>
 
-                        <textarea id="outfitPrompt" placeholder="Ví dụ: Tôi muốn mặc đi cafe với bạn vào buổi tối, phong cách Hàn Quốc..."></textarea>
+                        <textarea id="outfitPrompt" class="form-control" rows="5"
+                            placeholder="Ví dụ: Tôi muốn mặc đi cafe với bạn vào buổi tối, phong cách Hàn Quốc..."></textarea>
 
-                        <button id="generateOutfit" class="btn btn-dark w-100 mt-3">
+                        <button type="button" id="generateOutfit" class="btn btn-dark w-100 mt-3">
                             Tạo gợi ý
                         </button>
 
-                        <div id="loading" style="display:none">
+                        <div id="loading" class="mt-3" style="display:none;">
                             AI đang suy nghĩ...
                         </div>
 
@@ -675,6 +681,551 @@
             modal.style.display = 'none';
         }
     }
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+        const modal = document.getElementById('aiModal');
+
+        const openButton =
+            document.getElementById('openAiModal');
+
+        const closeButton =
+            document.getElementById('closeAiModal');
+
+        const generateButton =
+            document.getElementById('generateOutfit');
+
+        const promptInput =
+            document.getElementById('outfitPrompt');
+
+        const loading =
+            document.getElementById('loading');
+
+        const result =
+            document.getElementById('result');
+
+
+        /*
+         * =====================================================
+         * OPEN MODAL
+         * =====================================================
+         */
+
+        openButton.addEventListener('click', function() {
+
+            modal.style.display = 'block';
+
+            promptInput.focus();
+        });
+
+
+        /*
+         * =====================================================
+         * CLOSE MODAL
+         * =====================================================
+         */
+
+        closeButton.addEventListener('click', function() {
+
+            modal.style.display = 'none';
+        });
+
+
+        window.addEventListener('click', function(event) {
+
+            if (event.target === modal) {
+
+                modal.style.display = 'none';
+            }
+        });
+
+
+        /*
+         * =====================================================
+         * GENERATE OUTFIT
+         * =====================================================
+         */
+
+        generateButton.addEventListener(
+            'click',
+            async function() {
+
+                const prompt =
+                    promptInput.value.trim();
+
+
+                /*
+                 * Validate
+                 */
+
+                if (!prompt) {
+
+                    result.innerHTML = `
+                    <div class="alert alert-warning">
+                        Vui lòng nhập yêu cầu outfit.
+                    </div>
+                `;
+
+                    return;
+                }
+
+
+                /*
+                 * Loading
+                 */
+
+                generateButton.disabled = true;
+
+                loading.style.display = 'block';
+
+                result.innerHTML = '';
+
+
+                try {
+
+                    /*
+                     * CSRF token
+                     */
+
+                    const csrfElement =
+                        document.querySelector(
+                            'meta[name="csrf-token"]'
+                        );
+
+                    if (!csrfElement) {
+
+                        throw new Error(
+                            'Không tìm thấy CSRF token.'
+                        );
+                    }
+
+                    const csrfToken =
+                        csrfElement.getAttribute('content');
+
+
+                    if (!csrfToken) {
+
+                        throw new Error(
+                            'CSRF token đang rỗng.'
+                        );
+                    }
+
+
+                    /*
+                     * POST /outfit/recommend
+                     */
+
+                    const response = await fetch(
+                        "{{ route('outfit.recommend') }}", {
+                            method: 'POST',
+
+                            credentials: 'same-origin',
+
+                            headers: {
+
+                                'Content-Type': 'application/json',
+
+                                'Accept': 'application/json',
+
+                                'X-CSRF-TOKEN': csrfToken,
+
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+
+                            body: JSON.stringify({
+
+                                /*
+                                 * Controller validate "prompt"
+                                 */
+                                prompt: prompt
+                            })
+                        }
+                    );
+
+
+                    /*
+                     * Đọc response an toàn
+                     */
+
+                    const contentType =
+                        response.headers.get(
+                            'content-type'
+                        ) || '';
+
+
+                    let data;
+
+
+                    if (
+                        contentType.includes(
+                            'application/json'
+                        )
+                    ) {
+
+                        data =
+                            await response.json();
+
+                    } else {
+
+                        const text =
+                            await response.text();
+
+                        console.error(
+                            'Server response:',
+                            text
+                        );
+
+                        throw new Error(
+                            `Server trả về HTTP ${response.status}`
+                        );
+                    }
+
+
+                    console.log(
+                        'AI response:',
+                        data
+                    );
+
+
+                    /*
+                     * HTTP error
+                     */
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            data.message ||
+                            `HTTP ${response.status}`
+                        );
+                    }
+
+
+                    /*
+                     * Backend error
+                     */
+
+                    if (!data.success) {
+
+                        throw new Error(
+                            data.message ||
+                            'Không thể tạo outfit.'
+                        );
+                    }
+
+
+                    /*
+                     * Data
+                     */
+
+                    const requirements =
+                        data.data?.requirements || {};
+
+                    const outfit =
+                        data.data?.outfit || {};
+
+                    const items =
+                        outfit.items || [];
+
+
+                    /*
+                     * Format tiền
+                     */
+
+                    const formatPrice =
+                        function(price) {
+
+                            return new Intl.NumberFormat(
+                                'vi-VN'
+                            ).format(
+                                Number(price || 0)
+                            ) + ' ₫';
+                        };
+
+
+                    /*
+                     * Render products
+                     */
+
+                    let itemsHtml = '';
+
+
+                    items.forEach(function(item) {
+
+                        const products =
+                            item.products || [];
+
+
+                        let productsHtml = '';
+
+
+                        if (
+                            products.length === 0
+                        ) {
+
+                            productsHtml = `
+                            <div class="text-muted">
+                                Không tìm thấy sản phẩm
+                                phù hợp.
+                            </div>
+                        `;
+
+                        } else {
+
+                            productsHtml =
+                                products
+                                .slice(0, 3)
+                                .map(function(product) {
+
+                                    const image =
+                                        product.image ||
+                                        (
+                                            product.images &&
+                                            product.images[0] &&
+                                            product.images[0].image
+                                        ) ||
+                                        '';
+
+                                    return `
+                                        <div
+                                            class="card mb-2"
+                                        >
+                                            <div
+                                                class="card-body"
+                                            >
+
+                                                <div
+                                                    class="d-flex"
+                                                >
+
+                                                    ${
+                                                        image
+                                                        ? `
+                                                            <img
+                                                                src="${image}"
+                                                                alt="${escapeHtml(product.name || '')}"
+                                                                style="
+                                                                    width:80px;
+                                                                    height:80px;
+                                                                    object-fit:cover;
+                                                                    border-radius:8px;
+                                                                    margin-right:12px;
+                                                                "
+                                                            >
+                                                        `
+                                                        : ''
+                                                    }
+
+                                                    <div>
+
+                                                        <strong>
+                                                            ${escapeHtml(
+                                                                product.name
+                                                                || 'Sản phẩm'
+                                                            )}
+                                                        </strong>
+
+                                                        <div>
+                                                            ${formatPrice(
+                                                                product.final_price
+                                                                || product.price
+                                                            )}
+                                                        </div>
+
+                                                        ${
+                                                            product.discount_percent > 0
+                                                            ? `
+                                                                <small
+                                                                    class="text-success"
+                                                                >
+                                                                    Giảm ${product.discount_percent}%
+                                                                </small>
+                                                            `
+                                                            : ''
+                                                        }
+
+                                                    </div>
+
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    `;
+                                })
+                                .join('');
+                        }
+
+
+                        itemsHtml += `
+                        <div class="mb-4">
+
+                            <h6>
+                                ${getItemName(item.type)}
+                            </h6>
+
+                            ${productsHtml}
+
+                        </div>
+                    `;
+                    });
+
+
+                    /*
+                     * Render result
+                     */
+
+                    result.innerHTML = `
+
+                    <div class="alert alert-success">
+
+                        <h5>
+                            ✨ Gợi ý outfit
+                        </h5>
+
+                        <hr>
+
+                        <p>
+                            <strong>Giới tính:</strong>
+                            ${escapeHtml(
+                                requirements.gender || ''
+                            )}
+                        </p>
+
+                        <p>
+                            <strong>Phong cách:</strong>
+                            ${escapeHtml(
+                                requirements.style || ''
+                            )}
+                        </p>
+
+                        <p>
+                            <strong>Dịp:</strong>
+                            ${escapeHtml(
+                                requirements.occasion || ''
+                            )}
+                        </p>
+
+                        <p>
+                            <strong>Thời tiết:</strong>
+                            ${escapeHtml(
+                                requirements.weather || ''
+                            )}
+                        </p>
+
+                        <p>
+                            <strong>Ngân sách:</strong>
+                            ${formatPrice(
+                                requirements.budget
+                            )}
+                        </p>
+
+                    </div>
+
+
+                    <div>
+
+                        <h5>
+                            🛍 Sản phẩm đề xuất
+                        </h5>
+
+                        ${itemsHtml}
+
+                    </div>
+
+
+                    <div class="alert alert-info">
+
+                        <strong>
+                            Tổng outfit:
+                        </strong>
+
+                        ${formatPrice(
+                            outfit.total_price
+                        )}
+
+                    </div>
+
+                `;
+
+                } catch (error) {
+
+                    console.error(
+                        'Outfit error:',
+                        error
+                    );
+
+
+                    result.innerHTML = `
+
+                    <div class="alert alert-danger">
+
+                        <strong>
+                            Không thể tạo outfit
+                        </strong>
+
+                        <div class="mt-2">
+                            ${escapeHtml(
+                                error.message
+                                || 'Có lỗi xảy ra.'
+                            )}
+                        </div>
+
+                    </div>
+
+                `;
+
+                } finally {
+
+                    loading.style.display = 'none';
+
+                    generateButton.disabled = false;
+                }
+            }
+        );
+
+
+        /*
+         * =====================================================
+         * HELPER
+         * =====================================================
+         */
+
+        function escapeHtml(value) {
+
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+
+        function getItemName(type) {
+
+            const names = {
+
+                top: '👕 Áo',
+
+                bottom: '👖 Quần / Chân váy',
+
+                dress: '👗 Váy',
+
+                shoes: '👟 Giày',
+
+                bag: '👜 Túi',
+
+                accessory: '💍 Phụ kiện',
+
+                outerwear: '🧥 Áo khoác'
+            };
+
+
+            return names[type] || type;
+        }
+
+    });
 </script>
 <script>
     function updateCartCount(count) {

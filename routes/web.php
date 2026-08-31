@@ -17,7 +17,7 @@ use App\Http\Controllers\Frontend\ProductController;
 use App\Http\Controllers\Frontend\FavoriteController;
 use App\Http\Controllers\Frontend\CartController;
 use App\Http\Controllers\Frontend\PaymentController;
-
+use App\Http\Controllers\Frontend\OutfitController;
 
 use App\Http\Controllers\Backend\ShopSettingController;
 use App\Http\Controllers\Backend\ShopProductVariantController as ProductProVariantController;
@@ -124,7 +124,10 @@ Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::delete('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.remove');
 Route::patch('/cart/update/{id}', [CartController::class, 'update'])->name('cart.update');
-
+Route::post('/outfit/recommend', [
+    OutfitController::class,
+    'recommend'
+])->name('outfit.recommend');
 Route::get('/get-districts/{city_id}', [CartController::class, 'getDistricts']);
 Route::get('/get-wards/{district_id}', [CartController::class, 'getWards']);
 Route::get('/get-wards/{city_id}', [CartController::class, 'getWards']);
