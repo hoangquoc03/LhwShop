@@ -128,32 +128,7 @@
                     </button>
                 </li>
 
-                <div id="aiModal" class="ai-modal" style="display: none;">
-                    <div class="ai-modal-content">
 
-                        <div class="ai-header">
-                            <h4>✨ AI Gợi ý Outfit</h4>
-
-                            <span id="closeAiModal" style="cursor:pointer;">
-                                &times;
-                            </span>
-                        </div>
-
-                        <textarea id="outfitPrompt" class="form-control" rows="5"
-                            placeholder="Ví dụ: Tôi muốn mặc đi cafe với bạn vào buổi tối, phong cách Hàn Quốc..."></textarea>
-
-                        <button type="button" id="generateOutfit" class="btn btn-dark w-100 mt-3">
-                            Tạo gợi ý
-                        </button>
-
-                        <div id="loading" class="mt-3" style="display:none;">
-                            AI đang suy nghĩ...
-                        </div>
-
-                        <div id="result" class="mt-4"></div>
-
-                    </div>
-                </div>
 
                 <!-- Yêu thích -->
                 <li class="nav-item mr-3">
@@ -310,49 +285,88 @@
 </nav>
 
 <style>
+    .product-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .product-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+
+    body.modal-open {
+        overflow: hidden;
+    }
+
     .ai-modal {
         display: none;
-        position: fixed;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, .6);
-        z-index: 9999;
+
+        position: fixed !important;
+
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+
+        width: 100% !important;
+        height: 100% !important;
+
+        background: rgba(0, 0, 0, 0.6);
+
+        z-index: 2147483647 !important;
+
+        /* Căn giữa ngang */
+        justify-content: center !important;
+
+        /* Căn giữa dọc */
+        align-items: center !important;
+
+        overflow-y: auto;
+
+        padding: 40px 20px;
+
+        box-sizing: border-box;
     }
 
     .ai-modal-content {
+        position: relative;
 
-        width: 600px;
-        max-width: 90%;
-        background: white;
+        width: 600px !important;
+        max-width: 100% !important;
 
-        margin: 60px auto;
+        margin: auto !important;
 
-        border-radius: 12px;
+        background: #fff;
 
         padding: 25px;
 
-        animation: popup .3s ease;
-    }
+        border-radius: 12px;
 
-    @keyframes popup {
+        box-sizing: border-box;
 
-        from {
-            transform: translateY(-30px);
-            opacity: 0;
-        }
+        max-height: 90vh;
 
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
+        overflow-y: auto;
+
+        animation: popup 0.3s ease;
     }
 
     .ai-header {
         display: flex;
+
         justify-content: space-between;
+
         align-items: center;
+
+        position: sticky;
+
+        top: 0;
+
+        background: #fff;
+
+        padding-bottom: 10px;
+
+        z-index: 10;
     }
 
     .ai-header span {
@@ -361,7 +375,6 @@
     }
 
     #outfitPrompt {
-
         width: 100%;
         height: 130px;
 
@@ -372,10 +385,11 @@
         border-radius: 8px;
 
         resize: none;
+
+        box-sizing: border-box;
     }
 
     .outfit-card {
-
         margin-top: 20px;
 
         border: 1px solid #eee;
@@ -385,6 +399,18 @@
         padding: 15px;
 
         background: #fafafa;
+    }
+
+    @keyframes popup {
+        from {
+            transform: translateY(-30px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
     }
 
     /* .nav-right {
@@ -667,20 +693,29 @@
 </style>
 <script>
     const modal = document.getElementById('aiModal');
+    const openButton = document.getElementById('openAiModal');
+    const closeButton = document.getElementById('closeAiModal');
 
-    document.getElementById('openAiModal').onclick = () => {
-        modal.style.display = 'block';
-    }
+    // Mở modal
+    openButton.addEventListener('click', function() {
+        modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
+    });
 
-    document.getElementById('closeAiModal').onclick = () => {
+    // Đóng modal
+    function closeModal() {
         modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
     }
 
-    window.onclick = (e) => {
-        if (e.target === modal) {
-            modal.style.display = 'none';
+    closeButton.addEventListener('click', closeModal);
+
+    // Click ra ngoài modal để đóng
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeModal();
         }
-    }
+    });
 </script>
 
 <script>
@@ -919,14 +954,9 @@
                      * Data
                      */
 
-                    const requirements =
-                        data.data?.requirements || {};
-
-                    const outfit =
-                        data.data?.outfit || {};
-
-                    const items =
-                        outfit.items || [];
+                    const requirements = data.intent || {};
+                    const outfit = data.outfit || {};
+                    const items = outfit.products || [];
 
 
                     /*
@@ -949,125 +979,76 @@
                      */
 
                     let itemsHtml = '';
+                    let totalPrice = 0;
 
+                    items.forEach(function(product) {
+                        const productId = product.product_id ?? product.id;
 
-                    items.forEach(function(item) {
-
-                        const products =
-                            item.products || [];
-
-
-                        let productsHtml = '';
-
-
-                        if (
-                            products.length === 0
-                        ) {
-
-                            productsHtml = `
-                            <div class="text-muted">
-                                Không tìm thấy sản phẩm
-                                phù hợp.
-                            </div>
-                        `;
-
-                        } else {
-
-                            productsHtml =
-                                products
-                                .slice(0, 3)
-                                .map(function(product) {
-
-                                    const image =
-                                        product.image ||
-                                        (
-                                            product.images &&
-                                            product.images[0] &&
-                                            product.images[0].image
-                                        ) ||
-                                        '';
-
-                                    return `
-                                        <div
-                                            class="card mb-2"
-                                        >
-                                            <div
-                                                class="card-body"
-                                            >
-
-                                                <div
-                                                    class="d-flex"
-                                                >
-
-                                                    ${
-                                                        image
-                                                        ? `
-                                                            <img
-                                                                src="${image}"
-                                                                alt="${escapeHtml(product.name || '')}"
-                                                                style="
-                                                                    width:80px;
-                                                                    height:80px;
-                                                                    object-fit:cover;
-                                                                    border-radius:8px;
-                                                                    margin-right:12px;
-                                                                "
-                                                            >
-                                                        `
-                                                        : ''
-                                                    }
-
-                                                    <div>
-
-                                                        <strong>
-                                                            ${escapeHtml(
-                                                                product.name
-                                                                || 'Sản phẩm'
-                                                            )}
-                                                        </strong>
-
-                                                        <div>
-                                                            ${formatPrice(
-                                                                product.final_price
-                                                                || product.price
-                                                            )}
-                                                        </div>
-
-                                                        ${
-                                                            product.discount_percent > 0
-                                                            ? `
-                                                                <small
-                                                                    class="text-success"
-                                                                >
-                                                                    Giảm ${product.discount_percent}%
-                                                                </small>
-                                                            `
-                                                            : ''
-                                                        }
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-                                        </div>
-                                    `;
-                                })
-                                .join('');
-                        }
-
+                        console.log('Sản phẩm đề xuất:', product);
+                        console.log('ID:', productId);
+                        console.log(
+                            'URL:',
+                            "{{ url('/product') }}/" + productId
+                        );
+                        totalPrice += Number(product.price || 0);
 
                         itemsHtml += `
-                        <div class="mb-4">
+        <a href="/product/${productId}"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="text-decoration-none text-dark">
+
+            <div class="card mb-3 shadow-sm product-card"
+                 style="cursor: pointer;">
+
+                <div class="row g-0">
+
+                    <div class="col-4">
+
+                        ${
+                            product.image
+                            ? `<img src="${product.image}"
+                                    class="img-fluid rounded-start"
+                                    style="height:120px;width:100%;object-fit:cover;">`
+                            : ''
+                        }
+
+                    </div>
+
+                    <div class="col-8">
+
+                        <div class="card-body">
 
                             <h6>
-                                ${getItemName(item.type)}
+                                ${escapeHtml(product.name)}
                             </h6>
 
-                            ${productsHtml}
+                            <div class="text-muted mb-1">
+                                ${escapeHtml(product.category)}
+                            </div>
+
+                            <span class="badge bg-dark mb-2">
+                                ${escapeHtml(product.role)}
+                            </span>
+
+                            <p class="small mb-2">
+                                ${escapeHtml(product.reason)}
+                            </p>
+
+                            <strong class="text-danger">
+                                ${formatPrice(product.price)}
+                            </strong>
 
                         </div>
-                    `;
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </a>
+    `;
                     });
 
 
@@ -1077,76 +1058,42 @@
 
                     result.innerHTML = `
 
-                    <div class="alert alert-success">
+<div class="alert alert-success">
 
-                        <h5>
-                            ✨ Gợi ý outfit
-                        </h5>
+    <h5>✨ Gợi ý outfit</h5>
 
-                        <hr>
+    <hr>
 
-                        <p>
-                            <strong>Giới tính:</strong>
-                            ${escapeHtml(
-                                requirements.gender || ''
-                            )}
-                        </p>
+    <p><strong>Giới tính:</strong> ${escapeHtml(requirements.gender || '-')}</p>
 
-                        <p>
-                            <strong>Phong cách:</strong>
-                            ${escapeHtml(
-                                requirements.style || ''
-                            )}
-                        </p>
+    <p><strong>Phong cách:</strong> ${escapeHtml(requirements.style || '-')}</p>
 
-                        <p>
-                            <strong>Dịp:</strong>
-                            ${escapeHtml(
-                                requirements.occasion || ''
-                            )}
-                        </p>
+    <p><strong>Dịp:</strong> ${escapeHtml(requirements.occasion || '-')}</p>
 
-                        <p>
-                            <strong>Thời tiết:</strong>
-                            ${escapeHtml(
-                                requirements.weather || ''
-                            )}
-                        </p>
+    <p><strong>Thời tiết:</strong> Không xác định</p>
 
-                        <p>
-                            <strong>Ngân sách:</strong>
-                            ${formatPrice(
-                                requirements.budget
-                            )}
-                        </p>
+    <p><strong>Ngân sách:</strong> ${formatPrice(totalPrice)}</p>
 
-                    </div>
+</div>
 
+<div class="mb-3">
 
-                    <div>
+    <h5>🛍 Sản phẩm đề xuất</h5>
 
-                        <h5>
-                            🛍 Sản phẩm đề xuất
-                        </h5>
+    ${itemsHtml}
 
-                        ${itemsHtml}
+</div>
 
-                    </div>
+<div class="alert alert-info">
 
+    <strong>Tổng outfit:</strong>
 
-                    <div class="alert alert-info">
+    ${formatPrice(totalPrice)}
 
-                        <strong>
-                            Tổng outfit:
-                        </strong>
+</div>
 
-                        ${formatPrice(
-                            outfit.total_price
-                        )}
+`;
 
-                    </div>
-
-                `;
 
                 } catch (error) {
 

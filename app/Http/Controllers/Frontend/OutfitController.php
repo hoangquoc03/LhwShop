@@ -3,523 +3,151 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
-use App\Models\ShopCategory;
-use App\Models\ShopProduct;
-use App\Services\OpenAIService;
+use App\Services\EmbeddingService;
+use App\Services\OllamaService;
+use App\Services\QdrantService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 
 class OutfitController extends Controller
 {
     public function __construct(
-        protected OpenAIService $openAIService
+        protected OllamaService $ollamaService,
+        protected EmbeddingService $embeddingService,
+        protected QdrantService $qdrantService
     ) {}
 
-    /**
-     * POST /outfit/recommend
-     */
     public function recommend(Request $request)
     {
         $validated = $request->validate([
-            'prompt' => [
-                'required',
-                'string',
-                'max:2000',
-            ],
+            'prompt' => ['required', 'string', 'max:2000'],
         ]);
 
-        try {
+        $prompt = $validated['prompt'];
 
-            /*
-             * ==================================================
-             * 1. AI phân tích yêu cầu
-             * ==================================================
-             */
+        // ==========================================
+        // 1. QWEN PHÂN TÍCH INTENT
+        // ==========================================
 
-            $requirements = $this->openAIService
-                ->analyzeOutfitRequest(
-                    $validated['prompt']
-                );
+        $intent = $this->ollamaService->analyzeIntent($prompt);
 
+        // Chuẩn hóa dữ liệu
+        $gender = $intent['gender'] ?? 'unisex';
+        $style = $intent['style'] ?? '';
+        $occasion = $intent['occasion'] ?? '';
+        $items = $intent['items'] ?? [];
+        $colors = $intent['colors'] ?? [];
 
-            /*
-             * ==================================================
-             * 2. Tìm sản phẩm thật trong database
-             * ==================================================
-             */
+        // Chỉ cho phép các giá trị hợp lệ
+        if (!in_array($gender, ['nam', 'nữ', 'unisex'])) {
+            $gender = 'unisex';
+        }
 
-            $outfitItems = [];
+        if (!is_array($items)) {
+            $items = [];
+        }
 
-            foreach ($requirements['items'] ?? [] as $item) {
+        if (!is_array($colors)) {
+            $colors = [];
+        }
 
-                $products = $this->findProducts(
-                    $item,
-                    $requirements
-                );
+        // ==========================================
+        // 2. TẠO QUERY CHO QDRANT
+        // ==========================================
 
-                $outfitItems[] = [
-                    'type' => $item['type'],
+        $searchText = implode(' ', array_filter([
+            $gender,
+            $style,
+            $occasion,
+            implode(' ', $items),
+            implode(' ', $colors),
+        ]));
 
-                    'requirements' => [
-                        'keywords' => $item['keywords'] ?? [],
-                        'colors' => $item['colors'] ?? [],
-                    ],
+        $embedding = $this->embeddingService->embed($searchText);
 
-                    'products' => $products->values(),
-                ];
-            }
+        // ==========================================
+        // 3. QDRANT TÌM SẢN PHẨM
+        // ==========================================
 
+        $results = $this->qdrantService->searchByIntent(
+            $embedding,
+            10,
+            $gender
+        );
 
-            /*
-             * ==================================================
-             * 3. Tính tổng tiền
-             * ==================================================
-             *
-             * Dùng final_price thay vì list_price
-             * để tính đúng giá sau giảm.
-             */
+        $products = collect($results)
+            ->map(function ($result) {
+                return $result['payload'] ?? [];
+            })
+            ->filter(function ($product) {
+                return !empty($product['product_id']);
+            })
+            ->values()
+            ->all();
 
-            $totalPrice = 0;
+        // ==========================================
+        // 4. KHÔNG CÓ SẢN PHẨM
+        // ==========================================
 
-            foreach ($outfitItems as $item) {
-
-                if (!empty($item['products'])) {
-
-                    $totalPrice += (float) (
-                        $item['products'][0]['final_price']
-                        ?? $item['products'][0]['price']
-                        ?? 0
-                    );
-                }
-            }
-
-
-            /*
-             * ==================================================
-             * 4. Response JSON
-             * ==================================================
-             */
-
-            return response()->json([
-                'success' => true,
-
-                'message' => 'Đã tạo gợi ý outfit.',
-
-                'data' => [
-                    'requirements' => $requirements,
-
-                    'outfit' => [
-                        'items' => $outfitItems,
-
-                        'total_price' => $totalPrice,
-
-                        'budget' => (float) (
-                            $requirements['budget'] ?? 0
-                        ),
-                    ],
-                ],
-            ]);
-        } catch (\Throwable $e) {
-
-            Log::error(
-                'Outfit recommendation error',
-                [
-                    'message' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'request' => $request->all(),
-                ]
-            );
-
+        if (empty($products)) {
             return response()->json([
                 'success' => false,
-
-                'message' => 'Không thể tạo outfit lúc này.',
-
-                'error' => config('app.debug')
-                    ? $e->getMessage()
-                    : null,
-
-            ], 500);
+                'message' => 'Không tìm thấy sản phẩm phù hợp.',
+                'intent' => $intent,
+                'products' => [],
+            ], 404);
         }
-    }
 
+        // ==========================================
+        // 5. QWEN CHỌN + GHÉP OUTFIT
+        // ==========================================
 
-    /**
-     * Tìm sản phẩm phù hợp với item AI trả về.
-     */
-    protected function findProducts(
-        array $item,
-        array $requirements
-    ): Collection {
-
-        /*
-         * ==================================================
-         * 1. Category
-         * ==================================================
-         */
-
-        $categoryIds = $this->findCategoryIds(
-            $item['type']
+        $outfit = $this->ollamaService->composeOutfit(
+            $prompt,
+            $products
         );
 
+        // ==========================================
+        // 6. MAP PRODUCT ID
+        // ==========================================
 
-        /*
-         * ==================================================
-         * 2. Query chính
-         * ==================================================
-         */
+        $productMap = collect($products)
+            ->keyBy('product_id');
 
-        $query = ShopProduct::query()
-            ->with([
-                'images',
-                'category',
-                'discount',
-                'variants',
-            ])
-            ->where(function ($q) {
+        $outfit['products'] = collect(
+            $outfit['products'] ?? []
+        )
+            ->map(function ($item) use ($productMap) {
+                $productId = $item['product_id'] ?? null;
 
-                $q->whereNull('discontinued')
-                    ->orWhere('discontinued', 0);
-            });
-
-
-        /*
-         * Category
-         */
-
-        if (!empty($categoryIds)) {
-
-            $query->whereIn(
-                'category_id',
-                $categoryIds
-            );
-        }
-
-
-        /*
-         * ==================================================
-         * 3. Keywords
-         * ==================================================
-         */
-
-        $keywords = $item['keywords'] ?? [];
-
-        if (!empty($keywords)) {
-
-            $query->where(function ($q) use ($keywords) {
-
-                foreach ($keywords as $keyword) {
-
-                    $keyword = trim($keyword);
-
-                    if ($keyword === '') {
-                        continue;
-                    }
-
-                    $q->orWhere(
-                        'product_name',
-                        'LIKE',
-                        '%' . $keyword . '%'
-                    );
-
-                    $q->orWhere(
-                        'short_description',
-                        'LIKE',
-                        '%' . $keyword . '%'
-                    );
-
-                    $q->orWhere(
-                        'description',
-                        'LIKE',
-                        '%' . $keyword . '%'
-                    );
+                if (!$productId || !$productMap->has($productId)) {
+                    return null;
                 }
-            });
-        }
-
-
-        /*
-         * ==================================================
-         * 4. Budget
-         * ==================================================
-         *
-         * Lưu ý:
-         * budget là tổng outfit.
-         *
-         * Ở đây chỉ dùng budget làm giới hạn
-         * cho từng sản phẩm.
-         */
-
-        $budget = (float) (
-            $requirements['budget'] ?? 0
-        );
-
-        if ($budget > 0) {
-
-            $query->where(
-                'list_price',
-                '<=',
-                $budget
-            );
-        }
-
-
-        /*
-         * ==================================================
-         * 5. Lấy products
-         * ==================================================
-         */
-
-        $products = $query
-            ->orderByDesc('is_featured')
-            ->orderByDesc('is_new')
-            ->orderByDesc('id')
-            ->limit(10)
-            ->get();
-
-
-        /*
-         * ==================================================
-         * 6. Fallback
-         * ==================================================
-         */
-
-        if ($products->isEmpty()) {
-
-            $fallbackQuery = ShopProduct::query()
-                ->with([
-                    'images',
-                    'category',
-                    'discount',
-                    'variants',
-                ])
-                ->where(function ($q) {
-
-                    $q->whereNull('discontinued')
-                        ->orWhere('discontinued', 0);
-                });
-
-            if (!empty($categoryIds)) {
-
-                $fallbackQuery->whereIn(
-                    'category_id',
-                    $categoryIds
-                );
-            }
-
-            if ($budget > 0) {
-
-                $fallbackQuery->where(
-                    'list_price',
-                    '<=',
-                    $budget
-                );
-            }
-
-            $products = $fallbackQuery
-                ->orderByDesc('is_featured')
-                ->orderByDesc('is_new')
-                ->orderByDesc('id')
-                ->limit(10)
-                ->get();
-        }
-
-
-        /*
-         * ==================================================
-         * 7. Format
-         * ==================================================
-         */
-
-        return $products->map(
-            function ($product) {
-
-                $discountPercent = (float) (
-                    $product->discount_percent ?? 0
-                );
-
-                $finalPrice = (float) (
-                    $product->list_price ?? 0
-                );
-
-                if (
-                    $product->discount &&
-                    $discountPercent > 0
-                ) {
-
-                    if (!$product->discount->is_fixed) {
-
-                        $finalPrice =
-                            $product->list_price
-                            * (1 - $discountPercent / 100);
-                    } else {
-
-                        $finalPrice =
-                            $product->list_price
-                            - (
-                                $product->discount
-                                ->discount_amount
-                                ?? 0
-                            );
-                    }
-                }
-
 
                 return [
-                    'id' => $product->id,
-
-                    'product_code' =>
-                    $product->product_code,
-
-                    'name' =>
-                    $product->product_name,
-
-                    'price' =>
-                    (float) $product->list_price,
-
-                    'final_price' =>
-                    max(
-                        0,
-                        (float) $finalPrice
-                    ),
-
-                    'discount_percent' =>
-                    $discountPercent,
-
-                    'image' =>
-                    $product->image,
-
-                    'images' =>
-                    $product->images
-                        ->map(function ($image) {
-
-                            return [
-                                'id' => $image->id,
-                                'image' => $image->image,
-                            ];
-                        })
-                        ->values(),
-
-                    'category' =>
-                    $product->category
-                        ? [
-                            'id' =>
-                            $product->category->id,
-
-                            'name' =>
-                            $product->category
-                                ->categories_text,
-                        ]
-                        : null,
-
-                    'short_description' =>
-                    $product->short_description,
-
-                    'is_featured' =>
-                    (bool) $product->is_featured,
-
-                    'is_new' =>
-                    (bool) $product->is_new,
+                    ...$productMap->get($productId),
+                    'role' => $item['role'] ?? null,
+                    'reason' => $item['reason'] ?? null,
                 ];
-            }
-        )->values();
-    }
+            })
+            ->filter()
+            ->values()
+            ->all();
 
+        // ==========================================
+        // 7. RESPONSE
+        // ==========================================
 
-    /**
-     * Tìm category ID.
-     */
-    protected function findCategoryIds(
-        string $itemType
-    ): array {
-
-        $mapping = [
-
-            'top' => [
-                'áo',
-                'shirt',
-                'top',
-                't-shirt',
-                'thun',
+        return response()->json([
+            'success' => true,
+            'query' => $prompt,
+            'intent' => [
+                'gender' => $gender,
+                'style' => $style,
+                'occasion' => $occasion,
+                'items' => $items,
+                'colors' => $colors,
             ],
-
-            'bottom' => [
-                'quần',
-                'pants',
-                'short',
-                'jeans',
-                'chân váy',
-                'váy',
-            ],
-
-            'dress' => [
-                'váy',
-                'dress',
-            ],
-
-            'shoes' => [
-                'giày',
-                'sneaker',
-                'shoe',
-                'dép',
-                'sandal',
-            ],
-
-            'bag' => [
-                'túi',
-                'bag',
-                'handbag',
-                'backpack',
-            ],
-
-            'accessory' => [
-                'phụ kiện',
-                'accessory',
-                'mũ',
-                'nón',
-                'thắt lưng',
-            ],
-
-            'outerwear' => [
-                'khoác',
-                'áo khoác',
-                'jacket',
-                'blazer',
-                'cardigan',
-            ],
-        ];
-
-        $keywords =
-            $mapping[$itemType] ?? [];
-
-        if (empty($keywords)) {
-            return [];
-        }
-
-        $query = ShopCategory::query();
-
-        $query->where(function ($q) use ($keywords) {
-
-            foreach ($keywords as $keyword) {
-
-                $q->orWhere(
-                    'categories_text',
-                    'LIKE',
-                    '%' . $keyword . '%'
-                );
-
-                $q->orWhere(
-                    'description',
-                    'LIKE',
-                    '%' . $keyword . '%'
-                );
-            }
-        });
-
-        return $query
-            ->pluck('id')
-            ->toArray();
+            'outfit' => $outfit,
+        ]);
     }
 }

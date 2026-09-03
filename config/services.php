@@ -43,5 +43,17 @@ return [
         'api_key' => env('OPENAI_API_KEY'),
         'model' => env('OPENAI_MODEL', 'gpt-5.6-luna'),
     ],
+    'ollama' => [
+        'url' => env('OLLAMA_URL', 'http://127.0.0.1:11434'),
+        'model' => env('OLLAMA_MODEL', 'qwen2.5:7b'),
+        'embedding_model' => env(
+            'OLLAMA_EMBEDDING_MODEL',
+            'nomic-embed-text'
+        ),
+    ],
 
+    'qdrant' => [
+        'url' => env('QDRANT_URL', 'http://127.0.0.1:6333'),
+        'collection' => env('QDRANT_COLLECTION', 'shop_products'),
+    ],
 ];

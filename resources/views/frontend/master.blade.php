@@ -137,6 +137,32 @@
     @include('frontend/includes/script')
     @yield('user.js')
 
+    <div id="aiModal" class="ai-modal" style="display: none;">
+        <div class="ai-modal-content">
+
+            <div class="ai-header">
+                <h4>✨ AI Gợi ý Outfit</h4>
+
+                <span id="closeAiModal" style="cursor:pointer;">
+                    &times;
+                </span>
+            </div>
+
+            <textarea id="outfitPrompt" class="form-control" rows="5"
+                placeholder="Ví dụ: Tôi muốn mặc đi cafe với bạn vào buổi tối, phong cách Hàn Quốc..."></textarea>
+
+            <button type="button" id="generateOutfit" class="btn btn-dark w-100 mt-3">
+                Tạo gợi ý
+            </button>
+
+            <div id="loading" class="mt-3" style="display:none;">
+                AI đang suy nghĩ...
+            </div>
+
+            <div id="result" class="mt-4"></div>
+
+        </div>
+    </div>
 </body>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
