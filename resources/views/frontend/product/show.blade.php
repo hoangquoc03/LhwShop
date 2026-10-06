@@ -449,6 +449,20 @@
                         </div>
                     </div>
                 </div>
+                {{-- 360° Product Viewer --}}
+                @php
+                    $model3dPath = public_path("models/products/{$product->id}/product.glb");
+                    $has3dModel = file_exists($model3dPath) && filesize($model3dPath) > 0;
+                @endphp
+
+                @if ($has3dModel)
+                    <button type="button" class="btn btn-outline-dark btn-lg w-100 mt-3 py-3" id="open360ViewerBtn"
+                        data-model-url="{{ asset("models/products/{$product->id}/product.glb") }}">
+                        <i class="fas fa-cube me-2"></i>
+                        Xem sản phẩm 360°
+                    </button>
+                @endif
+
 
                 {{-- Add to Cart Button --}}
                 <button type="button" class="btn btn-primary btn-lg w-100 mt-auto py-3" data-id="{{ $product->id }}"
@@ -456,10 +470,757 @@
                     <i class="fas fa-cart-plus me-2"></i> Thêm vào giỏ hàng
                 </button>
 
-
-
-
             </div>
+
+            <script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+}
+</script>
+
+            <script type="module">
+                import * as THREE from 'three';
+                import {
+                    OrbitControls
+                } from 'three/addons/controls/OrbitControls.js';
+
+                import {
+                    GLTFLoader
+                } from 'three/addons/loaders/GLTFLoader.js';
+
+
+                const button = document.getElementById('open360ViewerBtn');
+
+                if (button) {
+
+                    const modelUrl = button.dataset.modelUrl;
+
+                    const modalElement =
+                        document.getElementById('product360Modal');
+
+                    const viewer =
+                        document.getElementById('product360Viewer');
+
+                    const loading =
+                        document.getElementById('product360Loading');
+
+                    const autoRotateBtn =
+                        document.getElementById('toggleAutoRotate');
+
+
+                    const modal =
+                        new bootstrap.Modal(modalElement);
+
+
+                    let scene;
+                    let camera;
+                    let renderer;
+                    let controls;
+                    let model;
+
+                    let initialized = false;
+
+                    let autoRotate = true;
+
+
+                    /* =====================================================
+                       OPEN MODAL
+                    ===================================================== */
+
+                    button.addEventListener('click', function() {
+
+                        modal.show();
+
+                        setTimeout(() => {
+
+                            initViewer();
+
+                            resizeViewer();
+
+                        }, 300);
+
+                    });
+
+
+                    /* =====================================================
+                       INIT THREE.JS
+                    ===================================================== */
+
+                    function initViewer() {
+
+                        if (initialized) {
+                            return;
+                        }
+
+                        initialized = true;
+
+
+                        /* ===============================
+                           SCENE
+                        =============================== */
+
+                        scene = new THREE.Scene();
+
+                        scene.background =
+                            new THREE.Color(0xf5f5f5);
+
+
+                        /* ===============================
+                           CAMERA
+                        =============================== */
+
+                        camera =
+                            new THREE.PerspectiveCamera(
+                                40,
+                                viewer.clientWidth /
+                                viewer.clientHeight,
+                                0.01,
+                                1000
+                            );
+
+
+                        camera.position.set(
+                            0,
+                            0.4,
+                            4
+                        );
+
+
+                        /* ===============================
+                           RENDERER
+                        =============================== */
+
+                        renderer =
+                            new THREE.WebGLRenderer({
+                                antialias: true,
+                                alpha: true
+                            });
+
+
+                        renderer.setPixelRatio(
+                            Math.min(
+                                window.devicePixelRatio,
+                                2
+                            )
+                        );
+
+
+                        renderer.setSize(
+                            viewer.clientWidth,
+                            viewer.clientHeight
+                        );
+
+
+                        renderer.outputColorSpace =
+                            THREE.SRGBColorSpace;
+
+
+                        renderer.toneMapping =
+                            THREE.ACESFilmicToneMapping;
+
+
+                        renderer.toneMappingExposure =
+                            1.2;
+
+
+                        renderer.shadowMap.enabled = true;
+
+
+                        /* Quan trọng */
+                        renderer.domElement.style.width = '100%';
+                        renderer.domElement.style.height = '100%';
+                        renderer.domElement.style.display = 'block';
+                        renderer.domElement.style.cursor = 'grab';
+                        renderer.domElement.style.touchAction = 'none';
+
+
+                        viewer.appendChild(
+                            renderer.domElement
+                        );
+
+
+                        /* ===============================
+                           LIGHT
+                        =============================== */
+
+                        const ambientLight =
+                            new THREE.HemisphereLight(
+                                0xffffff,
+                                0x444444,
+                                2.5
+                            );
+
+                        scene.add(ambientLight);
+
+
+                        const keyLight =
+                            new THREE.DirectionalLight(
+                                0xffffff,
+                                3
+                            );
+
+                        keyLight.position.set(
+                            4,
+                            6,
+                            5
+                        );
+
+                        keyLight.castShadow = true;
+
+                        scene.add(keyLight);
+
+
+                        const fillLight =
+                            new THREE.DirectionalLight(
+                                0xffffff,
+                                2
+                            );
+
+                        fillLight.position.set(
+                            -4,
+                            3,
+                            3
+                        );
+
+                        scene.add(fillLight);
+
+
+                        const backLight =
+                            new THREE.DirectionalLight(
+                                0xffffff,
+                                1.5
+                            );
+
+                        backLight.position.set(
+                            0,
+                            3,
+                            -5
+                        );
+
+                        scene.add(backLight);
+
+
+                        /* ===============================
+                           ORBIT CONTROLS
+                        =============================== */
+
+                        controls =
+                            new OrbitControls(
+                                camera,
+                                renderer.domElement
+                            );
+
+
+                        /*
+                         * XOAY
+                         */
+                        controls.enableRotate = true;
+
+
+                        /*
+                         * ZOOM
+                         */
+                        controls.enableZoom = true;
+
+
+                        /*
+                         * PAN
+                         */
+                        controls.enablePan = false;
+
+
+                        /*
+                         * Mượt
+                         */
+                        controls.enableDamping = true;
+
+                        controls.dampingFactor = 0.08;
+
+
+                        /*
+                         * Zoom giới hạn
+                         */
+                        controls.minDistance = 1.2;
+
+                        controls.maxDistance = 8;
+
+
+                        /*
+                         * Auto rotate
+                         */
+                        controls.autoRotate =
+                            autoRotate;
+
+                        controls.autoRotateSpeed =
+                            1.5;
+
+
+                        /*
+                         * Giới hạn góc dọc
+                         *
+                         * Cho phép nhìn từ trên xuống
+                         * nhưng không lộn ngược model
+                         */
+                        controls.minPolarAngle =
+                            0.15;
+
+                        controls.maxPolarAngle =
+                            Math.PI - 0.15;
+
+
+                        /*
+                         * Tâm xoay
+                         */
+                        controls.target.set(
+                            0,
+                            0,
+                            0
+                        );
+
+
+                        controls.update();
+
+
+                        /* =================================================
+                           USER DRAG
+                        ================================================= */
+
+                        renderer.domElement.addEventListener(
+                            'pointerdown',
+                            function() {
+
+                                renderer.domElement.style.cursor =
+                                    'grabbing';
+
+                                /*
+                                 * Người dùng bắt đầu kéo
+                                 * thì dừng auto rotate
+                                 */
+                                controls.autoRotate = false;
+
+                                autoRotate = false;
+
+                                autoRotateBtn.innerHTML =
+                                    '🔄 Xoay tự động';
+                            }
+                        );
+
+
+                        renderer.domElement.addEventListener(
+                            'pointerup',
+                            function() {
+
+                                renderer.domElement.style.cursor =
+                                    'grab';
+                            }
+                        );
+
+
+                        renderer.domElement.addEventListener(
+                            'pointerleave',
+                            function() {
+
+                                renderer.domElement.style.cursor =
+                                    'grab';
+                            }
+                        );
+
+
+                        /* =================================================
+                           LOAD GLB
+                        ================================================= */
+
+                        const loader =
+                            new GLTFLoader();
+
+
+                        loader.load(
+
+                            modelUrl,
+
+                            function(gltf) {
+
+                                model = gltf.scene;
+
+
+                                /* ===============================
+                                   ENABLE SHADOW
+                                =============================== */
+
+                                model.traverse(
+                                    function(child) {
+
+                                        if (
+                                            child.isMesh
+                                        ) {
+
+                                            child.castShadow = true;
+
+                                            child.receiveShadow = true;
+
+
+                                            if (
+                                                child.material
+                                            ) {
+
+                                                child.material.needsUpdate =
+                                                    true;
+                                            }
+                                        }
+
+                                    }
+                                );
+
+
+                                /* ===============================
+                                   BOUNDING BOX
+                                =============================== */
+
+                                const box =
+                                    new THREE.Box3()
+                                    .setFromObject(model);
+
+
+                                const size =
+                                    box.getSize(
+                                        new THREE.Vector3()
+                                    );
+
+
+                                const center =
+                                    box.getCenter(
+                                        new THREE.Vector3()
+                                    );
+
+
+                                /* ===============================
+                                   CENTER MODEL
+                                =============================== */
+
+                                model.position.sub(
+                                    center
+                                );
+
+
+                                /* ===============================
+                                   SCALE
+                                =============================== */
+
+                                const maxSize =
+                                    Math.max(
+                                        size.x,
+                                        size.y,
+                                        size.z
+                                    );
+
+
+                                const targetSize = 3;
+
+
+                                const scale =
+                                    targetSize /
+                                    maxSize;
+
+
+                                model.scale.setScalar(
+                                    scale
+                                );
+
+
+                                scene.add(model);
+
+
+                                /* ===============================
+                                   CAMERA TARGET
+                                =============================== */
+
+                                controls.target.set(
+                                    0,
+                                    0,
+                                    0
+                                );
+
+
+                                controls.update();
+
+
+                                /* ===============================
+                                   HIDE LOADING
+                                =============================== */
+
+                                loading.style.display =
+                                    'none';
+
+
+                                console.log(
+                                    '3D Model loaded:',
+                                    modelUrl
+                                );
+
+                            },
+
+                            function(xhr) {
+
+                                if (xhr.total) {
+
+                                    const percent =
+                                        (xhr.loaded /
+                                            xhr.total) *
+                                        100;
+
+                                    console.log(
+                                        `Loading: ${percent.toFixed(0)}%`
+                                    );
+                                }
+
+                            },
+
+                            function(error) {
+
+                                console.error(
+                                    'Không thể tải model 3D:',
+                                    error
+                                );
+
+
+                                loading.innerHTML = `
+                        <div class="text-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Không thể tải mô hình 3D.
+                        </div>
+                    `;
+                            }
+
+                        );
+
+
+                        /* ===============================
+                           START ANIMATION
+                        =============================== */
+
+                        animate();
+
+                    }
+
+
+                    /* =====================================================
+                       ANIMATION
+                    ===================================================== */
+
+                    function animate() {
+
+                        requestAnimationFrame(
+                            animate
+                        );
+
+
+                        if (controls) {
+
+                            controls.update();
+
+                        }
+
+
+                        if (renderer && scene && camera) {
+
+                            renderer.render(
+                                scene,
+                                camera
+                            );
+
+                        }
+
+                    }
+
+
+                    /* =====================================================
+                       AUTO ROTATE BUTTON
+                    ===================================================== */
+
+                    autoRotateBtn.addEventListener(
+                        'click',
+                        function() {
+
+                            autoRotate = !autoRotate;
+
+
+                            if (controls) {
+
+                                controls.autoRotate =
+                                    autoRotate;
+
+                            }
+
+
+                            this.innerHTML =
+                                autoRotate ?
+                                '⏸ Dừng xoay' :
+                                '🔄 Xoay tự động';
+
+                        }
+                    );
+
+
+                    /* =====================================================
+                       RESIZE
+                    ===================================================== */
+
+                    function resizeViewer() {
+
+                        if (
+                            !renderer ||
+                            !camera
+                        ) {
+                            return;
+                        }
+
+
+                        const width =
+                            viewer.clientWidth;
+
+                        const height =
+                            viewer.clientHeight;
+
+
+                        if (
+                            width === 0 ||
+                            height === 0
+                        ) {
+                            return;
+                        }
+
+
+                        camera.aspect =
+                            width / height;
+
+
+                        camera.updateProjectionMatrix();
+
+
+                        renderer.setSize(
+                            width,
+                            height
+                        );
+
+                    }
+
+
+                    window.addEventListener(
+                        'resize',
+                        resizeViewer
+                    );
+
+
+                    modalElement.addEventListener(
+                        'shown.bs.modal',
+                        function() {
+
+                            setTimeout(
+                                resizeViewer,
+                                100
+                            );
+
+                        }
+                    );
+
+                }
+            </script>
+
+            <style>
+                /*
+             * 360 PRODUCT VIEWER
+             * Luôn nằm trên navbar/header
+             */
+
+                #product360Modal {
+                    z-index: 3000 !important;
+                }
+
+                .modal-backdrop {
+                    z-index: 2990 !important;
+                }
+
+
+                /*
+             * MODAL RỘNG GẦN FULL MÀN HÌNH
+             */
+
+                .modal-3d-wide {
+                    width: 92vw;
+                    max-width: 92vw;
+                    margin: 1.5rem auto;
+                }
+
+                .modal-3d-wide .modal-content {
+                    width: 100%;
+                    border-radius: 12px;
+                    overflow: hidden;
+                }
+
+
+                /*
+             * KHUNG HIỂN THỊ 3D
+             */
+
+                #product360Viewer {
+                    width: 100%;
+                    height: 75vh !important;
+                    min-height: 600px;
+                    max-height: 850px;
+
+                    background: #f5f5f5;
+
+                    overflow: hidden;
+
+                    user-select: none;
+                    -webkit-user-select: none;
+                }
+
+
+                /*
+             * THREE.JS CANVAS
+             */
+
+                #product360Viewer canvas {
+                    display: block;
+
+                    width: 100% !important;
+                    height: 100% !important;
+
+                    touch-action: none !important;
+
+                    cursor: grab;
+                }
+
+
+                #product360Viewer canvas:active {
+                    cursor: grabbing !important;
+                }
+
+
+                /*
+             * MOBILE
+             */
+
+                @media (max-width: 768px) {
+
+                    .modal-3d-wide {
+                        width: 96vw;
+                        max-width: 96vw;
+                        margin: 0.75rem auto;
+                    }
+
+                    #product360Viewer {
+                        height: 70vh !important;
+                        min-height: 450px;
+                        max-height: none;
+                    }
+                }
+            </style>
+
 
 
             {{-- Product Tabs (Description & Reviews) --}}
@@ -1496,4 +2257,53 @@
 </style>
 
 @section('user.js')
+    <div class="modal fade" id="product360Modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-3d-wide modal-dialog-centered">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title fw-bold">
+                            🪞 Xem sản phẩm 360°
+                        </h5>
+                        <small class="text-muted">
+                            Kéo chuột để xoay sản phẩm
+                        </small>
+                    </div>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal">
+                    </button>
+                </div>
+
+                <div class="modal-body p-0">
+                    <div id="product360Viewer"
+                        style="
+                        width:100%;
+                        height:650px;
+                        background:#f5f5f5;
+                        position:relative;
+                    ">
+                        <div id="product360Loading"
+                            class="position-absolute top-50 start-50 translate-middle text-center">
+                            <div class="spinner-border"></div>
+                            <div class="mt-2">
+                                Đang tải mô hình 3D...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-dark" id="toggleAutoRotate">
+                        🔄 Xoay tự động
+                    </button>
+
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Đóng
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
 @endsection
