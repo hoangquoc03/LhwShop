@@ -9,21 +9,52 @@ use App\Models\ShopCustomer;
 
 class ShopOrder extends Model
 {
+    /*
+    |--------------------------------------------------------------------------
+    | Payment status
+    |--------------------------------------------------------------------------
+    */
+
     const PAYMENT_UNPAID = 'unpaid';
     const PAYMENT_PAID   = 'paid';
+
+    /*
+    |--------------------------------------------------------------------------
+    | Order status
+    |--------------------------------------------------------------------------
+    */
+
     const STATUS_PENDING   = 'Pending';
     const STATUS_CANCELLED = 'Cancelled';
     const STATUS_DELIVERED = 'Delivered';
     const STATUS_SHIPPED   = 'Shipped';
     const STATUS_COMPLETED = 'Completed';
+
+    /*
+    |--------------------------------------------------------------------------
+    | Table
+    |--------------------------------------------------------------------------
+    */
+
     protected $table = 'shop_orders';
+
+    protected $primaryKey = 'id';
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mass assignment
+    |--------------------------------------------------------------------------
+    */
+
     protected $fillable = [
         'employee_id',
         'customer_id',
         'voucher_id',
         'voucher_discount',
+
         'order_date',
         'shipped_date',
+
         'ship_name',
         'ship_phone',
         'ship_address1',
@@ -32,25 +63,60 @@ class ShopOrder extends Model
         'ship_state',
         'ship_postal_code',
         'ship_country',
+
         'shipping_fee',
+
         'payment_type_id',
+
+        // Payment
+        'payment_code',
         'payment_status',
-        'order_status',
+        'paid_at',
+        'sepay_transaction_id',
+
+        // Legacy / existing payment fields
+        'vnp_txn_ref',
         'paid_date',
-        'postal_code',
+
+        'order_status',
+
         'created_at',
         'updated_at',
     ];
-    protected $guarded = ['id'];
-    protected $primaryKey = 'id';
-    protected $dates = [
-        'order_date',
-        'shipped_date',
-        'paid_date',
-        'created_at',
-        'updated_at'
+
+    /*
+    |--------------------------------------------------------------------------
+    | Guarded
+    |--------------------------------------------------------------------------
+    */
+
+    protected $guarded = [
+        'id',
     ];
-    protected $dateFormat = 'Y-m-d H:i:s';
+
+    /*
+    |--------------------------------------------------------------------------
+    | Casts
+    |--------------------------------------------------------------------------
+    */
+
+    protected $casts = [
+        'order_date' => 'datetime',
+        'shipped_date' => 'datetime',
+        'paid_date' => 'datetime',
+        'paid_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+
+        'shipping_fee' => 'decimal:2',
+        'voucher_discount' => 'decimal:2',
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Payment type
+    |--------------------------------------------------------------------------
+    */
 
     public function payment_type()
     {
@@ -60,6 +126,13 @@ class ShopOrder extends Model
             'id'
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Employee / user
+    |--------------------------------------------------------------------------
+    */
+
     public function user()
     {
         return $this->belongsTo(
@@ -69,6 +142,12 @@ class ShopOrder extends Model
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Customer
+    |--------------------------------------------------------------------------
+    */
+
     public function customer()
     {
         return $this->belongsTo(
@@ -77,32 +156,95 @@ class ShopOrder extends Model
             'id'
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Order details
+    |--------------------------------------------------------------------------
+    */
+
     public function details()
     {
-        return $this->hasMany(ShopOrderDetail::class, 'order_id', 'id');
+        return $this->hasMany(
+            ShopOrderDetail::class,
+            'order_id',
+            'id'
+        );
     }
-    // App\Models\ShopOrder.php
+
+    /*
+    |--------------------------------------------------------------------------
+    | Subtotal
+    |--------------------------------------------------------------------------
+    */
+
     public function getSubtotalAttribute()
     {
-        return $this->details->sum(function ($d) {
-            $priceAfterDiscount =
-                $d->unit_price - ($d->discount_amount ?? 0);
+        return $this->details->sum(function ($detail) {
 
-            return $priceAfterDiscount * $d->quantity;
+            $priceAfterDiscount =
+                $detail->unit_price -
+                ($detail->discount_amount ?? 0);
+
+            return $priceAfterDiscount * $detail->quantity;
         });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Total
+    |--------------------------------------------------------------------------
+    */
 
     public function getTotalAttribute()
     {
         return max(
-            $this->subtotal - ($this->voucher_discount ?? 0) + $this->shipping_fee,
+            $this->subtotal
+                - ($this->voucher_discount ?? 0)
+                + ($this->shipping_fee ?? 0),
             0
         );
     }
 
-    public function order()
+    /*
+    |--------------------------------------------------------------------------
+    | Mark order as paid
+    |--------------------------------------------------------------------------
+    |
+    | Dùng cho SePay sau khi webhook xác nhận tiền.
+    |
+    */
+
+    public function markAsPaid(?string $sepayTransactionId = null): void
     {
-        return $this->belongsTo(ShopOrder::class, 'order_id');
+        $this->payment_status = self::PAYMENT_PAID;
+
+        // Field mới dành cho SePay
+        $this->paid_at = now();
+
+        // Giữ tương thích với hệ thống cũ
+        $this->paid_date = now();
+
+        if ($sepayTransactionId !== null) {
+            $this->sepay_transaction_id = $sepayTransactionId;
+        }
+
+        $this->save();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Check payment
+    |--------------------------------------------------------------------------
+    */
+
+    public function isPaid(): bool
+    {
+        return $this->payment_status === self::PAYMENT_PAID;
+    }
+
+    public function isUnpaid(): bool
+    {
+        return $this->payment_status !== self::PAYMENT_PAID;
     }
 }

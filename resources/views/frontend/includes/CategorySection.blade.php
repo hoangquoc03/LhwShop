@@ -199,15 +199,28 @@ RESPONSIVE
 </style>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
+
         const slides = document.querySelectorAll(".luxury-hero-slide");
+
+        if (slides.length === 0) return;
+
         let current = 0;
 
+        function showSlide(i) {
+
+            if (!slides[i]) return;
+
+            slides.forEach(s => s.classList.remove("active"));
+
+            slides[i].classList.add("active");
+        }
+
+        showSlide(0);
+
         setInterval(() => {
-            slides[current].classList.remove("active");
-
             current = (current + 1) % slides.length;
+            showSlide(current);
+        }, 5000);
 
-            slides[current].classList.add("active");
-        }, 5000); // 5s / slide (3s fade + 2s đứng)
     });
 </script>

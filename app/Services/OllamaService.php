@@ -154,51 +154,36 @@ PROMPT;
     }
     public function analyzeIntent(string $userPrompt): array
     {
-        $prompt = <<<PROMPT
-Phân tích yêu cầu thời trang của khách hàng dưới đây.
+        $response = Http::timeout(120)
+            ->post(
+                rtrim(config('services.ollama.url'), '/') . '/api/chat',
+                [
+                    'model' => config('services.ollama.model'),
+                    'stream' => false,
+                    'keep_alive' => '30m',
+                    'format' => 'json',
 
-Yêu cầu:
-{$userPrompt}
-
-Hãy trả về JSON theo đúng cấu trúc:
-
-{
-    "gender": "nữ",
-    "style": "sang trọng",
-    "occasion": "đi cafe",
-    "items": ["áo", "váy", "giày", "túi"],
-    "colors": []
-}
-
-Quy tắc:
-
-- gender chỉ được là: "nam", "nữ", hoặc "unisex".
-- style là phong cách khách hàng mong muốn.
-- occasion là hoàn cảnh sử dụng.
-- items là danh sách loại sản phẩm cần thiết.
-- colors là danh sách màu khách hàng yêu cầu.
-- Nếu khách hàng không nói màu thì để [].
-- Không tự thêm yêu cầu không có trong câu hỏi.
-- Luôn trả về JSON hợp lệ.
-- Không giải thích bên ngoài JSON.
-PROMPT;
-
-        $response = Http::timeout(300)
-            ->post(config('services.ollama.url') . '/api/chat', [
-                'model' => config('services.ollama.model'),
-                'stream' => false,
-                'format' => 'json',
-                'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => 'Bạn là AI chuyên phân tích nhu cầu thời trang. Luôn trả về JSON hợp lệ bằng tiếng Việt.'
+                    'options' => [
+                        'temperature' => 0,
+                        'num_predict' => 60,
                     ],
-                    [
-                        'role' => 'user',
-                        'content' => $prompt
+
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' =>
+                            'Trích xuất intent thời trang. ' .
+                                'Chỉ JSON: gender, style, occasion, items, colors. ' .
+                                'gender chỉ nam, nữ, unisex. ' .
+                                'Không giải thích.'
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $userPrompt
+                        ]
                     ]
                 ]
-            ]);
+            );
 
         if ($response->failed()) {
             throw new \RuntimeException(
@@ -215,7 +200,8 @@ PROMPT;
 
         if (!is_array($intent)) {
             throw new \RuntimeException(
-                'Ollama trả về Intent JSON không hợp lệ.'
+                'Ollama trả về Intent JSON không hợp lệ: ' .
+                    $content
             );
         }
 

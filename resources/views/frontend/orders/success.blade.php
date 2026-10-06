@@ -301,47 +301,109 @@
 
                         {{-- Thông tin khách hàng & thanh toán --}}
                         <div class="row">
+
+                            {{-- THÔNG TIN KHÁCH HÀNG --}}
                             <div class="col-md-6 mb-3">
-                                <div class="card border-0 shadow-sm">
+                                <div class="card border-0 shadow-sm h-100">
                                     <div class="card-body">
-                                        <h6 class="mb-3">Thông tin khách hàng</h6>
-                                        <p class="mb-1"><strong>Họ và tên:</strong> {{ $order->ship_name }}</p>
+
+                                        <h6 class="mb-3">
+                                            Thông tin khách hàng
+                                        </h6>
+
                                         <p class="mb-1">
-                                            <strong>Điện thoại:</strong> {{ $order->ship_phone }}
+                                            <strong>Họ và tên:</strong>
+                                            {{ $order->ship_name }}
                                         </p>
 
-                                        <p class="mb-0"><strong>Địa chỉ:</strong> {{ $order->ship_address1 }}</p>
+                                        <p class="mb-1">
+                                            <strong>Điện thoại:</strong>
+                                            {{ $order->ship_phone }}
+                                        </p>
+
+                                        <p class="mb-0">
+                                            <strong>Địa chỉ:</strong>
+                                            {{ $order->ship_address1 }}
+                                        </p>
+
                                     </div>
                                 </div>
                             </div>
+
+
+                            {{-- THÔNG TIN THANH TOÁN --}}
                             <div class="col-md-6 mb-3">
-                                <div class="card border-0 shadow-sm">
+                                <div class="card border-0 shadow-sm h-100">
                                     <div class="card-body">
-                                        <h6 class="mb-3">Thông tin thanh toán</h6>
+
+                                        <h6 class="mb-3">
+                                            Thông tin thanh toán
+                                        </h6>
+
                                         <p class="mb-1">
                                             <strong>Phương thức:</strong>
+
                                             {{ optional($order->payment_type)->payment_name ?? ($order->payment_method ?? 'Chưa xác định') }}
                                         </p>
-                                        <p><strong>Tạm tính:</strong>
+
+                                        <p class="mb-1">
+                                            <strong>Tạm tính:</strong>
                                             {{ number_format($order->subtotal, 0, ',', '.') }}₫
                                         </p>
 
-                                        <p><strong>Voucher:</strong>
+                                        <p class="mb-1">
+                                            <strong>Voucher:</strong>
                                             -{{ number_format($order->voucher_discount, 0, ',', '.') }}₫
                                         </p>
 
-                                        <p><strong>Phí ship:</strong>
+                                        <p class="mb-1">
+                                            <strong>Phí ship:</strong>
                                             {{ number_format($order->shipping_fee, 0, ',', '.') }}₫
                                         </p>
 
-                                        <h5 class="text-danger">
+                                        <h5 class="text-danger mb-3">
                                             Tổng cộng:
                                             {{ number_format($order->total, 0, ',', '.') }}₫
                                         </h5>
 
+
+                                        {{-- TRẠNG THÁI THANH TOÁN --}}
+                                        <div class="border-top pt-3 mt-3">
+
+                                            <strong>Trạng thái thanh toán:</strong>
+
+                                            @if ($order->payment_status === \App\Models\ShopOrder::PAYMENT_PAID)
+                                                <span class="badge bg-success ms-2">
+                                                    ✓ Đã thanh toán
+                                                </span>
+
+                                                @if ($order->paid_at)
+                                                    <div class="small text-muted mt-2">
+                                                        Thanh toán lúc:
+                                                        {{ \Carbon\Carbon::parse($order->paid_at)->format('d/m/Y H:i') }}
+                                                    </div>
+                                                @endif
+                                            @else
+                                                <span class="badge bg-warning text-dark ms-2">
+                                                    Chưa thanh toán
+                                                </span>
+
+                                                @if (strtoupper($order->payment_type?->payment_code ?? '') === 'PM02')
+                                                    <div class="mt-3">
+                                                        <a href="{{ route('orders.payment', $order->id) }}"
+                                                            class="btn btn-danger">
+                                                            💳 Thanh toán ngay
+                                                        </a>
+                                                    </div>
+                                                @endif
+                                            @endif
+
+                                        </div>
+
                                     </div>
                                 </div>
                             </div>
+
                         </div>
 
                         {{-- Quay lại --}}

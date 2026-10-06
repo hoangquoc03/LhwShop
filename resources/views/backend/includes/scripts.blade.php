@@ -1,16 +1,11 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="{{ asset('/libs/jquery.min.js') }}"></script>
-<script src="{{ asset('/static/assets/charts.js') }}"></script>
-<script src="{{ asset('/static/assets/constants.js') }}"></script>
-<script src="{{ asset('/static/assets/index.js') }}"></script>
-<script src="{{ asset('/static/assets/sidebar.js') }}"></script>
-<script src="{{ asset('/static/dist/main.bundle.js.map') }}"></script>
-<script src="{{ asset('/static/dist/main.bundle.js') }}"></script>
+{{-- <script src="{{ asset('/static/dist/main.bundle.js') }}"></script> --}}
 <script src="{{ asset('/libs/jquery-validation/dist/jquery.validate.min.js') }}"></script>
 <script src="{{ asset('/libs/jquery-validation/dist/localization/messages_vi.min.js') }}"></script>
 <script src="{{ asset('/libs/dropzone.min.js') }}"></script>
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
+    document.addEventListener("DOMContentLoaded", function() {
         const path = window.location.pathname;
         const menuLinks = document.querySelectorAll("aside a");
 
@@ -24,13 +19,17 @@
     });
 </script>
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
+    document.addEventListener("DOMContentLoaded", function() {
         const toggleBtn = document.getElementById("toggleSidebarMobile");
         const sidebar = document.getElementById("sidebar");
         const iconOpen = document.getElementById("toggleSidebarMobileHamburger");
         const iconClose = document.getElementById("toggleSidebarMobileClose");
 
-        toggleBtn.addEventListener("click", function () {
+        if (!toggleBtn || !sidebar || !iconOpen || !iconClose) {
+            return;
+        }
+
+        toggleBtn.addEventListener("click", function() {
             const isHidden = sidebar.classList.contains("hidden");
 
             sidebar.classList.toggle("hidden");
@@ -39,4 +38,3 @@
         });
     });
 </script>
-

@@ -76,27 +76,41 @@
     </style>
     @include('frontend/includes/CategorySection')
     @include('frontend/includes/HeroSection')
-    @include('frontend/includes/ProductSection', [
-        'title' => 'QUÀ TẶNG',
-        'screen' => $screen,
-    ])
+
     @include('frontend/includes/ImageCategory')
-    @include('frontend.includes.PostImage', ['post_id' => 6])
-    @include('frontend/includes/ProductSection', [
+
+    @include('frontend.includes.PostImage', [
+        'post_id' => 6,
+    ])
+
+    {{-- TÚI XÁCH VÀ VÍ --}}
+    @include('frontend.includes.ProductSection', [
         'title' => 'TÚI XÁCH VÀ VÍ',
         'screen' => $bag,
     ])
-    @include('frontend/includes/ProductSection', [
+
+    {{-- ĐỒ NAM --}}
+    @include('frontend.includes.ProductSection', [
         'title' => 'ĐỒ NAM',
-        'screen' => $outfit,
+        'screen' => $doNam,
     ])
-    @include('frontend.includes.PostImage', ['post_id' => 5])
-    @include('frontend/includes/ProductSection', [
+
+    @include('frontend.includes.PostImage', [
+        'post_id' => 5,
+    ])
+
+    {{-- ĐỒ NỮ --}}
+    @include('frontend.includes.ProductSection', [
         'title' => 'ĐỒ NỮ',
-        'screen' => $outfitNu,
+        'screen' => $doNu,
     ])
-    @include('frontend.includes.PostImage', ['post_id' => 3])
-    @include('frontend/includes/ProductSection', [
+
+    @include('frontend.includes.PostImage', [
+        'post_id' => 3,
+    ])
+
+    {{-- GIÀY --}}
+    @include('frontend.includes.ProductSection', [
         'title' => 'GIÀY',
         'screen' => $giay,
     ])
@@ -773,7 +787,11 @@
     <script>
         $("#load-more").on("click", function() {
             $.ajax({
-                url: "/products/category/{{ $category->id }}?page=2",
+                @if ($category)
+                    url: "/products/category/{{ $category->id }}?page=2",
+                @else
+                    url: "#",
+                @endif
                 method: "GET",
                 beforeSend: function() {
                     showSpinner();

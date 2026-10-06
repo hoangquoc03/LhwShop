@@ -2,13 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-
-use Database\Seeders\ShopSuppliersSeeder;
-use Database\Seeders\ShopCategoriesSeeder;
-use Database\Seeders\ShopProductsSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -17,59 +11,111 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        /**
+         * =====================================================
+         * ACL (Phân quyền & Admin)
+         * =====================================================
+         */
         $this->call([
-        ShopUsersSeeder::class,          // Đảm bảo bảng acl_users
-        AclPermissionsSeeder::class,
-        AclRolesSeeder::class,
-        AclRoleHasPermissionsSeeder::class,
-        AclUserHasRolesSeeder::class,
-        AclUserHasPermissionsSeeder::class,
-    ]);
+            ShopUsersSeeder::class,
+            AclPermissionsSeeder::class,
+            AclRolesSeeder::class,
+            AclRoleHasPermissionsSeeder::class,
+            AclUserHasRolesSeeder::class,
+            AclUserHasPermissionsSeeder::class,
+        ]);
 
-    // Bài đăng (Blog / Tin tức)
-    $this->call([
-        ShopPostCategoriesSeeder::class,  // Phải có trước
-        ShopPostsSeeder::class,           // Dùng khóa ngoại từ trên
-    ]);
+        /**
+         * =====================================================
+         * Danh mục
+         * =====================================================
+         */
+        $this->call([
+            ShopSuppliersSeeder::class,
+            ShopCategoriesSeeder::class,
+            ShopPostCategoriesSeeder::class,
+            ShopPaymentTypesSeeder::class,
+            ShopVouchersSeeder::class,
+            ShopStoreSeeder::class,
+            ShopSettingsSeeder::class,
+        ]);
 
-    // Dữ liệu sản phẩm
-    $this->call([
-        ShopSuppliersSeeder::class,
-        ShopCategoriesSeeder::class,
-        ShopProductsSeeder::class,
-        ShopProductImagesSeeder::class,
-        ShopProductDiscountSeeder::class,
-        ShopCustomersSeeder::class,
-        ShopProductReviewsSeeder::class,
-        CartFavoriteSeeder::class,
-        ShopProductPostsSeeder::class,
-    ]);
+        /**
+         * =====================================================
+         * Khách hàng
+         * =====================================================
+         */
+        $this->call([
+            ShopCustomersSeeder::class,
+        ]);
 
-    // Dữ liệu về kho, cửa hàng
-    $this->call([
-        ShopStoreSeeder::class,
-        ShopImportsSeeder::class,
-        
-    ]);
+        /**
+         * =====================================================
+         * Sản phẩm
+         * =====================================================
+         */
+        $this->call([
+            ShopProductsSeeder::class,
+            ShopProductImagesSeeder::class,
+            ShopProductDiscountSeeder::class,
+            //ShopProductPostsSeeder::class,
+            ShopProductReviewsSeeder::class,
+        ]);
 
-    // Voucher & đơn hàng
-    $this->call([
-        ShopVouchersSeeder::class,
-        ShopProductVouchersSeeder::class,
-        ShopCustomerVouchersSeeder::class,
-        ShopPaymentTypesSeeder::class,
-        ShopOrdersSeeders::class,
-        ShopOrderDetailsSeeder::class,
-    ]);
+        /**
+         * =====================================================
+         * Bài viết (phải chạy sau ShopProductsSeeder)
+         * =====================================================
+         */
+        $this->call([
+            ShopPostsSeeder::class,
+        ]);
 
-    $this->call([
-    ShopExportsSeeder::class,         
-    ]);
+        /**
+         * =====================================================
+         * Giỏ hàng & Yêu thích
+         * =====================================================
+         */
+        $this->call([
+            CartFavoriteSeeder::class,
+        ]);
 
-// Cấu hình chung hệ thống
-    $this->call([
-    ShopSettingsSeeder::class,
-    ]);
+        /**
+         * =====================================================
+         * Voucher khách hàng
+         * =====================================================
+         */
+        $this->call([
+            ShopProductVouchersSeeder::class,
+            ShopCustomerVouchersSeeder::class,
+        ]);
 
+        /**
+         * =====================================================
+         * Nhập kho
+         * =====================================================
+         */
+        $this->call([
+            ShopImportsSeeder::class,
+        ]);
+
+        /**
+         * =====================================================
+         * Đơn hàng
+         * =====================================================
+         */
+        $this->call([
+            ShopOrdersSeeders::class,
+            ShopOrderDetailsSeeder::class,
+        ]);
+
+        /**
+         * =====================================================
+         * Xuất kho (chạy sau đơn hàng)
+         * =====================================================
+         */
+        $this->call([
+            ShopExportsSeeder::class,
+        ]);
     }
 }

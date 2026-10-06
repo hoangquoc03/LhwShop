@@ -56,4 +56,15 @@ return [
         'url' => env('QDRANT_URL', 'http://127.0.0.1:6333'),
         'collection' => env('QDRANT_COLLECTION', 'shop_products'),
     ],
+    'sepay' => [
+
+        'bank' => env('SEPAY_BANK'),
+
+        'account_number' => env('SEPAY_ACCOUNT_NUMBER'),
+
+        'account_name' => env('SEPAY_ACCOUNT_NAME'),
+
+        'webhook_api_key' => env('SEPAY_WEBHOOK_API_KEY'),
+
+    ],
 ];

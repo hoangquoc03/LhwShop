@@ -27,8 +27,10 @@ class ShopProduct extends Model
         'is_new',
         'category_id',
         'supplier_id',
+        'model_3d',
         'created_at',
         'updated_at',
+
     ];
     protected $guarded = ['id'];
     protected $primaryKey = 'id';
@@ -152,5 +154,16 @@ class ShopProduct extends Model
         return (int) round(
             ($this->discount->discount_amount / $this->list_price) * 100
         );
+    }
+    public function getModel3dUrlAttribute(): ?string
+    {
+        $relativePath = "models/products/{$this->id}/product.glb";
+        $absolutePath = public_path($relativePath);
+
+        if (!file_exists($absolutePath) || filesize($absolutePath) === 0) {
+            return null;
+        }
+
+        return asset($relativePath);
     }
 }

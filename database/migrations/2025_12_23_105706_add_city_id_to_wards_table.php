@@ -12,17 +12,34 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('wards', function (Blueprint $table) {
-            $table->foreignId('city_id')->after('id')->constrained()->onDelete('cascade');
-            $table->dropColumn('district_id'); // xóa district_id
+            if (!Schema::hasColumn('wards', 'city_id')) {
+                $table->foreignId('city_id')
+                    ->after('id')
+                    ->constrained('cities')
+                    ->cascadeOnDelete();
+            }
         });
+
+        if (Schema::hasColumn('wards', 'district_id')) {
+            Schema::table('wards', function (Blueprint $table) {
+                $table->dropColumn('district_id');
+            });
+        }
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::table('wards', function (Blueprint $table) {
-            $table->unsignedBigInteger('district_id')->nullable();
-            $table->dropForeign(['city_id']);
-            $table->dropColumn('city_id');
+            if (!Schema::hasColumn('wards', 'district_id')) {
+                $table->unsignedBigInteger('district_id')->nullable();
+            }
+
+            if (Schema::hasColumn('wards', 'city_id')) {
+                $table->dropConstrainedForeignId('city_id');
+            }
         });
     }
 };

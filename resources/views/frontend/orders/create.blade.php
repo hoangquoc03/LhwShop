@@ -4,6 +4,105 @@
 @endsection
 
 @section('page-style')
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const citySelect = document.getElementById('city');
+            const wardSelect = document.getElementById('ward');
+
+            const storePickup = document.getElementById('storePickup');
+            const homeDelivery = document.getElementById('homeDelivery');
+            const deliveryInfo = document.getElementById('deliveryInfo');
+
+
+            // =========================
+            // HIỆN / ẨN ĐỊA CHỈ
+            // =========================
+
+            homeDelivery.addEventListener('change', function() {
+
+                if (this.checked) {
+                    deliveryInfo.style.display = 'block';
+                }
+
+            });
+
+            storePickup.addEventListener('change', function() {
+
+                if (this.checked) {
+                    deliveryInfo.style.display = 'none';
+                }
+
+            });
+
+
+            // =========================
+            // CITY → WARD
+            // =========================
+
+            citySelect.addEventListener('change', function() {
+
+                const cityId = this.value;
+
+                console.log('City ID:', cityId);
+
+                wardSelect.innerHTML =
+                    '<option value="">Đang tải...</option>';
+
+                wardSelect.disabled = true;
+
+                if (!cityId) {
+                    wardSelect.innerHTML =
+                        '<option value="">-- Chọn xã/phường --</option>';
+                    return;
+                }
+
+                fetch("{{ url('/get-wards') }}/" + cityId)
+                    .then(response => {
+
+                        console.log('HTTP:', response.status);
+
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status);
+                        }
+
+                        return response.json();
+                    })
+                    .then(data => {
+
+                        console.log('Wards:', data);
+
+                        wardSelect.innerHTML =
+                            '<option value="">-- Chọn xã/phường --</option>';
+
+                        data.forEach(function(ward) {
+
+                            const option = document.createElement('option');
+
+                            option.value = ward.id;
+                            option.textContent = ward.name;
+
+                            wardSelect.appendChild(option);
+
+                        });
+
+                        wardSelect.disabled = false;
+
+                    })
+                    .catch(error => {
+
+                        console.error('Lỗi:', error);
+
+                        wardSelect.innerHTML =
+                            '<option value="">Không thể tải xã/phường</option>';
+
+                    });
+
+            });
+
+        });
+    </script>
+
     <style>
         /* Ảnh full width hiện đại */
         .banner-img {
@@ -229,70 +328,130 @@
                             value="home">
                         <label class="form-check-label" for="homeDelivery">Giao hàng tận nơi</label>
                     </div>
+                    <style>
+                        #deliveryInfo {
+                            display: block !important;
+                        }
 
-                    {{-- Form nhập địa chỉ (ẩn mặc định) --}}
-                    <div id="deliveryInfo" style="display: none;">
+                        #deliveryInfo #city,
+                        #deliveryInfo #ward {
+                            display: block !important;
+                            visibility: visible !important;
+                        }
+                    </style>
+
+                    {{-- Form nhập địa chỉ --}}
+                    <div id="deliveryInfo" style="display:none;">
+
                         <div class="card shadow-sm border-0 mb-4">
                             <div class="card-body">
+
                                 <div class="mb-3">
-                                    <label for="address" class="form-label">Số nhà, tên đường</label>
+                                    <label for="address" class="form-label fw-semibold">
+                                        Số nhà, tên đường
+                                    </label>
+
                                     <input type="text" id="address" name="address" class="form-control"
                                         placeholder="Nhập địa chỉ cụ thể">
                                 </div>
+
                                 <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <label for="city" class="form-label">Tỉnh/Thành phố</label>
-                                        <select name="city" class="form-select custom-select js-city">
-                                            <option value="">-- Chọn tỉnh/thành --</option>
+
+                                    {{-- Tỉnh / Thành phố --}}
+                                    <div class="col-md-6">
+
+                                        <label for="city" class="form-label fw-semibold">
+                                            Tỉnh/Thành phố
+                                        </label>
+
+                                        <select id="city" name="city" class="form-select js-city">
+                                            <option value="">
+                                                -- Chọn tỉnh/thành --
+                                            </option>
+
                                             @foreach ($cities as $city)
-                                                <option value="{{ $city->id }}">{{ $city->name }}</option>
+                                                <option value="{{ $city->id }}">
+                                                    {{ $city->name }}
+                                                </option>
                                             @endforeach
                                         </select>
+
                                     </div>
 
+                                    {{-- Xã / Phường --}}
+                                    <div class="col-md-6">
 
-                                    <div class="col-md-4">
-                                        <label for="ward" class="form-label">Xã/Phường</label>
-                                        <select name="ward" class="form-select custom-select js-ward">
-                                            <option value="">-- Chọn xã/phường --</option>
+                                        <label for="ward" class="form-label fw-semibold">
+                                            Xã/Phường
+                                        </label>
+
+                                        <select id="ward" name="ward" class="form-select js-ward" disabled>
+                                            <option value="">
+                                                -- Chọn xã/phường --
+                                            </option>
                                         </select>
+
                                     </div>
+
                                 </div>
+
                             </div>
                         </div>
+
                     </div>
-                    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+                    <style>
+                        #deliveryInfo .col-md-6>div:not(.card) {
+                            display: none !important;
+                        }
 
-                    <script>
-                        $(document).on('change', '.js-city', function() {
-                            let city_id = $(this).val();
-                            let wardSelect = $('.js-ward');
+                        #deliveryInfo .card {
+                            border-radius: 14px;
+                            overflow: hidden;
+                        }
 
-                            wardSelect.html('<option value="">-- Chọn xã/phường --</option>');
+                        #deliveryInfo .card-body {
+                            padding: 22px;
+                        }
 
-                            if (!city_id) return;
+                        #deliveryInfo .form-label {
+                            color: #333;
+                            font-size: 14px;
+                            font-weight: 600;
+                            margin-bottom: 8px;
+                        }
 
-                            $.ajax({
-                                url: `/get-wards/${city_id}`,
-                                type: 'GET',
-                                dataType: 'json',
-                                success: function(data) {
-                                    console.log('Wards:', data);
+                        #deliveryInfo .form-control,
+                        #deliveryInfo .form-select {
+                            min-height: 46px;
+                            border: 1px solid #dee2e6;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            padding: 10px 14px;
+                            background-color: #fff;
+                            transition: all 0.2s ease;
+                        }
 
-                                    if (data.length === 0) {
-                                        wardSelect.append('<option value="">Không có xã/phường</option>');
-                                        return;
-                                    }
+                        #deliveryInfo .form-control:focus,
+                        #deliveryInfo .form-select:focus {
+                            border-color: #212529;
+                            box-shadow: 0 0 0 0.15rem rgba(33, 37, 41, 0.08);
+                        }
 
-                                    data.forEach(function(ward) {
-                                        wardSelect.append(
-                                            `<option value="${ward.id}">${ward.name}</option>`
-                                        );
-                                    });
-                                }
-                            });
-                        });
-                    </script>
+                        #deliveryInfo .form-select:disabled {
+                            background-color: #f8f9fa;
+                            color: #999;
+                            cursor: not-allowed;
+                        }
+
+                        #deliveryInfo .form-control::placeholder {
+                            color: #aaa;
+                        }
+
+                        #deliveryInfo .row {
+                            margin-top: 2px;
+                        }
+                    </style>
+
 
 
 
@@ -319,52 +478,26 @@
                     </div>
                     <input type="hidden" name="voucher_discount" id="voucher_discount_input" value="0">
 
-                    <input type="hidden" name="payment_type_id" id="payment_type_id">
-                    {{-- 💳 Thông tin thanh toán --}}
+                    <input type="hidden" name="payment_type_id" id="payment_type_id" value="">
+
                     <div class="card shadow-sm mb-3">
-                        <div class="card-header fw-bold">THÔNG TIN THANH TOÁN</div>
+
+                        <div class="card-header fw-bold">
+                            PHƯƠNG THỨC THANH TOÁN
+                        </div>
+
                         <div class="card-body">
-                            <!-- Nút mở modal -->
-                            <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal"
-                                data-bs-target="#paymentModal">
-                                @if (!empty($selectedPaymentLabel))
-                                    Thanh toán bằng: <b>{{ $selectedPaymentLabel }}</b>
-                                @else
-                                    <span id="paymentLabel">Chọn phương thức thanh toán</span>
-                                @endif
+
+                            <button type="button" class="btn btn-outline-primary w-100 text-start"
+                                data-bs-toggle="modal" data-bs-target="#paymentModal">
+                                💳
+                                <span id="selectedPaymentName">
+                                    Chọn phương thức thanh toán
+                                </span>
                             </button>
+
                         </div>
                     </div>
-
-                    {{-- <div id="vnpayBox" class="card shadow-sm d-none mb-3">
-                        <div class="card-header fw-bold text-center">
-                            QUÉT QR THANH TOÁN VNPAY
-                        </div>
-                        <div class="card-body text-center">
-                            <img id="vnpayQr" src="" class="img-fluid mb-3">
-                            <h5 class="text-danger fw-bold" id="vnpayAmount"></h5>
-                            <p class="text-muted">Vui lòng thanh toán để tiếp tục đặt hàng</p>
-                        </div>
-                    </div> --}}
-                    <div id="vnpayBox" class="card shadow-sm d-none mb-3">
-                        <div class="card-header fw-bold text-center">
-                            QUÉT QR THANH TOÁN
-                        </div>
-
-                        <div class="card-body text-center">
-                            <img id="vnpayQr" src="" class="img-fluid mb-3">
-
-                            <h5 class="text-danger fw-bold" id="vnpayAmount"></h5>
-
-                            <p class="mb-1 fw-bold">LE HONG QUOC</p>
-                            <p class="text-muted">VietinBank - 102865379777</p>
-
-                            <p class="text-muted">
-                                Vui lòng thanh toán để tiếp tục đặt hàng
-                            </p>
-                        </div>
-                    </div>
-
 
 
                     <div class="card shadow-sm mb-3">
@@ -456,6 +589,8 @@
                         </div>
                     </div>
                 </div>
+
+
             </div>
         </div>
     </div>
@@ -470,6 +605,61 @@
             }).showToast();
         </script>
     @endif
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const paymentTypeId = document.getElementById('payment_type_id');
+            const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
+            const selectedPaymentName = document.getElementById('selectedPaymentName');
+
+            // Khi chọn phương thức trong modal
+            document.querySelectorAll('input[name="payment_type"]').forEach(function(radio) {
+
+                radio.addEventListener('change', function() {
+
+                    paymentTypeId.value = this.value;
+
+                    console.log('payment_type_id:', this.value);
+                    console.log('payment_code:', this.dataset.code);
+                    console.log('payment_name:', this.dataset.name);
+
+                });
+
+            });
+
+            // Bấm Xác nhận
+            if (confirmPaymentBtn) {
+
+                confirmPaymentBtn.addEventListener('click', function() {
+
+                    const selected = document.querySelector(
+                        'input[name="payment_type"]:checked'
+                    );
+
+                    if (!selected) {
+
+                        alert('Vui lòng chọn phương thức thanh toán.');
+
+                        return;
+                    }
+
+                    paymentTypeId.value = selected.value;
+
+                    selectedPaymentName.textContent = selected.dataset.name;
+
+                    console.log(
+                        'Đã chọn payment_type_id:',
+                        selected.value
+                    );
+
+                });
+
+            }
+
+        });
+    </script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -633,6 +823,7 @@
             updateTotal();
         });
     </script>
+
 
 
 

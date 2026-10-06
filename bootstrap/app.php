@@ -16,10 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
         }
     )
     ->withMiddleware(function (Middleware $middleware) {
+
         $middleware->validateCsrfTokens(except: [
             'outfit/recommend',
+            'webhook/sepay',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
-    })->create();
+    })
+    ->create();

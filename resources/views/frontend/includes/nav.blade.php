@@ -692,33 +692,97 @@
     }
 </style>
 <script>
-    const modal = document.getElementById('aiModal');
-    const openButton = document.getElementById('openAiModal');
-    const closeButton = document.getElementById('closeAiModal');
+    document.addEventListener("DOMContentLoaded", function() {
 
-    // Mở modal
-    openButton.addEventListener('click', function() {
-        modal.style.display = 'flex';
-        document.body.classList.add('modal-open');
-    });
+        const modal = document.getElementById("aiModal");
+        const openButton = document.getElementById("openAiModal");
+        const closeButton = document.getElementById("closeAiModal");
 
-    // Đóng modal
-    function closeModal() {
-        modal.style.display = 'none';
-        document.body.classList.remove('modal-open');
-    }
-
-    closeButton.addEventListener('click', closeModal);
-
-    // Click ra ngoài modal để đóng
-    window.addEventListener('click', function(event) {
-        if (event.target === modal) {
-            closeModal();
+        if (openButton) {
+            openButton.addEventListener("click", () => {
+                modal.style.display = "flex";
+            });
         }
+
+        if (closeButton) {
+            closeButton.addEventListener("click", () => {
+                modal.style.display = "none";
+            });
+        }
+
     });
+</script>
+<script>
+    document.getElementById('generateTryOn')
+        .addEventListener('click', async function() {
+
+            const file =
+                document.getElementById('personImage').files[0];
+
+            if (!file) {
+
+                alert("Vui lòng chọn ảnh.");
+
+                return;
+            }
+
+            const loading =
+                document.getElementById("tryOnLoading");
+
+            const result =
+                document.getElementById("tryOnResult");
+
+            loading.classList.remove("d-none");
+
+            result.classList.add("d-none");
+
+            const formData = new FormData();
+
+            formData.append("person", file);
+
+            formData.append("product_id", selectedProductId);
+
+            try {
+
+                const response = await fetch(
+                    "/virtual-try-on", {
+                        method: "POST",
+
+                        headers: {
+                            "X-CSRF-TOKEN": document.querySelector(
+                                'meta[name="csrf-token"]'
+                            ).content
+                        },
+
+                        body: formData
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Không thể tạo ảnh.');
+                }
+
+                loading.classList.add("d-none");
+
+                result.src = data.result;
+
+                result.classList.remove("d-none");
+
+            } catch (error) {
+
+                loading.classList.add("d-none");
+
+                alert("Không thể tạo ảnh.");
+
+            }
+
+        });
 </script>
 
 <script>
+    let selectedProductId = null;
     document.addEventListener('DOMContentLoaded', function() {
 
         const modal = document.getElementById('aiModal');
@@ -751,7 +815,10 @@
         openButton.addEventListener('click', function() {
 
             modal.style.display = 'block';
-
+            document.getElementById('personImage').value = '';
+            document.getElementById('tryOnResult').src = '';
+            document.getElementById('tryOnResult').classList.add('d-none');
+            document.getElementById('tryOnLoading').classList.add('d-none');
             promptInput.focus();
         });
 
@@ -993,62 +1060,71 @@
                         totalPrice += Number(product.price || 0);
 
                         itemsHtml += `
-        <a href="/product/${productId}"
-           target="_blank"
-           rel="noopener noreferrer"
-           class="text-decoration-none text-dark">
+<div class="card mb-3 shadow-sm product-card">
 
-            <div class="card mb-3 shadow-sm product-card"
-                 style="cursor: pointer;">
+    <div class="row g-0">
 
-                <div class="row g-0">
+        <div class="col-4">
+            ${
+                product.image
+                ? `<img src="${product.image}"
+                       class="img-fluid rounded-start"
+                       style="height:120px;width:100%;object-fit:cover;">`
+                : ''
+            }
+        </div>
 
-                    <div class="col-4">
+        <div class="col-8">
 
-                        ${
-                            product.image
-                            ? `<img src="${product.image}"
-                                    class="img-fluid rounded-start"
-                                    style="height:120px;width:100%;object-fit:cover;">`
-                            : ''
-                        }
+            <div class="card-body">
 
-                    </div>
+                <h6>${escapeHtml(product.name)}</h6>
 
-                    <div class="col-8">
+                <div class="text-muted mb-1">
+                    ${escapeHtml(product.category)}
+                </div>
 
-                        <div class="card-body">
+                <span class="badge bg-dark mb-2">
+                    ${escapeHtml(product.role)}
+                </span>
 
-                            <h6>
-                                ${escapeHtml(product.name)}
-                            </h6>
+                <p class="small mb-2">
+                    ${escapeHtml(product.reason)}
+                </p>
 
-                            <div class="text-muted mb-1">
-                                ${escapeHtml(product.category)}
-                            </div>
+                <strong class="text-danger d-block mb-3">
+                    ${formatPrice(product.price)}
+                </strong>
 
-                            <span class="badge bg-dark mb-2">
-                                ${escapeHtml(product.role)}
-                            </span>
+                <div class="d-flex gap-2">
 
-                            <p class="small mb-2">
-                                ${escapeHtml(product.reason)}
-                            </p>
+                    <a href="/product/${productId}"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="btn btn-outline-dark btn-sm">
 
-                            <strong class="text-danger">
-                                ${formatPrice(product.price)}
-                            </strong>
+                        Xem chi tiết
+                    </a>
 
-                        </div>
+                    <button
+                        class="btn btn-dark btn-sm try-on-btn"
+                        data-id="${productId}"
+                        data-name="${escapeHtml(product.name)}"
+                        data-image="${product.image || ''}">
 
-                    </div>
+                        ✨ Mặc thử AI
+                    </button>
 
                 </div>
 
             </div>
 
-        </a>
-    `;
+        </div>
+
+    </div>
+
+</div>
+`;
                     });
 
 
@@ -1130,6 +1206,24 @@
                 }
             }
         );
+
+
+        document.addEventListener('click', function(e) {
+
+            if (!e.target.classList.contains('try-on-btn')) return;
+
+            selectedProductId = e.target.dataset.id;
+
+            document.getElementById('selectedProductName').innerHTML =
+                "<strong>Sản phẩm:</strong> " + e.target.dataset.name;
+
+            const modal = new bootstrap.Modal(
+                document.getElementById('tryOnModal')
+            );
+
+            modal.show();
+
+        });
 
 
         /*

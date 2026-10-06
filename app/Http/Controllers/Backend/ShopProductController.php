@@ -110,9 +110,9 @@ class ShopProductController extends Controller
         $product->standard_cost = $request->standard_cost;
         $product->list_price = $request->list_price;
         $product->quantity_per_unit = $request->quantity_per_unit;
-        $product->discontinued = $request->discontinued;
-        $product->is_featured = $request->is_featured;
-        $product->is_new = $request->is_new;
+        $product->discontinued = $request->boolean('discontinued');
+        $product->is_featured = $request->boolean('is_featured');
+        $product->is_new = $request->boolean('is_new');
         $product->short_description = $request->short_description;
         $product->category_id = $request->category_id;
         $product->supplier_id = $request->supplier_id;

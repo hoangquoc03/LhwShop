@@ -998,7 +998,7 @@
             @foreach ($dsShopOrders as $item)
                 const fileInput{{ $item->id }} = document.getElementById("update-image-{{ $item->id }}");
                 const img{{ $item->id }} = document.getElementById(
-                "update-preview-img-{{ $item->id }}");
+                    "update-preview-img-{{ $item->id }}");
 
                 if (fileInput{{ $item->id }} && img{{ $item->id }}) {
                     fileInput{{ $item->id }}.addEventListener("change", function(e) {

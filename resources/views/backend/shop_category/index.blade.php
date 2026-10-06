@@ -181,25 +181,21 @@
                                     </td>
 
                                     <td class="p-4 space-x-2 whitespace-nowrap">
-                                        <button type="button" id="updateProductButton"
-                                            data-drawer-target="drawer-update-product-{{ $item->id }}"
-                                            data-drawer-show="drawer-update-product-{{ $item->id }}"
-                                            aria-controls="drawer-update-product-{{ $item->id }}"
+                                        <button type="button"
+                                            data-drawer-target="drawer-update-category-{{ $item->id }}"
+                                            data-drawer-show="drawer-update-category-{{ $item->id }}"
+                                            aria-controls="drawer-update-category-{{ $item->id }}"
                                             data-drawer-placement="right"
-                                            class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
-                                            data-id="{{ $item->id }}" data-image="{{ $item->image }}"
-                                            data-categories_code="{{ $item->categories_code }}"
-                                            data-categories_text="{{ $item->categories_text }}"
-                                            data-description="{{ $item->description }}">
-                                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"
-                                                xmlns="http://www.w3.org/2000/svg">
+                                            class="inline-flex items-center px-3 py-2 text-sm font-medium text-white rounded-lg bg-primary-700 hover:bg-primary-800">
+
+                                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                                 <path
-                                                    d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z">
-                                                </path>
+                                                    d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
                                                 <path fill-rule="evenodd"
                                                     d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
-                                                    clip-rule="evenodd"></path>
+                                                    clip-rule="evenodd" />
                                             </svg>
+
                                             Cập nhật
                                         </button>
 
@@ -220,98 +216,109 @@
                             @endforeach
                         </tbody>
                         @foreach ($dsShopCategories as $item)
-                            <div id="drawer-update-product-{{ $item->id }}"
-                                class="fixed top-0 right-0 z-40 w-full h-screen max-w-xs p-4 overflow-y-auto transition-transform bg-white dark:bg-gray-800 translate-x-full"
-                                tabindex="-1" aria-labelledby="drawer-label-{{ $item->id }}" bis_skin_checked="1"
-                                aria-hidden="true">
+                            <div id="drawer-update-category-{{ $item->id }}"
+                                class="fixed top-0 right-0 z-50 w-full h-screen max-w-md p-4 overflow-y-auto transition-transform translate-x-full bg-white dark:bg-gray-800"
+                                tabindex="-1" aria-labelledby="drawer-label-{{ $item->id }}" aria-hidden="true">
+
                                 <h5 id="drawer-label-{{ $item->id }}"
                                     class="inline-flex items-center mb-6 text-sm font-semibold text-gray-500 uppercase dark:text-gray-400">
-                                    Cập nhật danh mục- {{ $item->id }}</h5>
-                                <button type="button" data-drawer-dismiss="drawer-update-product-{{ $item->id }}"
-                                    aria-controls="drawer-update-product-{{ $item->id }}"
-                                    class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 absolute top-2.5 right-2.5 inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white">
-                                    <svg aria-hidden="true" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"
-                                        xmlns="http://www.w3.org/2000/svg">
+                                    Cập nhật danh mục - {{ $item->id }}
+                                </h5>
+
+                                <button type="button" data-drawer-dismiss="drawer-update-category-{{ $item->id }}"
+                                    aria-controls="drawer-update-category-{{ $item->id }}"
+                                    class="absolute top-2.5 right-2.5 text-gray-400 hover:text-gray-900 p-1.5">
+
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd"
                                             d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                            clip-rule="evenodd"></path>
+                                            clip-rule="evenodd" />
                                     </svg>
-                                    <span class="sr-only">Close menu</span>
                                 </button>
+
                                 <form action="{{ route('backend.Category.update', ['id' => $item->id]) }}" method="POST"
                                     enctype="multipart/form-data">
+
                                     @csrf
                                     @method('PUT')
-                                    <div class="space-y-4" bis_skin_checked="1">
-                                        <div bis_skin_checked="1">
-                                            <label for="categories_code"
-                                                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Mã
-                                                danh mục</label>
-                                            <input value="{{ $item->categories_code }}" type="text"
-                                                name="categories_code" id="categories_code"
-                                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
-                                                placeholder="categories_code" required="">
-                                        </div>
 
-                                        <div bis_skin_checked="1">
-                                            <label for="categories_text"
-                                                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Văn
-                                                bản danh mục</label>
-                                            <input value="{{ $item->categories_text }}" type="text"
-                                                name="categories_text" id="categories_text"
-                                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
-                                                placeholder="categories_text" required="">
+                                    <div class="space-y-4">
+
+                                        <div>
+                                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                                                Mã danh mục
+                                            </label>
+
+                                            <input type="text" name="categories_code"
+                                                value="{{ $item->categories_code }}" required
+                                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5">
                                         </div>
 
                                         <div>
-                                            <label for="image-{{ $item->id }}"
-                                                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Hình
-                                                ảnh</label>
-                                            <input type="file" name="image" id="update-image-{{ $item->id }}"
-                                                accept="image/*" class="input border border-gray-300 text-sm rounded-lg">
+                                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                                                Văn bản danh mục
+                                            </label>
 
-                                            <img src="{{ asset('storage/uploads/categories/logo/' . $item->image) }}"
-                                                data-default="{{ asset('storage/uploads/categories/logo/' . $item->image) }}"
-                                                class="w-32 mt-2 preview-img-container"
-                                                id="update-preview-img-{{ $item->id }}" alt="Xem trước ảnh">
+                                            <input type="text" name="categories_text"
+                                                value="{{ $item->categories_text }}" required
+                                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5">
                                         </div>
-                                        <div class="mb-3">
-                                            <label
-                                                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Hoặc
-                                                nhập link ảnh</label>
+
+                                        <div>
+                                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                                                Hình ảnh
+                                            </label>
+
+                                            <input type="file" name="image" id="update-image-{{ $item->id }}"
+                                                accept="image/*" class="border border-gray-300 text-sm rounded-lg">
+
+                                            <img src="{{ Str::startsWith($item->image, ['http://', 'https://'])
+                                                ? $item->image
+                                                : asset('storage/uploads/categories/logo/' . $item->image) }}"
+                                                class="w-32 mt-2" id="update-preview-img-{{ $item->id }}"
+                                                alt="Xem trước ảnh">
+                                        </div>
+
+                                        <div>
+                                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                                                Hoặc nhập link ảnh
+                                            </label>
+
                                             <input type="text" name="image_url"
-                                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+                                                value="{{ old('image_url', $item->image) }}"
                                                 placeholder="https://example.com/image.jpg"
-                                                value="{{ old('image_url', $item->image) }}">
+                                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5">
                                         </div>
-                                        <div bis_skin_checked="1">
-                                            <label for="description"
-                                                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Mô
-                                                tả</label>
-                                            <input value="{{ $item->description }}" type="text" name="description"
-                                                id="description"
-                                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
-                                                placeholder="Description" required="">
+
+                                        <div>
+                                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                                                Mô tả
+                                            </label>
+
+                                            <input type="text" name="description" value="{{ $item->description }}"
+                                                required
+                                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5">
                                         </div>
+
                                     </div>
-                                    <div class="bottom-0 left-0 flex justify-center w-full pb-4 mt-4 space-x-4 sm:absolute sm:px-4 sm:mt-0"
-                                        bis_skin_checked="1">
-                                        <button data-url="{{ route('backend.Category.index') }}" type="submit"
-                                            class="w-full justify-center text-white bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800">
+
+                                    <div class="flex gap-3 mt-6">
+
+                                        <button type="submit"
+                                            class="w-full text-white bg-primary-700 hover:bg-primary-800 font-medium rounded-lg text-sm px-5 py-2.5">
                                             Cập nhật
                                         </button>
-                                        <button data-url="{{ route('backend.Category.index') }}" type="button"
-                                            class="w-full justify-center text-red-600 inline-flex items-center hover:text-white border border-red-600 hover:bg-red-600 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:border-red-500 dark:text-red-500 dark:hover:text-white dark:hover:bg-red-600 dark:focus:ring-red-900">
-                                            <svg aria-hidden="true" class="w-5 h-5 mr-1 -ml-1" fill="currentColor"
-                                                viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                                <path fill-rule="evenodd"
-                                                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                                                    clip-rule="evenodd"></path>
-                                            </svg>
+
+                                        <button type="button"
+                                            data-drawer-dismiss="drawer-update-category-{{ $item->id }}"
+                                            class="w-full text-red-600 border border-red-600 hover:bg-red-600 hover:text-white font-medium rounded-lg text-sm px-5 py-2.5">
                                             Hủy
                                         </button>
+
                                     </div>
+
                                 </form>
+
                             </div>
                         @endforeach
                     </table>
@@ -570,6 +577,66 @@
                     });
                 }
             @endforeach
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const openButton = document.getElementById('createProductButton');
+            const drawer = document.getElementById('drawer-create-product-default');
+
+            if (!openButton || !drawer) {
+                console.error('Không tìm thấy button hoặc drawer');
+                return;
+            }
+
+            openButton.addEventListener('click', function() {
+
+                drawer.classList.remove('translate-x-full');
+
+                drawer.setAttribute('aria-hidden', 'false');
+
+            });
+
+            // Các nút đóng drawer
+            document.querySelectorAll(
+                '[data-drawer-dismiss="drawer-create-product-default"]'
+            ).forEach(function(button) {
+
+                button.addEventListener('click', function() {
+
+                    drawer.classList.add('translate-x-full');
+
+                    drawer.setAttribute('aria-hidden', 'true');
+
+                });
+
+            });
+
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            document.querySelectorAll('[data-drawer-show]').forEach(function(button) {
+
+                button.addEventListener('click', function() {
+
+                    const targetId = button.getAttribute('data-drawer-target');
+                    const drawer = document.getElementById(targetId);
+
+                    console.log('TARGET:', targetId);
+                    console.log('DRAWER:', drawer);
+
+                    if (drawer) {
+                        drawer.classList.remove('translate-x-full');
+                        drawer.classList.add('translate-x-0');
+                    }
+
+                });
+
+            });
+
         });
     </script>
 @endsection

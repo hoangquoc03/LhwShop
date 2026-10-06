@@ -10,24 +10,26 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::table('shop_product_posts', function (Blueprint $table) {
-        if (!Schema::hasColumn('shop_product_posts', 'product_id')) {
-            $table->unsignedBigInteger('product_id')->after('id');
-            $table->foreign('product_id')
-                  ->references('id')
-                  ->on('shop_products')
-                  ->onDelete('cascade');
-        }
-    });
-}
+    {
+        Schema::table('shop_posts', function (Blueprint $table) {
+            if (!Schema::hasColumn('shop_posts', 'product_id')) {
+                $table->foreignId('product_id')
+                    ->after('id')
+                    ->constrained('shop_products')
+                    ->cascadeOnDelete();
+            }
+        });
+    }
 
-public function down(): void
-{
-    Schema::table('shop_product_posts', function (Blueprint $table) {
-        $table->dropForeign(['product_id']);
-        $table->dropColumn('product_id');
-    });
-}
-
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('shop_posts', function (Blueprint $table) {
+            if (Schema::hasColumn('shop_posts', 'product_id')) {
+                $table->dropConstrainedForeignId('product_id');
+            }
+        });
+    }
 };

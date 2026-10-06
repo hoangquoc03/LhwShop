@@ -879,80 +879,99 @@
     }
 </style>
 @section('user.js')
-    <script>
-        $("#load-more").on("click", function() {
-            $.ajax({
-                url: "/products/category/{{ $category->id }}?page=2",
-                method: "GET",
-                beforeSend: function() {
-                    showSpinner();
-                },
-                success: function(res) {
-                    $("#product-list").append(res);
-                },
-                complete: function() {
-                    hideSpinner();
-                }
+    {{-- <script>
+        document.addEventListener("DOMContentLoaded", function() {
+
+            if (typeof $ === "undefined") return;
+
+            $("#load-more").on("click", function() {
+                $.ajax({
+                    @if ($category)
+                        url: "/products/category/{{ $category->id }}?page=2",
+                    @else
+                        url: "#",
+                    @endif
+                    method: "GET",
+                    beforeSend: showSpinner,
+                    success: function(res) {
+                        $("#product-list").append(res);
+                    },
+                    complete: hideSpinner
+                });
             });
+
         });
-    </script>
+    </script> --}}
 
     <script>
-        // Hiện spinner khi rời trang (chuyển route hoặc reload)
         window.addEventListener("beforeunload", function() {
-            document.getElementById("loading-overlay").style.display = "flex";
+            document.getElementById("loading-overlay")?.style.setProperty("display", "flex");
         });
 
-        // Hiện spinner khi click vào các nút sắp xếp (sort)
         document.querySelectorAll('a[href*="?sort="]').forEach(link => {
             link.addEventListener("click", function() {
-                document.getElementById("loading-overlay").style.display = "flex";
+                document.getElementById("loading-overlay")?.style.setProperty("display", "flex");
             });
         });
 
-        // Nếu bạn có AJAX "Xem thêm sản phẩm"
         const loadMoreBtn = document.getElementById("load-more");
+
         if (loadMoreBtn) {
+
             loadMoreBtn.addEventListener("click", function() {
-                document.getElementById("loading-overlay").style.display = "flex";
+
+                document.getElementById("loading-overlay")
+                    ?.style.setProperty("display", "flex");
+
             });
+
         }
     </script>
 
-
-
-
     <script>
-        $(document).on('click', '#load-more', function(e) {
-            e.preventDefault();
-            let button = $(this);
-            let nextPageUrl = button.data('next-page');
+        document.addEventListener("DOMContentLoaded", function() {
 
-            if (!nextPageUrl) return;
+            if (typeof $ === "undefined") {
+                console.error("jQuery chưa load");
+                return;
+            }
 
-            button.prop('disabled', true).text('Đang tải...');
+            $(document).on("click", "#load-more", function(e) {
 
-            $.ajax({
-                url: nextPageUrl,
-                type: 'GET',
-                success: function(response) {
-                    // Lấy phần HTML sản phẩm từ response
-                    let newProducts = $(response).find('#product-list').html();
-                    $('#product-list').append(newProducts);
+                e.preventDefault();
 
-                    // Lấy lại nút load-more từ response
-                    let newLoadMore = $(response).find('#load-more-wrapper').html();
+                let button = $(this);
+                let nextPageUrl = button.data("next-page");
 
-                    if (newLoadMore) {
-                        $('#load-more-wrapper').html(newLoadMore);
-                    } else {
-                        $('#load-more-wrapper').remove(); // hết sản phẩm
+                if (!nextPageUrl) return;
+
+                button.prop("disabled", true).text("Đang tải...");
+
+                $.ajax({
+                    url: nextPageUrl,
+                    type: "GET",
+                    success: function(response) {
+
+                        let newProducts = $(response).find("#product-list").html();
+
+                        $("#product-list").append(newProducts);
+
+                        let newLoadMore = $(response).find("#load-more-wrapper").html();
+
+                        if (newLoadMore) {
+                            $("#load-more-wrapper").html(newLoadMore);
+                        } else {
+                            $("#load-more-wrapper").remove();
+                        }
+
+                    },
+                    error: function() {
+                        button.prop("disabled", false).text("Thử lại");
                     }
-                },
-                error: function() {
-                    button.prop('disabled', false).text('Thử lại');
-                }
+                });
+
             });
+
         });
     </script>
 
@@ -985,114 +1004,87 @@
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const carousel = document.querySelector(".carousel");
-            let currdeg = 0;
-            let startX = 0;
 
-            function rotate(direction) {
-                if (direction === "next") {
-                    currdeg -= 360 / {{ max(1, $products->count()) }};
-                } else {
-                    currdeg += 360 / {{ max(1, $products->count()) }};
-                }
-                carousel.style.transform = `rotateY(${currdeg}deg)`;
+            const carousel = document.getElementById("carousel");
+
+            // Không có carousel thì bỏ qua
+            if (!carousel) return;
+
+            const items = carousel.querySelectorAll(".item");
+            if (!items.length) return;
+
+            const productName = document.getElementById("product-name");
+            const productDesc = document.getElementById("product-desc");
+            const productLink = document.getElementById("product-link");
+
+            const total = items.length;
+            const angle = 360 / total;
+
+            let currdeg = 0;
+            let currentIndex = 0;
+            let startX = 0;
+            let isDragging = false;
+
+            function updateInfo(index) {
+                const item = items[index];
+
+                if (productName) productName.innerText = item.dataset.name || "";
+                if (productDesc) productDesc.innerText = item.dataset.desc || "";
+                if (productLink) productLink.href = item.dataset.link || "#";
             }
 
-            // Vuốt mobile
+            function rotate(next = true) {
+                if (next) {
+                    currdeg -= angle;
+                    currentIndex = (currentIndex + 1) % total;
+                } else {
+                    currdeg += angle;
+                    currentIndex = (currentIndex - 1 + total) % total;
+                }
+
+                carousel.style.transform = `translateZ(-700px) rotateY(${currdeg}deg)`;
+                updateInfo(currentIndex);
+            }
+
+            // Chuột
+            carousel.addEventListener("mousedown", e => {
+                isDragging = true;
+                startX = e.clientX;
+                e.preventDefault();
+            });
+
+            window.addEventListener("mouseup", e => {
+                if (!isDragging) return;
+
+                if (startX > e.clientX + 50) rotate(true);
+                else if (startX < e.clientX - 50) rotate(false);
+
+                isDragging = false;
+            });
+
+            // Touch
             carousel.addEventListener("touchstart", e => {
                 startX = e.touches[0].clientX;
             });
 
             carousel.addEventListener("touchend", e => {
-                let endX = e.changedTouches[0].clientX;
-                if (startX > endX + 50) {
-                    rotate("next");
-                } else if (startX < endX - 50) {
-                    rotate("prev");
-                }
+                const endX = e.changedTouches[0].clientX;
+
+                if (startX > endX + 50) rotate(true);
+                else if (startX < endX - 50) rotate(false);
             });
 
-            // Kéo chuột desktop
-            let isDragging = false;
-            carousel.addEventListener("mousedown", e => {
-                isDragging = true;
-                startX = e.clientX;
-                e.preventDefault(); // chặn bôi đen
+            // Click item
+            items.forEach((item, index) => {
+                item.addEventListener("click", () => {
+                    currentIndex = index;
+                    currdeg = -angle * index;
+                    carousel.style.transform = `translateZ(-700px) rotateY(${currdeg}deg)`;
+                    updateInfo(currentIndex);
+                });
             });
-            window.addEventListener("mouseup", e => {
-                if (isDragging) {
-                    let endX = e.clientX;
-                    if (startX > endX + 50) rotate("next");
-                    else if (startX < endX - 50) rotate("prev");
-                    isDragging = false;
-                }
-            });
-        });
-        let carousel = document.getElementById("carousel");
-        let currdeg = 0;
-        let currentIndex = 0;
-        let items = document.querySelectorAll(".carousel .item");
-        let total = items.length;
-        let angle = 360 / total;
 
-        // cập nhật thông tin sản phẩm
-        function updateInfo(index) {
-            let item = items[index % total];
-            document.getElementById("product-name").innerText = item.dataset.name;
-            document.getElementById("product-desc").innerText = item.dataset.desc;
-            document.getElementById("product-link").setAttribute("href", item.dataset.link);
-        }
-
-        // lướt trái/phải bằng chuột
-        let startX = 0;
-        carousel.addEventListener("mousedown", e => startX = e.pageX);
-        carousel.addEventListener("mouseup", e => {
-            if (e.pageX < startX - 50) { // vuốt trái
-                currdeg -= angle;
-                currentIndex = (currentIndex + 1) % total;
-            } else if (e.pageX > startX + 50) { // vuốt phải
-                currdeg += angle;
-                currentIndex = (currentIndex - 1 + total) % total;
-            }
-            carousel.style.transform = `rotateY(${currdeg}deg)`;
-            updateInfo(currentIndex);
-        });
-
-        // hỗ trợ touch mobile
-        carousel.addEventListener("touchstart", e => startX = e.touches[0].pageX);
-        carousel.addEventListener("touchend", e => {
-            let endX = e.changedTouches[0].pageX;
-            if (endX < startX - 50) {
-                currdeg -= angle;
-                currentIndex = (currentIndex + 1) % total;
-            } else if (endX > startX + 50) {
-                currdeg += angle;
-                currentIndex = (currentIndex - 1 + total) % total;
-            }
-            carousel.style.transform = `rotateY(${currdeg}deg)`;
-            updateInfo(currentIndex);
-        });
-        $('#bestSellerCarousel').owlCarousel({
-            loop: true,
-            margin: 20,
-            nav: true,
-            dots: false,
-            autoplay: true,
-            autoplayTimeout: 3000,
-            responsive: {
-                0: {
-                    items: 1
-                },
-                576: {
-                    items: 2
-                },
-                768: {
-                    items: 3
-                },
-                992: {
-                    items: 4
-                }
-            }
+            updateInfo(0);
         });
     </script>
     <script>

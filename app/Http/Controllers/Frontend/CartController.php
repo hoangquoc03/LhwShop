@@ -343,27 +343,20 @@ class CartController extends Controller
     public function create()
     {
         $cart = session()->get('cart', []);
+
         if (empty($cart)) {
-            return redirect()->route('cart.index')->with('error', 'Giỏ hàng trống!');
+            return redirect()
+                ->route('cart.index')
+                ->with('error', 'Giỏ hàng trống!');
         }
 
         $customer = Auth::guard('customer')->user();
+
         $categories = ShopCategory::all();
         $paymentTypes = ShopPaymentType::all();
         $cities = City::all();
-        $currentOrder = ShopOrder::firstOrCreate(
-            [
-                'customer_id' => $customer->id,
-                'order_status' => ShopOrder::STATUS_PENDING
-            ],
-            [
-                'order_date' => now(),
-                'payment_status' => 'unpaid',
-                'ship_country' => 'Việt Nam',
-            ]
-        );
 
-        // 1️⃣ Tổng tiền gốc (chưa giảm)
+        // Tổng tiền gốc (chưa giảm)
         $totalBeforeDiscount = collect($cart)->sum(function ($item) {
             $discountPercent = $item['discount_percent'] ?? 0;
 
@@ -372,56 +365,51 @@ class CartController extends Controller
                 : $item['price'] * $item['quantity'];
         });
 
-        // 2️⃣ Tổng sau giảm giá sản phẩm
+        // Tổng sau giảm giá sản phẩm
         $totalAfterProductDiscount = collect($cart)->sum(function ($item) {
             return $item['price'] * $item['quantity'];
         });
 
-        // 3️⃣ Voucher
+        // Voucher
         $appliedVoucher = session()->get('voucher');
         $voucherDiscount = 0;
 
         if ($appliedVoucher) {
             if (!empty($appliedVoucher['discount_percent'])) {
-                $voucherDiscount = $totalAfterProductDiscount * ($appliedVoucher['discount_percent'] / 100);
+                $voucherDiscount =
+                    $totalAfterProductDiscount
+                    * ($appliedVoucher['discount_percent'] / 100);
             } elseif (!empty($appliedVoucher['discount_amount'])) {
                 $voucherDiscount = $appliedVoucher['discount_amount'];
             }
         }
 
-        // 4️⃣ Ship (nếu có)
+        // Phí ship
         $shippingFee = 0;
 
-        // 5️⃣ Tổng cuối cùng
+        // Tổng cuối
         $grandTotal = max(
-            $totalAfterProductDiscount - $voucherDiscount + $shippingFee,
+            $totalAfterProductDiscount
+                - $voucherDiscount
+                + $shippingFee,
             0
         );
-        $currentOrder = null;
 
-        if (session('vnpay_paid')) {
-            $currentOrder = (object)[
-                'payment_status' => 'paid'
-            ];
-        }
+        // Phương thức thanh toán đã chọn trước đó
         $selectedPaymentCode = null;
 
         if (session('selected_payment_type_id')) {
-            $paymentType = \App\Models\ShopPaymentType::find(
+            $paymentType = ShopPaymentType::find(
                 session('selected_payment_type_id')
             );
 
             $selectedPaymentCode = $paymentType?->payment_code;
         }
 
-
-
         // Voucher của khách
         $vouchers = ShopVoucher::whereHas('customers', function ($q) use ($customer) {
             $q->where('customer_id', $customer->id);
         })->get();
-
-
 
         return view('frontend.orders.create', compact(
             'selectedPaymentCode',
@@ -436,8 +424,7 @@ class CartController extends Controller
             'shippingFee',
             'grandTotal',
             'vouchers',
-            'appliedVoucher',
-            'currentOrder'
+            'appliedVoucher'
         ));
     }
 
@@ -446,98 +433,301 @@ class CartController extends Controller
     public function store(Request $request)
     {
         $customer = Auth::guard('customer')->user();
+
+        // Lấy giỏ hàng hiện tại
         $cart = \App\Models\ShopCart::where('customer_id', $customer->id)
             ->with(['product', 'variant'])
             ->get();
 
         if ($cart->isEmpty()) {
-            return redirect()->route('cart.index')->with('error', 'Giỏ hàng trống!');
+            return redirect()
+                ->route('cart.index')
+                ->with('error', 'Giỏ hàng trống!');
         }
 
-
-
-
+        // Validate dữ liệu checkout
         $request->validate([
-            'ship_name'  => 'nullable|string|max:255',
-            'ship_phone' => 'nullable|regex:/^[0-9]{9,11}$/',
-            'address'    => 'nullable|string|max:255',
-            'city'       => 'nullable|exists:cities,id',
-            'ward'       => 'nullable|exists:wards,id',
-            'delivery_type' => 'required|in:store,home',
-            'payment_type_id' => 'required|exists:shop_payment_types,id',
+            'ship_name'        => 'nullable|string|max:255',
+            'ship_phone'       => 'nullable|regex:/^[0-9]{9,11}$/',
+            'address'          => 'nullable|string|max:255',
+            'city'             => 'nullable|exists:cities,id',
+            'ward'             => 'nullable|exists:wards,id',
+            'delivery_type'    => 'required|in:store,home',
+            'payment_type_id'  => 'required|exists:shop_payment_types,id',
             'voucher_discount' => 'nullable|numeric|min:0',
         ]);
 
+        /*
+    |--------------------------------------------------------------------------
+    | Lấy phương thức thanh toán
+    |--------------------------------------------------------------------------
+    |
+    | Không hard-code ID = 2.
+    | Kiểm tra payment_code = PM02.
+    |
+    */
+        $paymentType = \App\Models\ShopPaymentType::findOrFail(
+            $request->payment_type_id
+        );
+
+        // PM02 = Chuyển khoản ngân hàng = dùng SePay
+        $isBankTransfer = strtoupper($paymentType->payment_code) === 'PM02';
+
         DB::beginTransaction();
+
         try {
-            $city     = \App\Models\City::find($request->city);
-            $ward     = \App\Models\Ward::find($request->ward);
-            // Địa chỉ đầy đủ hoặc nhận tại cửa hàng
-            $shippingFee = $request->delivery_type === 'home' ? 30000 : 0;
+
+            /*
+        |--------------------------------------------------------------------------
+        | Địa chỉ giao hàng
+        |--------------------------------------------------------------------------
+        */
+
+            $city = \App\Models\City::find($request->city);
+            $ward = \App\Models\Ward::find($request->ward);
+
+            $shippingFee = $request->delivery_type === 'home'
+                ? 30000
+                : 0;
+
             $fullAddress = $request->delivery_type === 'home'
-                ? trim($request->address . ', '
-                    . ($ward?->name ?? '') . ', '
-                    . ($city?->name ?? ''))
+                ? trim(
+                    ($request->address ?? '') . ', '
+                        . ($ward?->name ?? '') . ', '
+                        . ($city?->name ?? '')
+                )
                 : 'Nhận tại cửa hàng';
 
+
+            /*
+        |--------------------------------------------------------------------------
+        | Tạo Order
+        |--------------------------------------------------------------------------
+        */
+
             $order = \App\Models\ShopOrder::create([
-                'customer_id'   => $customer->id,
-                'ship_name'     => $request->ship_name ?: $customer->name,
-                'ship_phone'    => $request->ship_phone ?: $customer->phone,
-                'ship_address1' => $fullAddress,
-                'ship_city'     => $city->name ?? '',
-                'ship_country'  => 'Việt Nam',
-                'order_date'    => now(),
-                'order_status'  => \App\Models\ShopOrder::STATUS_PENDING,
-                'payment_type_id' => $request->payment_type_id ?? null,
-                'shipping_fee' => $shippingFee,
+                'customer_id'      => $customer->id,
+
+                'ship_name'        => $request->ship_name ?: $customer->name,
+
+                'ship_phone'       => $request->ship_phone ?: $customer->phone,
+
+                'ship_address1'    => $fullAddress,
+
+                'ship_city'        => $city?->name ?? '',
+
+                'ship_country'     => 'Việt Nam',
+
+                'order_date'       => now(),
+
+                'order_status'     => \App\Models\ShopOrder::STATUS_PENDING,
+
+                'payment_type_id'  => $paymentType->id,
+
+                // Đơn mới luôn chưa thanh toán
+                'payment_status'   => \App\Models\ShopOrder::PAYMENT_UNPAID,
+
+                'shipping_fee'     => $shippingFee,
+
                 'voucher_discount' => $request->voucher_discount ?? 0,
             ]);
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Tạo chi tiết đơn hàng
+        |--------------------------------------------------------------------------
+        */
+
             foreach ($cart as $item) {
 
                 $product = $item->product;
-                // % giảm của sản phẩm
-                $discountPercent = $product->discount_percent ?? 0;
-                $variant = $item->variant;
-                // Giá gốc
-                $unitPrice = $variant?->price ?? $product->list_price;
 
+                if (!$product) {
+                    throw new \Exception(
+                        'Không tìm thấy sản phẩm trong giỏ hàng.'
+                    );
+                }
+
+                $variant = $item->variant;
+
+                // Phần trăm giảm giá của sản phẩm
+                $discountPercent = $product->discount_percent ?? 0;
+
+                // Giá sản phẩm / biến thể
+                $unitPrice = $variant?->price ?? $product->list_price;
 
                 // Số tiền giảm trên 1 sản phẩm
                 $discountAmount = $discountPercent > 0
-                    ? $unitPrice * $discountPercent / 100
+                    ? ($unitPrice * $discountPercent / 100)
                     : 0;
 
-                ShopOrderDetail::create([
+                \App\Models\ShopOrderDetail::create([
                     'order_id'            => $order->id,
+
                     'product_id'          => $product->id,
+
                     'quantity'            => $item->quantity,
-                    'variant_id' => $variant?->id,
-                    // GIÁ CHUẨN
+
+                    'variant_id'          => $variant?->id,
+
                     'unit_price'          => $unitPrice,
-                    // DISCOUNT
+
                     'discount_percentage' => $discountPercent,
+
                     'discount_amount'     => $discountAmount,
                 ]);
             }
 
 
+            /*
+        |--------------------------------------------------------------------------
+        | Tạo mã thanh toán SePay
+        |--------------------------------------------------------------------------
+        |
+        | Chỉ PM02 mới cần payment_code.
+        |
+        | Ví dụ:
+        | Order ID = 123
+        | payment_code = DH000123
+        |
+        | Khách chuyển khoản:
+        | DH000123
+        |
+        | SePay sẽ đọc mã này từ nội dung chuyển khoản.
+        |
+        */
+
+            if ($isBankTransfer) {
+
+                $order->payment_code = 'DH' . str_pad(
+                    $order->id,
+                    6,
+                    '0',
+                    STR_PAD_LEFT
+                );
+
+                $order->save();
+            }
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Load lại details để tính tổng tiền Order
+        |--------------------------------------------------------------------------
+        */
+
+            $order->load('details');
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Tính tổng tiền
+        |--------------------------------------------------------------------------
+        |
+        | $order->total sẽ sử dụng:
+        |
+        | subtotal
+        | - voucher_discount
+        | + shipping_fee
+        |
+        */
+
+            $orderTotal = $order->total;
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Commit transaction
+        |--------------------------------------------------------------------------
+        */
 
             DB::commit();
-            Mail::to(config('mail.admin_email'))->send(new NewOrderAdminMail($order));
 
 
-            // Xóa giỏ hàng trong DB
-            \App\Models\ShopCart::where('customer_id', $customer->id)->delete();
+            /*
+        |--------------------------------------------------------------------------
+        | Gửi email admin
+        |--------------------------------------------------------------------------
+        */
 
-            // Xóa giỏ hàng session
+            Mail::to(config('mail.admin_email'))
+                ->send(new NewOrderAdminMail($order));
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Xóa giỏ hàng
+        |--------------------------------------------------------------------------
+        */
+
+            \App\Models\ShopCart::where(
+                'customer_id',
+                $customer->id
+            )->delete();
+
             session()->forget('cart');
 
-            session()->flash('order_success', $order->id);
 
-            return redirect()->route('orders.success', ['id' => $order->id]);
-        } catch (\Exception $e) {
-            dd($e->getMessage());
+            /*
+        |--------------------------------------------------------------------------
+        | Lưu order vào session
+        |--------------------------------------------------------------------------
+        */
+
+            session()->flash(
+                'order_success',
+                $order->id
+            );
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Nếu PM02
+        |--------------------------------------------------------------------------
+        |
+        | Đây là đơn chuyển khoản.
+        | Sau này trang payment sẽ hiển thị QR SePay.
+        |
+        */
+
+            if ($isBankTransfer) {
+
+                return redirect()
+                    ->route('orders.payment', [
+                        'id' => $order->id
+                    ])
+                    ->with('order_total', $orderTotal);
+            }
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Các phương thức thanh toán khác
+        |--------------------------------------------------------------------------
+        */
+
+            return redirect()
+                ->route('orders.success', [
+                    'id' => $order->id
+                ]);
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            \Illuminate\Support\Facades\Log::error('CREATE ORDER ERROR', [
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'LỖI: ' . $e->getMessage()
+                );
         }
     }
 
@@ -568,7 +758,10 @@ class CartController extends Controller
 
     public function getWards($city_id)
     {
-        $wards = Ward::where('city_id', $city_id)->get();
+        $wards = Ward::where('city_id', $city_id)
+            ->orderBy('name', 'asc')
+            ->get(['id', 'name']);
+
         return response()->json($wards);
     }
 
@@ -576,15 +769,39 @@ class CartController extends Controller
 
     public function payment($id)
     {
-        // Lấy thông tin đơn hàng theo id
         $order = \App\Models\ShopOrder::with('details.product')
             ->where('id', $id)
             ->where('customer_id', Auth::guard('customer')->id())
             ->firstOrFail();
-        $categories = ShopCategory::all();
-        $paymentTypes = ShopPaymentType::all();
-        // Hiển thị view thanh toán
-        return view('frontend.orders.payment', compact('order', 'categories', 'paymentTypes'));
+
+        $categories = \App\Models\ShopCategory::all();
+
+        if (
+            strtoupper(
+                $order->payment_type?->payment_code ?? ''
+            ) !== 'PM02'
+        ) {
+            abort(404);
+        }
+
+        $orderTotal = (int) round($order->total);
+
+        $qrUrl = 'https://vietqr.app/img?' . http_build_query([
+            'acc' => config('services.sepay.account_number'),
+            'bank' => config('services.sepay.bank'),
+            'amount' => $orderTotal,
+            'des' => 'SEVQR ' . $order->payment_code,
+        ]);
+
+        return view(
+            'frontend.orders.payment',
+            compact(
+                'order',
+                'categories',
+                'orderTotal',
+                'qrUrl'
+            )
+        );
     }
     public function cancel($id)
     {

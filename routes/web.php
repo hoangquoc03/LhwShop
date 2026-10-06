@@ -18,7 +18,8 @@ use App\Http\Controllers\Frontend\FavoriteController;
 use App\Http\Controllers\Frontend\CartController;
 use App\Http\Controllers\Frontend\PaymentController;
 use App\Http\Controllers\Frontend\OutfitController;
-
+use App\Http\Controllers\Frontend\SePayController;
+use App\Http\Controllers\VirtualTryOnController;
 use App\Http\Controllers\Backend\ShopSettingController;
 use App\Http\Controllers\Backend\ShopProductVariantController as ProductProVariantController;
 use App\Http\Controllers\Backend\ShopPostController;
@@ -52,6 +53,24 @@ use App\Http\Controllers\AIChatController;
 use App\Http\Controllers\PaymentController as ControllersPaymentController;
 use App\Http\Controllers\SalesAIController;
 
+Route::post('/webhook/sepay', [
+    SePayController::class,
+    'webhook'
+]);
+Route::get('/orders/{id}/payment-status', [
+    SePayController::class,
+    'paymentStatus'
+])->name('orders.payment.status');
+
+Route::get('/orders/{id}/payment', [CartController::class, 'payment'])
+    ->middleware(['web', 'auth:customer'])
+    ->name('orders.payment');
+Route::withoutMiddleware([
+    \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+])->post(
+    '/test-virtual-try-on',
+    [VirtualTryOnController::class, 'generate']
+);
 //                    errors
 Route::get('/errors/403', [
     ErrorController::class,
@@ -129,11 +148,10 @@ Route::post('/outfit/recommend', [
     'recommend'
 ])->name('outfit.recommend');
 Route::get('/get-districts/{city_id}', [CartController::class, 'getDistricts']);
-Route::get('/get-wards/{district_id}', [CartController::class, 'getWards']);
-Route::get('/get-wards/{city_id}', [CartController::class, 'getWards']);
+Route::get('/get-wards/{city_id}', [CartController::class, 'getWards'])
+    ->name('get.wards');
 
 Route::middleware('auth:customer')->group(function () {
-    Route::post('/cart/checkout', [CartController::class, 'checkout'])->name('cart.checkout');
     Route::get('/orders/success/{id}', [CartController::class, 'success'])->name('orders.success');
 });
 

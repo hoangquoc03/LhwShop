@@ -20,6 +20,11 @@ class HomeController extends Controller
 {
     public function index()
     {
+        /*
+    |--------------------------------------------------------------------------
+    | CATEGORY
+    |--------------------------------------------------------------------------
+    */
 
         $categories = ShopCategory::with([
             'suppliers',
@@ -30,22 +35,67 @@ class HomeController extends Controller
                     'category_id',
                     'supplier_id',
                     'is_featured',
-                    'is_new'
+                    'is_new',
+                    'created_at'
                 )
                     ->orderByDesc('created_at')
                     ->take(6);
             }
-        ])->get(['id', 'categories_text', 'description', 'image']);
-
+        ])
+            ->get([
+                'id',
+                'categories_code',
+                'categories_text',
+                'description',
+                'image'
+            ]);
 
         $category = $categories->first();
 
-        $suppliers = ShopSupplier::all(['id', 'supplier_text', 'image']);
+
+        /*
+    |--------------------------------------------------------------------------
+    | SUPPLIERS
+    |--------------------------------------------------------------------------
+    */
+
+        $suppliers = ShopSupplier::get([
+            'id',
+            'supplier_code',
+            'supplier_text',
+            'image'
+        ]);
+
+        $ImageCategories = ShopSupplier::get([
+            'image',
+            'supplier_text'
+        ]);
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | FEATURED PRODUCTS
+    |--------------------------------------------------------------------------
+    */
 
         $products = ShopProduct::where('is_featured', true)
-            ->orderBy('updated_at', 'desc')
+            ->orderByDesc('updated_at')
             ->take(6)
-            ->get(['id', 'product_name', 'image', 'short_description', 'is_featured', 'is_new']);
+            ->get([
+                'id',
+                'product_name',
+                'image',
+                'short_description',
+                'is_featured',
+                'is_new'
+            ]);
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | NEW PRODUCTS
+    |--------------------------------------------------------------------------
+    */
 
         $newProducts = ShopProduct::where('is_new', true)
             ->with([
@@ -55,6 +105,7 @@ class HomeController extends Controller
                 }
             ])
             ->withAvg('reviews', 'rating')
+            ->orderByDesc('created_at')
             ->get([
                 'id',
                 'product_name',
@@ -67,98 +118,305 @@ class HomeController extends Controller
             ]);
 
 
+        /*
+    |--------------------------------------------------------------------------
+    | FEATURED + NEW PRODUCTS
+    |--------------------------------------------------------------------------
+    */
+
         $featuredProducts = ShopProduct::where('is_featured', true)
             ->where('is_new', true)
+            ->with([
+                'discount',
+                'category'
+            ])
             ->withAvg('reviews', 'rating')
-            ->with('discount', 'category')
-            ->get(['id', 'product_name', 'image', 'short_description', 'is_featured', 'is_new', 'standard_cost', 'list_price']);
+            ->orderByDesc('updated_at')
+            ->get([
+                'id',
+                'product_name',
+                'image',
+                'short_description',
+                'is_featured',
+                'is_new',
+                'standard_cost',
+                'list_price',
+                'category_id'
+            ]);
 
-        $heroCategories = ShopCategory::all();
-        $ImageCategories = ShopSupplier::get(['image', 'supplier_text']);
 
-        $bestSellers = ShopOrderDetail::select('product_id', DB::raw('SUM(quantity) as total_sold'))
+        /*
+    |--------------------------------------------------------------------------
+    | HERO CATEGORIES
+    |--------------------------------------------------------------------------
+    */
+
+        $heroCategories = ShopCategory::get();
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | BEST SELLERS
+    |--------------------------------------------------------------------------
+    */
+
+        $bestSellers = ShopOrderDetail::select(
+            'product_id',
+            DB::raw('SUM(quantity) as total_sold')
+        )
             ->groupBy('product_id')
             ->orderByDesc('total_sold')
-            ->with(['product' => function ($q) {
-                $q->select('id', 'product_name', 'image', 'list_price', 'short_description', 'category_id')
-                    ->with('category:id,categories_text')
-                    ->with('discount') // ⚡ thêm discount
-                    ->withAvg('reviews', 'rating'); // ⚡ thêm rating trung bình
-            }])
-            ->take(8) // số lượng sp hiển thị
+            ->with([
+                'product' => function ($q) {
+                    $q->select(
+                        'id',
+                        'product_name',
+                        'image',
+                        'list_price',
+                        'short_description',
+                        'category_id'
+                    )
+                        ->with([
+                            'category:id,categories_text',
+                            'discount'
+                        ])
+                        ->withAvg('reviews', 'rating');
+                }
+            ])
+            ->take(8)
             ->get();
 
-        $ProductPost = ShopProductPost::all();
+
+        /*
+    |--------------------------------------------------------------------------
+    | POSTS
+    |--------------------------------------------------------------------------
+    */
+
+        $ProductPost = ShopPost::all();
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | SETTINGS
+    |--------------------------------------------------------------------------
+    */
 
         $settings = ShopSetting::all()->keyBy('key');
 
 
-        $watch = ShopProduct::with(['category', 'supplier'])
+        /*
+    |--------------------------------------------------------------------------
+    | CATEGORY PRODUCTS
+    |
+    | PKD  = Đồ nam
+    | TPN  = Đồ nữ
+    | DDD  = Trang sức
+    | DHTM = Đồng hồ
+    |--------------------------------------------------------------------------
+    */
+
+        // ĐỒ NAM
+        $doNam = ShopProduct::with([
+            'category',
+            'supplier'
+        ])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('category', function ($query) {
+                $query->where('categories_code', 'PKD');
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+
+        // ĐỒ NỮ
+        $doNu = ShopProduct::with([
+            'category',
+            'supplier'
+        ])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('category', function ($query) {
+                $query->where('categories_code', 'TPN');
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+
+        // TRANG SỨC
+        $trangSuc = ShopProduct::with([
+            'category',
+            'supplier'
+        ])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('category', function ($query) {
+                $query->where('categories_code', 'DDD');
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+
+        // ĐỒNG HỒ
+        $dongHo = ShopProduct::with([
+            'category',
+            'supplier'
+        ])
+            ->withAvg('reviews', 'rating')
             ->whereHas('category', function ($query) {
                 $query->where('categories_code', 'DHTM');
             })
+            ->orderByDesc('created_at')
             ->get();
 
-        $screen = ShopProduct::with(['category', 'supplier'])
-            ->withAvg('reviews', 'rating')
-            ->whereHas('category', function ($query) {
-                $query->where('categories_code', 'CPL');
-            })
-            ->get();
-        $bag = ShopProduct::with(['category', 'supplier'])
-            ->withAvg('reviews', 'rating')
-            ->whereHas('category', function ($query) {
-                $query->where('categories_code', 'LKTM');
-            })
-            ->get();
-        $outfit = ShopProduct::with(['category', 'supplier'])
-            ->withAvg('reviews', 'rating')
-            ->whereHas('category', function ($query) {
-                $query->where('categories_code', 'TP');
-            })
-            ->get();
-        $outfitNu = ShopProduct::with(['category', 'supplier'])
-            ->withAvg('reviews', 'rating')
-            ->whereHas('category', function ($query) {
-                $query->where('categories_code', 'PHONE');
-            })
-            ->get();
-        $screenIpad = ShopProduct::with(['category', 'supplier'])
-            ->whereHas('category', function ($query) {
-                $query->where('categories_code', 'MTB');
-            })
-            ->get();
-        $giay = ShopProduct::with(['category', 'supplier'])
-            ->whereHas('category', function ($query) {
-                $query->where('categories_code', 'LTVP');
-            })
-            ->get();
-        $post = ShopProductPost::select('id', 'image', 'title', 'content')
-            ->findOrFail(5);
 
+        /*
+    |--------------------------------------------------------------------------
+    | SUPPLIER PRODUCTS
+    |
+    | NCC1 = Quần
+    | NCC2 = Áo polo
+    | NCC3 = Áo sơ mi
+    | NCC4 = Giày
+    | NCC5 = Túi
+    | NCC6 = Áo khoác
+    |--------------------------------------------------------------------------
+    */
+
+        // QUẦN
+        $quan = ShopProduct::with([
+            'category',
+            'supplier'
+        ])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('supplier', function ($query) {
+                $query->where('supplier_code', 'NCC1');
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+
+        // ÁO POLO
+        $aoPolo = ShopProduct::with([
+            'category',
+            'supplier'
+        ])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('supplier', function ($query) {
+                $query->where('supplier_code', 'NCC2');
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+
+        // ÁO SƠ MI
+        $aoSoMi = ShopProduct::with([
+            'category',
+            'supplier'
+        ])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('supplier', function ($query) {
+                $query->where('supplier_code', 'NCC3');
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+
+        // GIÀY
+        $giay = ShopProduct::with([
+            'category',
+            'supplier'
+        ])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('supplier', function ($query) {
+                $query->where('supplier_code', 'NCC4');
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+
+        // TÚI
+        $bag = ShopProduct::with([
+            'category',
+            'supplier'
+        ])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('supplier', function ($query) {
+                $query->where('supplier_code', 'NCC5');
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+
+        // ÁO KHOÁC
+        $aoKhoac = ShopProduct::with([
+            'category',
+            'supplier'
+        ])
+            ->withAvg('reviews', 'rating')
+            ->whereHas('supplier', function ($query) {
+                $query->where('supplier_code', 'NCC6');
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | POST IMAGE
+    |--------------------------------------------------------------------------
+    */
+
+        $post = ShopProductPost::select([
+            'id',
+            'post_image',
+            'post_title',
+            'post_content'
+        ])
+            ->latest()
+            ->first();
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | RETURN VIEW
+    |--------------------------------------------------------------------------
+    */
 
         return view(
             'frontend.index',
             compact(
-                'outfitNu',
-                'post',
-                'outfit',
+                // CATEGORY
+                'doNam',
+                'doNu',
+                'trangSuc',
+                'dongHo',
+
+                // SUPPLIER
+                'quan',
+                'aoPolo',
+                'aoSoMi',
+                'giay',
                 'bag',
+                'aoKhoac',
+
+                // GENERAL
                 'categories',
+                'category',
                 'suppliers',
                 'ImageCategories',
-                'products',
                 'heroCategories',
+
+                // PRODUCTS
+                'products',
                 'newProducts',
-                'bestSellers',
-                'settings',
                 'featuredProducts',
-                'category',
-                'watch',
-                'screen',
-                'screenIpad',
-                'giay',
-                'ProductPost'
+                'bestSellers',
+
+                // POSTS
+                'post',
+                'ProductPost',
+
+                // SETTINGS
+                'settings'
             )
         );
     }

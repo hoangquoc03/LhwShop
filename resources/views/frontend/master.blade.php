@@ -138,10 +138,13 @@
     @yield('user.js')
 
     <div id="aiModal" class="ai-modal" style="display: none;">
+        <button id="openAiModal" class="btn btn-dark">
+            ✨ AI Gợi ý Outfit
+        </button>
         <div class="ai-modal-content">
 
             <div class="ai-header">
-                <h4>✨ AI Gợi ý Outfit</h4>
+
 
                 <span id="closeAiModal" style="cursor:pointer;">
                     &times;
@@ -163,32 +166,82 @@
 
         </div>
     </div>
+    <div class="modal fade" id="tryOnModal" tabindex="-1">
+
+        <div class="modal-dialog modal-lg">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <h5 class="modal-title">
+                        ✨ Phòng thử đồ AI
+                    </h5>
+
+                    <button class="btn-close" data-bs-dismiss="modal">
+                    </button>
+
+                </div>
+
+                <div class="modal-body">
+
+                    <p id="selectedProductName"></p>
+
+                    <input type="file" id="personImage" accept="image/*" class="form-control mb-3">
+
+                    <div id="tryOnLoading" class="text-center d-none">
+
+                        <div class="spinner-border text-dark"></div>
+
+                        <p class="mt-2">
+                            AI đang tạo ảnh...
+                        </p>
+
+                    </div>
+
+                    <img id="tryOnResult" class="img-fluid rounded d-none">
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button id="generateTryOn" class="btn btn-dark">
+
+                        Tạo ảnh mặc thử
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
 </body>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const navbar = document.getElementById('navbar');
-        const banner = document.querySelector('.top-banner');
-        const body = document.body;
+    document.addEventListener("DOMContentLoaded", function() {
+        const navbar = document.getElementById("navbar");
+        const banner = document.querySelector(".top-banner");
+
+        if (!navbar || !banner) return;
 
         let lastScroll = window.pageYOffset;
         let bannerHidden = false;
 
-        window.addEventListener('scroll', function() {
+        window.addEventListener("scroll", function() {
             const currentScroll = window.pageYOffset;
 
-            /* Ẩn banner khi rời top */
             if (currentScroll > 20 && !bannerHidden) {
-                banner.classList.add('hide-banner');
-                navbar.classList.add('banner-gone');
-                body.classList.add('banner-hidden');
+                banner.classList.add("hide-banner");
+                navbar.classList.add("banner-gone");
+                document.body.classList.add("banner-hidden");
                 bannerHidden = true;
             }
 
-            /* Navbar ẩn / hiện */
             if (currentScroll > lastScroll && currentScroll > 120) {
-                navbar.classList.add('navbar-hide');
+                navbar.classList.add("navbar-hide");
             } else {
-                navbar.classList.remove('navbar-hide');
+                navbar.classList.remove("navbar-hide");
             }
 
             lastScroll = currentScroll;
