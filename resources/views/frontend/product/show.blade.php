@@ -1131,9 +1131,9 @@
 
             <style>
                 /*
-             * 360 PRODUCT VIEWER
-             * Luôn nằm trên navbar/header
-             */
+                     * 360 PRODUCT VIEWER
+                     * Luôn nằm trên navbar/header
+                     */
 
                 #product360Modal {
                     z-index: 3000 !important;
@@ -1145,8 +1145,8 @@
 
 
                 /*
-             * MODAL RỘNG GẦN FULL MÀN HÌNH
-             */
+                     * MODAL RỘNG GẦN FULL MÀN HÌNH
+                     */
 
                 .modal-3d-wide {
                     width: 92vw;
@@ -1162,12 +1162,12 @@
 
 
                 /*
-             * KHUNG HIỂN THỊ 3D
-             */
+                     * KHUNG HIỂN THỊ 3D
+                     */
 
                 #product360Viewer {
                     width: 100%;
-                    height: 75vh !important;
+                    height: 85vh !important;
                     min-height: 600px;
                     max-height: 850px;
 
@@ -1181,8 +1181,8 @@
 
 
                 /*
-             * THREE.JS CANVAS
-             */
+                     * THREE.JS CANVAS
+                     */
 
                 #product360Viewer canvas {
                     display: block;
@@ -1202,8 +1202,8 @@
 
 
                 /*
-             * MOBILE
-             */
+                     * MOBILE
+                     */
 
                 @media (max-width: 768px) {
 
