@@ -780,67 +780,57 @@
 
         });
 </script>
-
 <script>
-    let selectedProductId = null;
+    let currentAiOutfit = null;
+    let selectedAvatar = null;
+
     document.addEventListener('DOMContentLoaded', function() {
 
         const modal = document.getElementById('aiModal');
+        const openButton = document.getElementById('openAiModal');
+        const closeButton = document.getElementById('closeAiModal');
+        const generateButton = document.getElementById('generateOutfit');
+        const promptInput = document.getElementById('outfitPrompt');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
 
-        const openButton =
-            document.getElementById('openAiModal');
+        /*
+         * =====================================================
+         * OPEN AI MODAL
+         * =====================================================
+         */
 
-        const closeButton =
-            document.getElementById('closeAiModal');
+        if (openButton) {
+            openButton.addEventListener('click', function() {
 
-        const generateButton =
-            document.getElementById('generateOutfit');
+                modal.style.display = 'block';
 
-        const promptInput =
-            document.getElementById('outfitPrompt');
-
-        const loading =
-            document.getElementById('loading');
-
-        const result =
-            document.getElementById('result');
+                if (promptInput) {
+                    promptInput.focus();
+                }
+            });
+        }
 
 
         /*
          * =====================================================
-         * OPEN MODAL
+         * CLOSE AI MODAL
          * =====================================================
          */
 
-        openButton.addEventListener('click', function() {
-
-            modal.style.display = 'block';
-            document.getElementById('personImage').value = '';
-            document.getElementById('tryOnResult').src = '';
-            document.getElementById('tryOnResult').classList.add('d-none');
-            document.getElementById('tryOnLoading').classList.add('d-none');
-            promptInput.focus();
-        });
-
-
-        /*
-         * =====================================================
-         * CLOSE MODAL
-         * =====================================================
-         */
-
-        closeButton.addEventListener('click', function() {
-
-            modal.style.display = 'none';
-        });
+        if (closeButton) {
+            closeButton.addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+        }
 
 
         window.addEventListener('click', function(event) {
 
             if (event.target === modal) {
-
                 modal.style.display = 'none';
             }
+
         });
 
 
@@ -850,380 +840,1283 @@
          * =====================================================
          */
 
-        generateButton.addEventListener(
-            'click',
-            async function() {
+        if (generateButton) {
 
-                const prompt =
-                    promptInput.value.trim();
+            generateButton.addEventListener(
+                'click',
+                async function() {
+
+                    const prompt =
+                        promptInput.value.trim();
+
+
+                    /*
+                     * Validate
+                     */
+
+                    if (!prompt) {
+
+                        result.innerHTML = `
+                            <div class="alert alert-warning">
+                                Vui lòng nhập yêu cầu outfit.
+                            </div>
+                        `;
+
+                        return;
+                    }
+
+
+                    /*
+                     * Loading
+                     */
+
+                    generateButton.disabled = true;
+
+                    loading.style.display = 'block';
+
+                    result.innerHTML = '';
+
+
+                    try {
+
+                        /*
+                         * =================================================
+                         * CSRF
+                         * =================================================
+                         */
+
+                        const csrfElement =
+                            document.querySelector(
+                                'meta[name="csrf-token"]'
+                            );
+
+
+                        if (!csrfElement) {
+
+                            throw new Error(
+                                'Không tìm thấy CSRF token.'
+                            );
+                        }
+
+
+                        const csrfToken =
+                            csrfElement.getAttribute('content');
+
+
+                        if (!csrfToken) {
+
+                            throw new Error(
+                                'CSRF token đang rỗng.'
+                            );
+                        }
+
+
+                        /*
+                         * =================================================
+                         * CALL AI
+                         * =================================================
+                         */
+
+                        const response = await fetch(
+                            "{{ route('outfit.recommend') }}", {
+                                method: 'POST',
+
+                                credentials: 'same-origin',
+
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': csrfToken,
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+
+                                body: JSON.stringify({
+                                    prompt: prompt
+                                })
+                            }
+                        );
+
+
+                        /*
+                         * =================================================
+                         * READ RESPONSE
+                         * =================================================
+                         */
+
+                        const contentType =
+                            response.headers.get('content-type') || '';
+
+
+                        let data;
+
+
+                        if (
+                            contentType.includes(
+                                'application/json'
+                            )
+                        ) {
+
+                            data = await response.json();
+
+                        } else {
+
+                            const text =
+                                await response.text();
+
+                            console.error(
+                                'Server response:',
+                                text
+                            );
+
+                            throw new Error(
+                                `Server trả về HTTP ${response.status}`
+                            );
+                        }
+
+
+                        console.log(
+                            'AI response:',
+                            data
+                        );
+
+
+                        /*
+                         * =================================================
+                         * HTTP ERROR
+                         * =================================================
+                         */
+
+                        if (!response.ok) {
+
+                            throw new Error(
+                                data.message ||
+                                `HTTP ${response.status}`
+                            );
+                        }
+
+
+                        /*
+                         * =================================================
+                         * BACKEND ERROR
+                         * =================================================
+                         */
+
+                        if (!data.success) {
+
+                            throw new Error(
+                                data.message ||
+                                'Không thể tạo outfit.'
+                            );
+                        }
+
+
+                        /*
+                         * =================================================
+                         * DATA
+                         * =================================================
+                         */
+
+                        const requirements =
+                            data.intent || {};
+
+                        const outfit =
+                            data.outfit || {};
+
+                        const items =
+                            outfit.products || [];
+
+
+                        /*
+                         * =================================================
+                         * FIND OUTFIT ITEMS
+                         * =================================================
+                         */
+
+                        const top =
+                            items.find(function(item) {
+
+                                const role =
+                                    String(
+                                        item.role || ''
+                                    ).toLowerCase();
+
+                                return (
+                                    role === 'áo' ||
+                                    role === 'top' ||
+                                    role === 'shirt' ||
+                                    role === 'outerwear'
+                                );
+
+                            }) || null;
+
+
+                        const bottom =
+                            items.find(function(item) {
+
+                                const role =
+                                    String(
+                                        item.role || ''
+                                    ).toLowerCase();
+
+                                return (
+                                    role === 'quần' ||
+                                    role === 'bottom' ||
+                                    role === 'pants'
+                                );
+
+                            }) || null;
+
+
+                        const shoes =
+                            items.find(function(item) {
+
+                                const role =
+                                    String(
+                                        item.role || ''
+                                    ).toLowerCase();
+
+                                return (
+                                    role === 'giày' ||
+                                    role === 'shoes'
+                                );
+
+                            }) || null;
+
+
+                        /*
+                         * =================================================
+                         * SAVE CURRENT AI OUTFIT
+                         * =================================================
+                         */
+
+                        currentAiOutfit = {
+
+                            outfit_name: outfit.outfit_name ||
+                                'Outfit AI đề xuất',
+
+                            style: outfit.style ||
+                                requirements.style ||
+                                '',
+
+                            occasion: outfit.occasion ||
+                                requirements.occasion ||
+                                '',
+
+                            explanation: outfit.explanation ||
+                                '',
+
+                            products: items,
+
+                            top: top,
+
+                            bottom: bottom,
+
+                            shoes: shoes
+                        };
+
+
+                        /*
+                         * Cho các script khác sử dụng
+                         */
+
+                        window.currentAiOutfit =
+                            currentAiOutfit;
+
+
+                        console.log(
+                            'Current AI outfit:',
+                            currentAiOutfit
+                        );
+
+
+                        /*
+                         * =================================================
+                         * FORMAT PRICE
+                         * =================================================
+                         */
+
+                        const formatPrice =
+                            function(price) {
+
+                                return new Intl.NumberFormat(
+                                    'vi-VN'
+                                ).format(
+                                    Number(price || 0)
+                                ) + ' ₫';
+
+                            };
+
+
+                        /*
+                         * =================================================
+                         * RENDER PRODUCTS
+                         * =================================================
+                         */
+
+                        let itemsHtml = '';
+
+                        let totalPrice = 0;
+
+
+                        items.forEach(function(product) {
+
+                            const productId =
+                                product.product_id ??
+                                product.id ??
+                                '';
+
+
+                            const productName =
+                                product.name ??
+                                product.product_name ??
+                                'Sản phẩm';
+
+
+                            const category =
+                                product.category ??
+                                '';
+
+
+                            const role =
+                                product.role ??
+                                '';
+
+
+                            const reason =
+                                product.reason ??
+                                '';
+
+
+                            const image =
+                                product.image ??
+                                '';
+
+
+                            const price =
+                                Number(
+                                    product.price ?? 0
+                                );
+
+
+                            totalPrice += price;
+
+
+                            console.log(
+                                'Render product:', {
+                                    id: productId,
+                                    name: productName,
+                                    category: category,
+                                    role: role,
+                                    price: price,
+                                    image: image
+                                }
+                            );
+
+
+                            /*
+                             * =================================================
+                             * PRODUCT CARD
+                             * =================================================
+                             */
+
+                            itemsHtml += `
+
+                                <div class="card mb-3 shadow-sm product-card border-0">
+
+                                    <div class="row g-0">
+
+                                        <div class="col-4">
+
+                                            ${
+                                                image
+                                                ? `
+                                                    <img
+                                                        src="${escapeHtml(image)}"
+                                                        alt="${escapeHtml(productName)}"
+                                                        class="img-fluid rounded-start"
+                                                        style="
+                                                            height:150px;
+                                                            width:100%;
+                                                            object-fit:cover;
+                                                        "
+                                                    >
+                                                `
+                                                : `
+                                                    <div
+                                                        class="d-flex align-items-center justify-content-center bg-light"
+                                                        style="
+                                                            height:150px;
+                                                            border-radius:8px 0 0 8px;
+                                                        "
+                                                    >
+                                                        Không có ảnh
+                                                    </div>
+                                                `
+                                            }
+
+                                        </div>
+
+
+                                        <div class="col-8">
+
+                                            <div class="card-body">
+
+                                                <h6 class="fw-bold mb-1">
+                                                    ${escapeHtml(productName)}
+                                                </h6>
+
+
+                                                <div class="text-muted small mb-2">
+                                                    ${escapeHtml(category)}
+                                                </div>
+
+
+                                                ${
+                                                    role
+                                                    ? `
+                                                        <span class="badge bg-dark mb-2">
+                                                            ${escapeHtml(role)}
+                                                        </span>
+                                                    `
+                                                    : ''
+                                                }
+
+
+                                                ${
+                                                    reason
+                                                    ? `
+                                                        <p class="small text-muted mb-2">
+                                                            ${escapeHtml(reason)}
+                                                        </p>
+                                                    `
+                                                    : ''
+                                                }
+
+
+                                                <strong class="text-danger d-block mb-3">
+                                                    ${formatPrice(price)}
+                                                </strong>
+
+
+                                                <div>
+
+                                                    <a
+                                                        href="/product/${encodeURIComponent(productId)}"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        class="btn btn-outline-dark btn-sm"
+                                                    >
+                                                        Xem chi tiết
+                                                    </a>
+
+                                                </div>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            `;
+                        });
+
+
+                        /*
+                         * =================================================
+                         * RENDER RESULT
+                         * =================================================
+                         */
+
+                        result.innerHTML = `
+
+                            <!-- AI SUMMARY -->
+
+                            <div class="alert alert-success border-0 shadow-sm">
+
+                                <h5 class="fw-bold mb-3">
+                                    ✨ ${escapeHtml(
+                                        outfit.outfit_name ||
+                                        'Gợi ý outfit'
+                                    )}
+                                </h5>
+
+                                <hr>
+
+                                <div class="small">
+
+                                    <p class="mb-2">
+                                        <strong>Giới tính:</strong>
+                                        ${escapeHtml(
+                                            requirements.gender || '-'
+                                        )}
+                                    </p>
+
+
+                                    <p class="mb-2">
+                                        <strong>Phong cách:</strong>
+                                        ${escapeHtml(
+                                            requirements.style || '-'
+                                        )}
+                                    </p>
+
+
+                                    <p class="mb-2">
+                                        <strong>Dịp:</strong>
+                                        ${escapeHtml(
+                                            requirements.occasion || '-'
+                                        )}
+                                    </p>
+
+
+                                    <p class="mb-2">
+                                        <strong>Thời tiết:</strong>
+                                        Không xác định
+                                    </p>
+
+                                </div>
+
+
+                                ${
+                                    outfit.explanation
+                                    ? `
+                                        <div class="mt-3 pt-3 border-top">
+
+                                            <strong>
+                                                ✨ AI nhận xét
+                                            </strong>
+
+                                            <div class="small mt-2">
+                                                ${escapeHtml(
+                                                    outfit.explanation
+                                                )}
+                                            </div>
+
+                                        </div>
+                                    `
+                                    : ''
+                                }
+
+                            </div>
+
+
+                            <!-- PRODUCTS -->
+
+                            <div class="mb-3">
+
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+
+                                    <h5 class="fw-bold mb-0">
+                                        🛍 Sản phẩm đề xuất
+                                    </h5>
+
+                                    <span class="badge bg-light text-dark">
+                                        ${items.length} sản phẩm
+                                    </span>
+
+                                </div>
+
+
+                                ${
+                                    itemsHtml ||
+                                    `
+                                        <div class="alert alert-warning">
+                                            AI chưa tìm được sản phẩm phù hợp.
+                                        </div>
+                                    `
+                                }
+
+                            </div>
+
+
+                            <!-- TOTAL -->
+
+                            <div class="alert alert-light border shadow-sm">
+
+                                <div class="d-flex justify-content-between align-items-center">
+
+                                    <strong>
+                                        Tổng outfit
+                                    </strong>
+
+                                    <strong class="text-danger fs-5">
+                                        ${formatPrice(totalPrice)}
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- TRY WHOLE OUTFIT -->
+
+                            ${
+                                items.length > 0
+                                ? `
+                                    <div class="mt-4 pt-3 border-top text-center">
+
+                                        <button
+                                            type="button"
+                                            id="tryWholeOutfitBtn"
+                                            class="btn btn-dark btn-lg px-4 w-100"
+                                        >
+                                            🪞 Mặc thử cả Outfit
+                                        </button>
+
+
+                                        <div class="small text-muted mt-2">
+                                            Thử toàn bộ outfit AI trên Avatar 3D
+                                        </div>
+
+                                    </div>
+                                `
+                                : ''
+                            }
+
+                        `;
+
+
+                    } catch (error) {
+
+                        console.error(
+                            'Outfit error:',
+                            error
+                        );
+
+
+                        result.innerHTML = `
+
+                            <div class="alert alert-danger">
+
+                                <strong>
+                                    Không thể tạo outfit
+                                </strong>
+
+                                <div class="mt-2">
+                                    ${escapeHtml(
+                                        error.message ||
+                                        'Có lỗi xảy ra.'
+                                    )}
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    } finally {
+
+                        loading.style.display = 'none';
+
+                        generateButton.disabled = false;
+                    }
+
+                }
+            );
+
+        }
+
+
+        /*
+         * =====================================================
+         * MẶC THỬ CẢ OUTFIT
+         * =====================================================
+         *
+         * Vì nút này được tạo bằng innerHTML,
+         * dùng event delegation.
+         */
+
+        // document.addEventListener('click', function(e) {
+
+        //     const button =
+        //         e.target.closest(
+        //             '#tryWholeOutfitBtn'
+        //         );
+
+
+        //     if (!button) {
+        //         return;
+        //     }
+
+
+        //     /*
+        //      * Kiểm tra outfit
+        //      */
+
+        //     if (
+        //         !currentAiOutfit ||
+        //         !currentAiOutfit.products ||
+        //         currentAiOutfit.products.length === 0
+        //     ) {
+
+        //         alert(
+        //             'Chưa có outfit để thử.'
+        //         );
+
+        //         return;
+        //     }
+
+
+        //     console.log(
+        //         'Mặc thử outfit:',
+        //         currentAiOutfit
+        //     );
+
+
+        //     /*
+        //      * Cập nhật preview
+        //      */
+
+        //     updateSelectedOutfitPreview();
+
+
+        //     /*
+        //      * Mở modal chọn Avatar
+        //      */
+
+        //     const avatarModalElement =
+        //         document.getElementById(
+        //             'avatarSelectModal'
+        //         );
+
+
+        //     if (!avatarModalElement) {
+
+        //         alert(
+        //             'Chưa có giao diện chọn Avatar.'
+        //         );
+
+        //         return;
+        //     }
+
+
+        //     const avatarModal =
+        //         bootstrap.Modal.getOrCreateInstance(
+        //             avatarModalElement
+        //         );
+
+
+        //     avatarModal.show();
+
+        // });
+
+
+        document.addEventListener('click', function(e) {
+
+            const button =
+                e.target.closest('#tryWholeOutfitBtn');
+
+            if (!button) {
+                return;
+            }
+
+            console.log('CLICK MẶC THỬ CẢ OUTFIT');
+
+            const outfit =
+                window.currentAiOutfit;
+
+            if (
+                !outfit ||
+                !outfit.products ||
+                outfit.products.length === 0
+            ) {
+                alert('Chưa có outfit để thử.');
+                return;
+            }
+
+            /*
+             * Hiển thị outfit
+             */
+
+            updateSelectedOutfitPreview();
+
+
+            /*
+             * Đóng AI modal
+             */
+
+            const aiModal =
+                document.getElementById('aiModal');
+
+            if (aiModal) {
+                aiModal.style.display = 'none';
+            }
+
+
+            /*
+             * Mở Avatar Modal
+             */
+
+            const avatarModal =
+                document.getElementById('avatarSelectModal');
+
+            if (!avatarModal) {
+
+                console.error(
+                    'Không tìm thấy #avatarSelectModal'
+                );
+
+                return;
+            }
+
+            avatarModal.style.display = 'flex';
+
+            console.log(
+                'Đã mở Avatar Modal'
+            );
+
+        });
+
+
+        /*
+         * =====================================================
+         * CHỌN AVATAR
+         * =====================================================
+         */
+
+        document.addEventListener('click', function(e) {
+
+            const avatarOption =
+                e.target.closest('.avatar-option');
+
+            if (!avatarOption) {
+                return;
+            }
+
+
+            /*
+             * Bỏ selected cũ
+             */
+
+            document
+                .querySelectorAll('.avatar-option')
+                .forEach(function(item) {
+
+                    item.classList.remove('selected');
+
+                });
+
+
+            /*
+             * Chọn avatar
+             */
+
+            avatarOption.classList.add('selected');
+
+
+            selectedAvatar = {
+
+                type: avatarOption.dataset.avatar,
+
+                model: avatarOption.dataset.model
+
+            };
+
+
+            console.log(
+                'Avatar đã chọn:',
+                selectedAvatar
+            );
+
+
+            /*
+             * Enable button
+             */
+
+            const button =
+                document.getElementById(
+                    'continueToFitting'
+                );
+
+            if (button) {
+                button.disabled = false;
+            }
+
+        });
+        document
+            .getElementById('closeAvatarModal')
+            .addEventListener('click', function() {
+
+                document
+                    .getElementById('avatarSelectModal')
+                    .style.display = 'none';
+
+            });
+
+
+        document
+            .getElementById('cancelAvatarModal')
+            .addEventListener('click', function() {
+
+                document
+                    .getElementById('avatarSelectModal')
+                    .style.display = 'none';
+
+            });
+        document
+            .getElementById('continueToFitting')
+            .addEventListener('click', function() {
+
+                if (!selectedAvatar) {
+
+                    alert(
+                        'Vui lòng chọn Avatar.'
+                    );
+
+                    return;
+                }
+
+
+                const outfit =
+                    window.currentAiOutfit;
+
+
+                if (!outfit) {
+
+                    alert(
+                        'Không tìm thấy outfit.'
+                    );
+
+                    return;
+                }
+
+
+                console.log(
+                    'Avatar:',
+                    selectedAvatar
+                );
+
+                console.log(
+                    'Outfit:',
+                    outfit
+                );
 
 
                 /*
-                 * Validate
+                 * Đóng Avatar modal
                  */
 
-                if (!prompt) {
+                document
+                    .getElementById('avatarSelectModal')
+                    .style.display = 'none';
 
-                    result.innerHTML = `
-                    <div class="alert alert-warning">
-                        Vui lòng nhập yêu cầu outfit.
-                    </div>
-                `;
+
+                /*
+                 * Mở phòng thử đồ 3D
+                 */
+
+                const fittingModal =
+                    document.getElementById(
+                        'fittingRoomModal'
+                    );
+
+
+                if (!fittingModal) {
+
+                    alert(
+                        'Không tìm thấy phòng thử đồ 3D.'
+                    );
 
                     return;
                 }
 
 
                 /*
-                 * Loading
+                 * Nếu phòng 3D của bạn
+                 * vẫn đang dùng Bootstrap
                  */
 
-                generateButton.disabled = true;
+                if (
+                    typeof bootstrap !== 'undefined' &&
+                    bootstrap.Modal
+                ) {
 
-                loading.style.display = 'block';
-
-                result.innerHTML = '';
-
-
-                try {
-
-                    /*
-                     * CSRF token
-                     */
-
-                    const csrfElement =
-                        document.querySelector(
-                            'meta[name="csrf-token"]'
+                    const modal =
+                        bootstrap.Modal.getOrCreateInstance(
+                            fittingModal
                         );
 
-                    if (!csrfElement) {
+                    modal.show();
 
-                        throw new Error(
-                            'Không tìm thấy CSRF token.'
-                        );
-                    }
-
-                    const csrfToken =
-                        csrfElement.getAttribute('content');
-
-
-                    if (!csrfToken) {
-
-                        throw new Error(
-                            'CSRF token đang rỗng.'
-                        );
-                    }
-
+                } else {
 
                     /*
-                     * POST /outfit/recommend
+                     * fallback
                      */
 
-                    const response = await fetch(
-                        "{{ route('outfit.recommend') }}", {
-                            method: 'POST',
+                    fittingModal.style.display = 'block';
 
-                            credentials: 'same-origin',
-
-                            headers: {
-
-                                'Content-Type': 'application/json',
-
-                                'Accept': 'application/json',
-
-                                'X-CSRF-TOKEN': csrfToken,
-
-                                'X-Requested-With': 'XMLHttpRequest'
-                            },
-
-                            body: JSON.stringify({
-
-                                /*
-                                 * Controller validate "prompt"
-                                 */
-                                prompt: prompt
-                            })
-                        }
-                    );
+                }
 
 
-                    /*
-                     * Đọc response an toàn
-                     */
+                /*
+                 * Load outfit
+                 */
 
-                    const contentType =
-                        response.headers.get(
-                            'content-type'
-                        ) || '';
-
-
-                    let data;
-
+                setTimeout(function() {
 
                     if (
-                        contentType.includes(
-                            'application/json'
-                        )
+                        window.LHWFittingRoom &&
+                        typeof window.LHWFittingRoom.open ===
+                        'function'
                     ) {
 
-                        data =
-                            await response.json();
-
-                    } else {
-
-                        const text =
-                            await response.text();
-
-                        console.error(
-                            'Server response:',
-                            text
+                        window.LHWFittingRoom.open(
+                            outfit
                         );
 
-                        throw new Error(
-                            `Server trả về HTTP ${response.status}`
+                    }
+
+                }, 400);
+
+            });
+
+
+        /*
+         * =====================================================
+         * TIẾP TỤC → PHÒNG THỬ ĐỒ
+         * =====================================================
+         */
+
+        const continueButton =
+            document.getElementById(
+                'continueToFitting'
+            );
+
+
+        if (continueButton) {
+
+            continueButton.addEventListener(
+                'click',
+                function() {
+
+                    /*
+                     * Validate avatar
+                     */
+
+                    if (!selectedAvatar) {
+
+                        alert(
+                            'Vui lòng chọn Avatar trước.'
                         );
+
+                        return;
+                    }
+
+
+                    /*
+                     * Validate outfit
+                     */
+
+                    if (
+                        !currentAiOutfit ||
+                        !currentAiOutfit.products ||
+                        currentAiOutfit.products.length === 0
+                    ) {
+
+                        alert(
+                            'Chưa có outfit để thử.'
+                        );
+
+                        return;
                     }
 
 
                     console.log(
-                        'AI response:',
-                        data
+                        'Selected avatar:',
+                        selectedAvatar
+                    );
+
+
+                    console.log(
+                        'Selected outfit:',
+                        currentAiOutfit
                     );
 
 
                     /*
-                     * HTTP error
+                     * Đóng Avatar modal
                      */
 
-                    if (!response.ok) {
-
-                        throw new Error(
-                            data.message ||
-                            `HTTP ${response.status}`
+                    const avatarModalElement =
+                        document.getElementById(
+                            'avatarSelectModal'
                         );
+
+
+                    const avatarModal =
+                        bootstrap.Modal.getInstance(
+                            avatarModalElement
+                        );
+
+
+                    if (avatarModal) {
+                        avatarModal.hide();
                     }
 
 
                     /*
-                     * Backend error
+                     * Mở phòng thử đồ 3D
                      */
 
-                    if (!data.success) {
-
-                        throw new Error(
-                            data.message ||
-                            'Không thể tạo outfit.'
+                    const fittingModalElement =
+                        document.getElementById(
+                            'fittingRoomModal'
                         );
+
+
+                    if (!fittingModalElement) {
+
+                        alert(
+                            'Không tìm thấy phòng thử đồ 3D.'
+                        );
+
+                        return;
                     }
 
 
-                    /*
-                     * Data
-                     */
-
-                    const requirements = data.intent || {};
-                    const outfit = data.outfit || {};
-                    const items = outfit.products || [];
-
-
-                    /*
-                     * Format tiền
-                     */
-
-                    const formatPrice =
-                        function(price) {
-
-                            return new Intl.NumberFormat(
-                                'vi-VN'
-                            ).format(
-                                Number(price || 0)
-                            ) + ' ₫';
-                        };
-
-
-                    /*
-                     * Render products
-                     */
-
-                    let itemsHtml = '';
-                    let totalPrice = 0;
-
-                    items.forEach(function(product) {
-                        const productId = product.product_id ?? product.id;
-
-                        console.log('Sản phẩm đề xuất:', product);
-                        console.log('ID:', productId);
-                        console.log(
-                            'URL:',
-                            "{{ url('/product') }}/" + productId
+                    const fittingModal =
+                        bootstrap.Modal.getOrCreateInstance(
+                            fittingModalElement
                         );
-                        totalPrice += Number(product.price || 0);
 
-                        itemsHtml += `
-<div class="card mb-3 shadow-sm product-card">
 
-    <div class="row g-0">
-
-        <div class="col-4">
-            ${
-                product.image
-                ? `<img src="${product.image}"
-                       class="img-fluid rounded-start"
-                       style="height:120px;width:100%;object-fit:cover;">`
-                : ''
-            }
-        </div>
-
-        <div class="col-8">
-
-            <div class="card-body">
-
-                <h6>${escapeHtml(product.name)}</h6>
-
-                <div class="text-muted mb-1">
-                    ${escapeHtml(product.category)}
-                </div>
-
-                <span class="badge bg-dark mb-2">
-                    ${escapeHtml(product.role)}
-                </span>
-
-                <p class="small mb-2">
-                    ${escapeHtml(product.reason)}
-                </p>
-
-                <strong class="text-danger d-block mb-3">
-                    ${formatPrice(product.price)}
-                </strong>
-
-                <div class="d-flex gap-2">
-
-                    <a href="/product/${productId}"
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       class="btn btn-outline-dark btn-sm">
-
-                        Xem chi tiết
-                    </a>
-
-                    <button
-                        class="btn btn-dark btn-sm try-on-btn"
-                        data-id="${productId}"
-                        data-name="${escapeHtml(product.name)}"
-                        data-image="${product.image || ''}">
-
-                        ✨ Mặc thử AI
-                    </button>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
-`;
-                    });
+                    fittingModal.show();
 
 
                     /*
-                     * Render result
+                     * Load outfit vào Three.js
                      */
 
-                    result.innerHTML = `
+                    setTimeout(function() {
 
-<div class="alert alert-success">
+                        if (
+                            window.LHWFittingRoom &&
+                            typeof window.LHWFittingRoom.open ===
+                            'function'
+                        ) {
 
-    <h5>✨ Gợi ý outfit</h5>
+                            window.LHWFittingRoom.open(
+                                currentAiOutfit
+                            );
 
-    <hr>
+                        } else {
 
-    <p><strong>Giới tính:</strong> ${escapeHtml(requirements.gender || '-')}</p>
+                            console.error(
+                                'LHWFittingRoom chưa được khởi tạo.'
+                            );
 
-    <p><strong>Phong cách:</strong> ${escapeHtml(requirements.style || '-')}</p>
+                        }
 
-    <p><strong>Dịp:</strong> ${escapeHtml(requirements.occasion || '-')}</p>
+                    }, 400);
 
-    <p><strong>Thời tiết:</strong> Không xác định</p>
-
-    <p><strong>Ngân sách:</strong> ${formatPrice(totalPrice)}</p>
-
-</div>
-
-<div class="mb-3">
-
-    <h5>🛍 Sản phẩm đề xuất</h5>
-
-    ${itemsHtml}
-
-</div>
-
-<div class="alert alert-info">
-
-    <strong>Tổng outfit:</strong>
-
-    ${formatPrice(totalPrice)}
-
-</div>
-
-`;
-
-
-                } catch (error) {
-
-                    console.error(
-                        'Outfit error:',
-                        error
-                    );
-
-
-                    result.innerHTML = `
-
-                    <div class="alert alert-danger">
-
-                        <strong>
-                            Không thể tạo outfit
-                        </strong>
-
-                        <div class="mt-2">
-                            ${escapeHtml(
-                                error.message
-                                || 'Có lỗi xảy ra.'
-                            )}
-                        </div>
-
-                    </div>
-
-                `;
-
-                } finally {
-
-                    loading.style.display = 'none';
-
-                    generateButton.disabled = false;
                 }
-            }
-        );
-
-
-        document.addEventListener('click', function(e) {
-
-            if (!e.target.classList.contains('try-on-btn')) return;
-
-            selectedProductId = e.target.dataset.id;
-
-            document.getElementById('selectedProductName').innerHTML =
-                "<strong>Sản phẩm:</strong> " + e.target.dataset.name;
-
-            const modal = new bootstrap.Modal(
-                document.getElementById('tryOnModal')
             );
 
-            modal.show();
+        }
 
-        });
+
+        /*
+         * =====================================================
+         * UPDATE OUTFIT PREVIEW
+         * =====================================================
+         */
+
+        function updateSelectedOutfitPreview() {
+
+            const element =
+                document.getElementById(
+                    'selectedAvatarOutfit'
+                );
+
+
+            if (!element) {
+                return;
+            }
+
+
+            if (!currentAiOutfit) {
+
+                element.innerHTML =
+                    'Chưa có outfit.';
+
+                return;
+            }
+
+
+            const names = [];
+
+
+            if (currentAiOutfit.top) {
+
+                const name =
+                    currentAiOutfit.top.name ||
+                    currentAiOutfit.top.product_name ||
+                    currentAiOutfit.top.product_code ||
+                    'Áo';
+
+                names.push(
+                    `👕 ${escapeHtml(name)}`
+                );
+
+            }
+
+
+            if (currentAiOutfit.bottom) {
+
+                const name =
+                    currentAiOutfit.bottom.name ||
+                    currentAiOutfit.bottom.product_name ||
+                    currentAiOutfit.bottom.product_code ||
+                    'Quần';
+
+                names.push(
+                    `👖 ${escapeHtml(name)}`
+                );
+
+            }
+
+
+            if (currentAiOutfit.shoes) {
+
+                const name =
+                    currentAiOutfit.shoes.name ||
+                    currentAiOutfit.shoes.product_name ||
+                    currentAiOutfit.shoes.product_code ||
+                    'Giày';
+
+                names.push(
+                    `👟 ${escapeHtml(name)}`
+                );
+
+            }
+
+
+            if (names.length === 0) {
+
+                currentAiOutfit.products.forEach(
+                    function(product) {
+
+                        const name =
+                            product.name ||
+                            product.product_name ||
+                            product.product_code ||
+                            'Sản phẩm';
+
+                        names.push(
+                            `• ${escapeHtml(name)}`
+                        );
+
+                    }
+                );
+
+            }
+
+
+            element.innerHTML =
+                names.join('<br>');
+
+        }
 
 
         /*
@@ -1240,8 +2133,15 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+
         }
 
+
+        /*
+         * =====================================================
+         * ITEM NAME
+         * =====================================================
+         */
 
         function getItemName(type) {
 
@@ -1260,10 +2160,12 @@
                 accessory: '💍 Phụ kiện',
 
                 outerwear: '🧥 Áo khoác'
+
             };
 
 
             return names[type] || type;
+
         }
 
     });

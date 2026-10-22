@@ -165,17 +165,36 @@ PROMPT;
 
                     'options' => [
                         'temperature' => 0,
-                        'num_predict' => 60,
+                        'num_predict' => 150,
                     ],
 
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' =>
-                            'Trích xuất intent thời trang. ' .
-                                'Chỉ JSON: gender, style, occasion, items, colors. ' .
-                                'gender chỉ nam, nữ, unisex. ' .
-                                'Không giải thích.'
+                            'content' => <<<'PROMPT'
+Bạn là hệ thống phân tích intent thời trang.
+
+Chỉ trả về JSON hợp lệ, không markdown, không giải thích.
+
+Format bắt buộc:
+{
+  "gender": "nam",
+  "style": "casual",
+  "occasion": "đi học",
+  "items": ["áo", "quần", "giày"],
+  "colors": ["đen", "trắng"]
+}
+
+Quy tắc:
+- gender chỉ được là: nam, nữ, unisex.
+- style là phong cách thời trang nếu người dùng có yêu cầu.
+- occasion là hoàn cảnh sử dụng nếu người dùng có yêu cầu.
+- items chỉ chứa loại sản phẩm người dùng yêu cầu.
+- items nên dùng các từ ngắn như: áo, quần, váy, đầm, giày, túi, phụ kiện.
+- colors chỉ chứa màu sắc được người dùng yêu cầu.
+- Nếu không có thông tin thì dùng chuỗi rỗng "" hoặc mảng [].
+- Không thêm bất kỳ field nào khác.
+PROMPT
                         ],
                         [
                             'role' => 'user',
@@ -195,6 +214,12 @@ PROMPT;
         }
 
         $content = $response->json('message.content');
+
+        if (!$content) {
+            throw new \RuntimeException(
+                'Ollama không trả về nội dung Intent.'
+            );
+        }
 
         $intent = json_decode($content, true);
 

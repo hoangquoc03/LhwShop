@@ -62,6 +62,12 @@ Route::get('/orders/{id}/payment-status', [
     'paymentStatus'
 ])->name('orders.payment.status');
 
+Route::view('/fitting-room', 'fitting-room')
+    ->name('fitting-room');
+
+Route::view('/glb-inspector', 'glb-inspector')
+    ->name('glb-inspector');
+
 Route::get('/orders/{id}/payment', [CartController::class, 'payment'])
     ->middleware(['web', 'auth:customer'])
     ->name('orders.payment');
@@ -154,7 +160,7 @@ Route::get('/get-wards/{city_id}', [CartController::class, 'getWards'])
 Route::middleware('auth:customer')->group(function () {
     Route::get('/orders/success/{id}', [CartController::class, 'success'])->name('orders.success');
 });
-
+Route::view('/avatar-preview', 'avatar-preview');
 Route::get('/checkout', [CartController::class, 'create'])
     ->name('orders.create')
     ->middleware('auth:customer');

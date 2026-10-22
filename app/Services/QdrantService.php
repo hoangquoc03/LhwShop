@@ -11,18 +11,30 @@ class QdrantService
 
     public function __construct()
     {
-        $this->url = rtrim(config('services.qdrant.url'), '/');
-        $this->collection = config('services.qdrant.collection');
+        $this->url = rtrim(
+            (string) config('services.qdrant.url'),
+            '/'
+        );
+
+        $this->collection = (string) config(
+            'services.qdrant.collection'
+        );
     }
 
     /**
-     * Thêm hoặc cập nhật product vào Qdrant.
+     * Thêm hoặc cập nhật một product vào Qdrant.
      */
     public function upsert(
         int $id,
         array $vector,
         array $payload = []
     ): array {
+        if (empty($vector)) {
+            throw new \InvalidArgumentException(
+                'Qdrant vector không được rỗng.'
+            );
+        }
+
         $response = Http::timeout(30)
             ->put(
                 "{$this->url}/collections/{$this->collection}/points?wait=true",
@@ -57,6 +69,14 @@ class QdrantService
         int $limit = 5,
         ?array $filter = null
     ): array {
+        if (empty($vector)) {
+            throw new \InvalidArgumentException(
+                'Qdrant search vector không được rỗng.'
+            );
+        }
+
+        $limit = max(1, min($limit, 100));
+
         $body = [
             'vector' => $vector,
             'limit' => $limit,
@@ -109,25 +129,24 @@ class QdrantService
 
         return $response->json();
     }
+
+    /**
+     * Tìm product theo intent.
+     *
+     * Nam  -> chỉ lấy Đồ Nam
+     * Nữ   -> chỉ lấy Đồ Nữ
+     * Unisex -> lấy tất cả
+     */
     public function searchByIntent(
         array $vector,
-        int $limit = 10,
+        int $limit = 50,
         ?string $gender = null
     ): array {
-        $filter = null;
+        $gender = mb_strtolower(
+            trim((string) $gender)
+        );
 
-        if ($gender === 'nữ') {
-            $filter = [
-                'must' => [
-                    [
-                        'key' => 'category',
-                        'match' => [
-                            'value' => 'Đồ Nữ',
-                        ],
-                    ],
-                ],
-            ];
-        }
+        $filter = null;
 
         if ($gender === 'nam') {
             $filter = [
@@ -142,10 +161,23 @@ class QdrantService
             ];
         }
 
+        if ($gender === 'nữ') {
+            $filter = [
+                'must' => [
+                    [
+                        'key' => 'category',
+                        'match' => [
+                            'value' => 'Đồ Nữ',
+                        ],
+                    ],
+                ],
+            ];
+        }
+
         return $this->search(
-            $vector,
-            $limit,
-            $filter
+            vector: $vector,
+            limit: $limit,
+            filter: $filter
         );
     }
 }

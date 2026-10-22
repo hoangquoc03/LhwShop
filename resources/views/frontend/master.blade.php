@@ -166,48 +166,289 @@
 
         </div>
     </div>
-    <div class="modal fade" id="tryOnModal" tabindex="-1">
 
-        <div class="modal-dialog modal-lg">
 
-            <div class="modal-content">
+    <div id="avatarSelectModal" class="avatar-modal" style="display:none;">
+
+        <div class="avatar-modal-overlay"></div>
+
+        <div class="avatar-modal-content">
+
+            <div class="avatar-modal-header">
+
+                <div>
+                    <h5 class="fw-bold mb-1">
+                        🧍 Chọn Avatar
+                    </h5>
+
+                    <small class="text-muted">
+                        Chọn avatar để thử outfit AI
+                    </small>
+                </div>
+
+                <button type="button" id="closeAvatarModal" class="btn-close">
+                </button>
+
+            </div>
+
+
+            <div class="avatar-modal-body">
+
+                <div class="text-center mb-4">
+
+                    <div class="fw-semibold">
+                        Bạn muốn thử outfit trên avatar nào?
+                    </div>
+
+                    <div class="small text-muted mt-1">
+                        Chọn avatar để tiếp tục vào phòng thử đồ 3D.
+                    </div>
+
+                </div>
+
+
+                <div class="row g-3">
+
+                    <!-- AVATAR NAM -->
+
+                    <div class="col-6">
+
+                        <div class="avatar-option" data-avatar="male" data-model="/models/avatar/avatar.glb">
+
+                            <div class="avatar-preview">
+                                <div class="avatar-placeholder">
+                                    👨
+                                </div>
+                            </div>
+
+                            <div class="text-center mt-3">
+
+                                <div class="fw-bold">
+                                    Avatar Nam
+                                </div>
+
+                                <small class="text-muted">
+                                    Dáng nam
+                                </small>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- AVATAR NỮ -->
+
+                    <div class="col-6">
+
+                        <div class="avatar-option" data-avatar="female" data-model="/models/avatar/avatar.glb">
+
+                            <div class="avatar-preview">
+                                <div class="avatar-placeholder">
+                                    👩
+                                </div>
+                            </div>
+
+                            <div class="text-center mt-3">
+
+                                <div class="fw-bold">
+                                    Avatar Nữ
+                                </div>
+
+                                <small class="text-muted">
+                                    Dáng nữ
+                                </small>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- OUTFIT -->
+
+                <div class="mt-4 p-3"
+                    style="
+                    background:#f8f8f8;
+                    border-radius:12px;
+                 ">
+
+                    <div class="fw-bold mb-2">
+                        👗 Outfit sẽ thử
+                    </div>
+
+                    <div id="selectedAvatarOutfit" class="small text-muted">
+                        Chưa chọn outfit
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="avatar-modal-footer">
+
+                <button type="button" id="cancelAvatarModal" class="btn btn-light">
+                    Hủy
+                </button>
+
+                <button type="button" id="continueToFitting" class="btn btn-dark" disabled>
+                    Tiếp tục →
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+    <div class="modal fade" id="avatarSelectModal" tabindex="-1" aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered">
+
+            <div class="modal-content border-0 shadow-lg" style="border-radius:18px; overflow:hidden;">
+
+                <!-- HEADER -->
 
                 <div class="modal-header">
 
-                    <h5 class="modal-title">
-                        ✨ Phòng thử đồ AI
-                    </h5>
+                    <div>
 
-                    <button class="btn-close" data-bs-dismiss="modal">
+                        <h5 class="modal-title fw-bold mb-1">
+                            🧍 Chọn Avatar
+                        </h5>
+
+                        <small class="text-muted">
+                            Chọn avatar để thử outfit AI
+                        </small>
+
+                    </div>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal">
                     </button>
 
                 </div>
 
+
+                <!-- BODY -->
+
                 <div class="modal-body">
 
-                    <p id="selectedProductName"></p>
+                    <div class="text-center mb-4">
 
-                    <input type="file" id="personImage" accept="image/*" class="form-control mb-3">
+                        <div class="fw-semibold">
+                            Bạn muốn thử outfit trên avatar nào?
+                        </div>
 
-                    <div id="tryOnLoading" class="text-center d-none">
-
-                        <div class="spinner-border text-dark"></div>
-
-                        <p class="mt-2">
-                            AI đang tạo ảnh...
-                        </p>
+                        <div class="small text-muted mt-1">
+                            Sau khi chọn avatar, hệ thống sẽ mở phòng thử đồ 3D.
+                        </div>
 
                     </div>
 
-                    <img id="tryOnResult" class="img-fluid rounded d-none">
+
+                    <!-- AVATAR -->
+
+                    <div class="row g-3">
+
+                        <!-- NAM -->
+
+                        <div class="col-6">
+
+                            <div class="avatar-option" data-avatar="male" data-model="/models/avatar/avatar.glb">
+
+                                <div class="avatar-preview">
+
+                                    <div class="avatar-placeholder">
+                                        👨
+                                    </div>
+
+                                </div>
+
+                                <div class="text-center mt-3">
+
+                                    <div class="fw-bold">
+                                        Avatar Nam
+                                    </div>
+
+                                    <small class="text-muted">
+                                        Dáng nam
+                                    </small>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- NỮ -->
+
+                        <div class="col-6">
+
+                            <div class="avatar-option" data-avatar="female" data-model="/models/avatar/avatar.glb">
+
+                                <div class="avatar-preview">
+
+                                    <div class="avatar-placeholder">
+                                        👩
+                                    </div>
+
+                                </div>
+
+                                <div class="text-center mt-3">
+
+                                    <div class="fw-bold">
+                                        Avatar Nữ
+                                    </div>
+
+                                    <small class="text-muted">
+                                        Dáng nữ
+                                    </small>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- OUTFIT -->
+
+                    <div class="mt-4 p-3"
+                        style="
+                        background:#f8f8f8;
+                        border-radius:12px;
+                     ">
+
+                        <div class="fw-bold mb-2">
+                            👗 Outfit sẽ thử
+                        </div>
+
+                        <div id="selectedAvatarOutfit" class="small text-muted">
+                            Chưa chọn outfit
+                        </div>
+
+                    </div>
 
                 </div>
 
+
+                <!-- FOOTER -->
+
                 <div class="modal-footer">
 
-                    <button id="generateTryOn" class="btn btn-dark">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                        Hủy
+                    </button>
 
-                        Tạo ảnh mặc thử
+                    <button type="button" id="continueToFitting" class="btn btn-dark" disabled>
+                        Tiếp tục →
                     </button>
 
                 </div>
@@ -217,6 +458,93 @@
         </div>
 
     </div>
+
+
+
+    <style>
+        .avatar-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .avatar-modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, .55);
+        }
+
+        .avatar-modal-content {
+            position: relative;
+            z-index: 10001;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+        }
+
+        .avatar-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .avatar-modal-body {
+            padding: 24px;
+        }
+
+        .avatar-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 16px 24px;
+            border-top: 1px solid #eee;
+        }
+
+        .avatar-option {
+            border: 2px solid #e5e5e5;
+            border-radius: 16px;
+            padding: 12px;
+            cursor: pointer;
+            background: #fff;
+            transition: all .2s ease;
+        }
+
+        .avatar-option:hover {
+            border-color: #333;
+            transform: translateY(-2px);
+        }
+
+        .avatar-option.selected {
+            border-color: #111;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, .08);
+        }
+
+        .avatar-preview {
+            height: 180px;
+            border-radius: 12px;
+            background: linear-gradient(180deg,
+                    #f8f8f8,
+                    #ededed);
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .avatar-placeholder {
+            font-size: 90px;
+        }
+    </style>
 </body>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
