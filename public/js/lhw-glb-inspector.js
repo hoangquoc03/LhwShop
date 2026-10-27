@@ -115,6 +115,25 @@ function disposeResources(resources) {
     resources.textures.forEach((texture) => texture.dispose());
 }
 
+async function probeInspectorRuntime() {
+    try {
+        const response = await fetch(
+            new URL(window.location.pathname, window.location.origin),
+            { cache: "no-store" },
+        );
+        return {
+            reachable: true,
+            status: response.status,
+            statusText: response.statusText || null,
+        };
+    } catch (error) {
+        return {
+            reachable: false,
+            message: error instanceof Error ? error.message : String(error),
+        };
+    }
+}
+
 export async function inspectGLB({
     url,
     productId = null,
@@ -148,13 +167,17 @@ export async function inspectGLB({
         });
     } catch (error) {
         const code = classifyGLBLoadError(error);
-        return createGLBFailureReport(url, error, {
+        const report = createGLBFailureReport(url, error, {
             productId,
             category,
             expectedLandmarksByCategory,
             code,
             failureStage: code === "glb-parse-failed" ? "parse" : "load",
         });
+        if (code === "glb-network-error") {
+            report.browserRuntime = await probeInspectorRuntime();
+        }
+        return report;
     }
 
     try {

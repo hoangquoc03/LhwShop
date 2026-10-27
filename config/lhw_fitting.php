@@ -7,6 +7,8 @@ return [
             'LHW_Shoulder_L',
             'LHW_Shoulder_R',
             'LHW_Hem',
+            'LHW_Chest_Front',
+            'LHW_Back_Center',
         ],
         'bottom' => [
             'LHW_Waist',
@@ -15,6 +17,7 @@ return [
             'LHW_Knee_R',
             'LHW_Hem_L',
             'LHW_Hem_R',
+            'LHW_Waist_Front',
         ],
         'shoes' => null,
     ],

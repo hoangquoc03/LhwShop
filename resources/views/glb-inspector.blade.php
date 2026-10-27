@@ -163,6 +163,12 @@
         phẩm hoặc fitting room đang chạy.
         <a href="{{ route('fitting-room') }}">Quay lại fitting room</a>
     </p>
+    <p class="panel warning">
+        Nếu trình duyệt báo <code>ERR_CONNECTION_REFUSED</code> ngay khi mở
+        trang, máy chủ Laravel/Laragon chưa kết nối được; lúc đó GLB chưa được
+        tải. Khi trang mở được, HTTP 404/403 là lỗi URL/quyền của GLB, còn lỗi
+        parse là nội dung phản hồi không phải GLB hợp lệ.
+    </p>
 
     <form id="inspectForm">
         <label class="wide">
@@ -218,7 +224,6 @@
         } from '/js/lhw-glb-inspector.js';
         import {
             createInspectionExport,
-            resolveProductGLBUrl,
         } from '/js/lhw-glb-inspector-core.js';
 
         const form = document.getElementById('inspectForm');
@@ -226,19 +231,11 @@
         const state = document.getElementById('state');
         const reportSection = document.getElementById('report');
         const productIdInput = document.getElementById('productId');
-        const glbUrlInput = document.getElementById('glbUrl');
         let lastReport = null;
 
-        productIdInput.addEventListener('input', () => {
-            try {
-                glbUrlInput.value = resolveProductGLBUrl(
-                    productIdInput.value,
-                    glbUrlInput.value,
-                );
-            } catch {
-                // Keep the current URL until the Product ID is valid.
-            }
-        });
+        // The URL field is authoritative: never replace an explicitly entered
+        // custom GLB path with the product's default product.glb URL.
+        // Product ID is report metadata only; users may inspect versioned GLBs.
 
         function element(tag, text, className = '') {
             const node = document.createElement(tag);
@@ -321,6 +318,33 @@
                 const failure = element('section', null, 'panel error');
                 failure.appendChild(element('h2', 'Inspection not completed'));
                 failure.appendChild(element('p', report.status.note));
+                if (report.errors[0]?.code === 'glb-http-error') {
+                    failure.appendChild(
+                        element(
+                            'p',
+                            'Máy chủ đã trả lời yêu cầu GLB nhưng từ chối hoặc không tìm thấy asset. Kiểm tra URL, mã HTTP và quyền đọc file; đây không phải lỗi parse GLB.',
+                        ),
+                    );
+                } else if (report.errors[0]?.code === 'glb-parse-failed') {
+                    failure.appendChild(
+                        element(
+                            'p',
+                            'Yêu cầu đã tới bước nạp GLB nhưng dữ liệu không giải mã được. Kiểm tra file GLB/export; đây không phải lỗi máy chủ từ chối kết nối.',
+                        ),
+                    );
+                } else if (report.errors[0]?.code === 'glb-network-error') {
+                    const runtime = report.browserRuntime;
+                    failure.appendChild(
+                        element(
+                            'p',
+                            runtime?.reachable === false ?
+                            `Browser runtime không truy cập được route Inspector (${runtime.message}). Đây là lỗi kết nối máy chủ, chưa thể kết luận có lỗi GLB.` :
+                            runtime?.reachable === true ?
+                            `Route Inspector vẫn phản hồi HTTP ${runtime.status}. Lỗi nằm ở request GLB (hoặc origin/CORS), không phải lỗi từ chối kết nối của Inspector.` :
+                            'Không nhận được phản hồi mạng cho GLB. Kiểm tra trạng thái route Inspector và request GLB trong DevTools Network.',
+                        ),
+                    );
+                }
                 report.errors.forEach((error) =>
                     failure.appendChild(
                         element('p', `${error.code}: ${error.message}`),
@@ -352,6 +376,18 @@
                     `Auto-Fit readiness: ${report.autoFitReadiness.status}. ${report.autoFitReadiness.reason}`,
                 ),
             );
+            if (report.landmarkGeometry) {
+                summary.appendChild(
+                    element(
+                        'p',
+                        `Geometric checks: ${report.landmarkGeometry.valid ? 'passed' : 'failed'}. ` +
+                        (report.landmarkGeometry.errors || [])
+                        .map((error) => `${error.code}: ${error.message}`)
+                        .join('; '),
+                        report.landmarkGeometry.valid ? 'muted' : 'error',
+                    ),
+                );
+            }
             const badges = element('div', null, 'summary');
             const counts = report.counts.landmarks;
             summary.appendChild(
@@ -637,11 +673,12 @@
             const unitToMeters = unitValue ? Number(unitValue) : null;
             try {
                 const productId = String(formData.get('productId') || '').trim() || null;
-                const url = resolveProductGLBUrl(
-                    productId,
-                    String(formData.get('url') || '').trim(),
-                );
-                glbUrlInput.value = url;
+                // Use exactly the URL entered by the user. Do not resolve it back
+                // to /models/products/{id}/product.glb based on Product ID.
+                const url = String(formData.get('url') || '').trim();
+                if (!url) {
+                    throw new Error('Vui lòng nhập URL GLB cần kiểm tra.');
+                }
                 lastReport = await inspectGLB({
                     url,
                     productId,

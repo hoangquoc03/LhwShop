@@ -9,7 +9,14 @@ import {
     resolveProductGLBUrl,
 } from "../../public/js/lhw-glb-inspector-core.js";
 
-const topNames = ["LHW_Neck", "LHW_Shoulder_L", "LHW_Shoulder_R", "LHW_Hem"];
+const topNames = [
+    "LHW_Neck",
+    "LHW_Shoulder_L",
+    "LHW_Shoulder_R",
+    "LHW_Hem",
+    "LHW_Chest_Front",
+    "LHW_Back_Center",
+];
 const bottomNames = [
     "LHW_Waist",
     "LHW_Crotch",
@@ -17,6 +24,7 @@ const bottomNames = [
     "LHW_Knee_R",
     "LHW_Hem_L",
     "LHW_Hem_R",
+    "LHW_Waist_Front",
 ];
 const landmarks = { top: topNames, bottom: bottomNames, shoes: null };
 const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -42,6 +50,10 @@ test("distinguishes HTTP, network, and GLB parse failures", () => {
     );
     assert.equal(
         classifyGLBLoadError(new TypeError("Failed to fetch")),
+        "glb-network-error",
+    );
+    assert.equal(
+        classifyGLBLoadError(new Error("net::ERR_CONNECTION_REFUSED")),
         "glb-network-error",
     );
     assert.equal(
@@ -82,9 +94,23 @@ function node(name, position, options = {}) {
 function completeNodes() {
     return [
         node(topNames[0], [0, 2, 0]),
-        node(topNames[1], [-1, 1.8, 0]),
-        node(topNames[2], [1, 1.8, 0]),
+        node(topNames[1], [-0.8, 1.7, 0]),
+        node(topNames[2], [0.8, 1.7, 0]),
         node(topNames[3], [0, 0, 0]),
+        node(topNames[4], [0, 1.1, 0.15]),
+        node(topNames[5], [0, 1.1, -0.15]),
+    ];
+}
+
+function completeBottomNodes() {
+    return [
+        node(bottomNames[0], [0, 2, 0]),
+        node(bottomNames[1], [0, 1.5, 0]),
+        node(bottomNames[2], [-0.35, 0.8, 0]),
+        node(bottomNames[3], [0.35, 0.8, 0]),
+        node(bottomNames[4], [-0.35, 0, 0]),
+        node(bottomNames[5], [0.35, 0, 0]),
+        node(bottomNames[6], [0, 2, 0.2]),
     ];
 }
 
@@ -118,10 +144,11 @@ test("reports a complete GLB structure without claiming visual fit", () => {
     assert.equal(report.status.eligibleForLandmarkAutoFit, true);
     assert.equal(report.autoFitReadiness.status, "ready");
     assert.equal(report.autoFitReadiness.ready, true);
-    assert.equal(report.counts.landmarks.found, 4);
+    assert.equal(report.counts.landmarks.found, 6);
     assert.equal(report.status.note.includes("not validated"), true);
     assert.equal(report.measurements[0].valid, true);
-    assert.equal(report.measurements[0].distance, 2);
+    assert.equal(report.measurements[0].distance, 1.6);
+    assert.equal(report.status.landmarkGeometryValid, true);
 });
 
 test("reports missing landmarks and typo suggestions", () => {
@@ -147,10 +174,104 @@ test("requires all six configured bottom landmarks", () => {
         nodes: [],
     });
 
-    assert.equal(report.counts.landmarks.expected, 6);
-    assert.equal(report.counts.landmarks.missing, 6);
+    assert.equal(report.counts.landmarks.expected, 7);
+    assert.equal(report.counts.landmarks.missing, 7);
     assert.equal(report.autoFitReadiness.status, "missing-landmarks");
     assert.deepEqual(report.autoFitReadiness.missingLandmarks, bottomNames);
+});
+
+test("validates bottom vertical order and left/right landmark pairing", () => {
+    const report = inspect({
+        category: "bottom",
+        nodes: completeBottomNodes(),
+        bounds: { min: [-0.8, 0, -0.3], max: [0.8, 2, 0.3] },
+        meshes: [
+            {
+                name: "Pants",
+                path: "/Pants",
+                bounds: { min: [-0.8, 0, -0.3], max: [0.8, 2, 0.3] },
+            },
+        ],
+        assetMetadata: { version: "2.0" },
+    });
+
+    assert.equal(report.status.landmarksComplete, true);
+    assert.equal(report.status.landmarkGeometryValid, true);
+    assert.equal(report.autoFitReadiness.ready, true);
+
+    const swappedHems = completeBottomNodes();
+    swappedHems[4].worldPosition = [...swappedHems[5].worldPosition];
+    swappedHems[4].localPosition = [...swappedHems[5].localPosition];
+    swappedHems[5].worldPosition = [-0.35, 0, 0];
+    swappedHems[5].localPosition = [-0.35, 0, 0];
+    const invalid = inspect({
+        category: "bottom",
+        nodes: swappedHems,
+        bounds: { min: [-0.8, 0, -0.3], max: [0.8, 2, 0.3] },
+        meshes: [
+            {
+                name: "Pants",
+                path: "/Pants",
+                bounds: { min: [-0.8, 0, -0.3], max: [0.8, 2, 0.3] },
+            },
+        ],
+        assetMetadata: { version: "2.0" },
+    });
+    assert.equal(invalid.autoFitReadiness.ready, false);
+    assert.equal(
+        invalid.status.landmarkLayoutReason,
+        "incorrect-landmark-order",
+    );
+
+    const kneeAboveCrotch = completeBottomNodes();
+    kneeAboveCrotch[1] = node(bottomNames[1], [0, 0.9, 0]);
+    kneeAboveCrotch[2] = node(bottomNames[2], [-0.35, 1, 0]);
+    kneeAboveCrotch[3] = node(bottomNames[3], [0.35, 0.6, 0]);
+    const invalidKneeOrder = inspect({
+        category: "bottom",
+        nodes: kneeAboveCrotch,
+        bounds: { min: [-0.8, 0, -0.3], max: [0.8, 2, 0.3] },
+        meshes: [
+            {
+                name: "Pants",
+                path: "/Pants",
+                bounds: { min: [-0.8, 0, -0.3], max: [0.8, 2, 0.3] },
+            },
+        ],
+        assetMetadata: { version: "2.0" },
+    });
+    assert.equal(invalidKneeOrder.autoFitReadiness.ready, false);
+    assert.equal(
+        invalidKneeOrder.status.landmarkLayoutReason,
+        "incorrect-landmark-order",
+    );
+});
+
+test("blocks top Auto-Fit for reversed vertical order or implausible proportions", () => {
+    const reversed = completeNodes();
+    reversed[3] = node(topNames[3], [0, 1.9, 0]);
+    const orderReport = inspect({
+        nodes: reversed,
+        assetMetadata: { version: "2.0" },
+    });
+    assert.equal(orderReport.autoFitReadiness.ready, false);
+    assert.equal(
+        orderReport.status.landmarkLayoutReason,
+        "incorrect-landmark-order",
+    );
+
+    const narrow = completeNodes();
+    narrow[1] = node(topNames[1], [-0.01, 1.7, 0]);
+    narrow[2] = node(topNames[2], [0.01, 1.7, 0]);
+    const proportionReport = inspect({
+        nodes: narrow,
+        assetMetadata: { version: "2.0" },
+    });
+    assert.equal(proportionReport.autoFitReadiness.ready, false);
+    assert.equal(
+        proportionReport.status.landmarkLayoutReason,
+        "implausible-landmark-proportions",
+    );
 });
 
 test("marks duplicate landmark node names ambiguous with hierarchy paths", () => {
@@ -166,8 +287,8 @@ test("marks duplicate landmark node names ambiguous with hierarchy paths", () =>
     assert.equal(shoulder.status, "duplicate");
     assert.equal(shoulder.reason, "duplicate-name");
     assert.equal(shoulder.matches.length, 2);
-    assert.deepEqual(shoulder.matches[0].localPosition, [-1, 1.8, 0]);
-    assert.deepEqual(shoulder.matches[0].worldPosition, [-1, 1.8, 0]);
+    assert.deepEqual(shoulder.matches[0].localPosition, [-0.8, 1.7, 0]);
+    assert.deepEqual(shoulder.matches[0].worldPosition, [-0.8, 1.7, 0]);
     assert.equal(report.counts.landmarks.duplicate, 1);
     assert.equal(report.autoFitReadiness.status, "invalid-landmarks");
     assert.equal(report.autoFitReadiness.ready, false);
@@ -313,7 +434,7 @@ test("reports load errors without claiming that landmarks are missing", () => {
 
     assert.equal(report.status.structuralValid, false);
     assert.equal(report.status.landmarksConfigured, true);
-    assert.equal(report.counts.landmarks.expected, 4);
+    assert.equal(report.counts.landmarks.expected, 6);
     assert.equal(report.counts.landmarks.missing, 0);
     assert.equal(report.input.productId, "13");
     assert.equal(report.errors[0].code, "glb-load-failed");
@@ -344,7 +465,7 @@ test("exports successful and failed reports with stable diagnostic fields", () =
     assert.equal(success.success, true);
     assert.equal(success.assetUrl, "/models/products/test.glb");
     assert.equal(success.inspectionStatus, "completed");
-    assert.equal(success.nodeCount, 4);
+    assert.equal(success.nodeCount, 6);
     assert.equal(success.meshCount, 1);
     assert.equal(success.autoFitReadiness.status, "ready");
     assert.ok(Array.isArray(success.landmarks));
@@ -390,12 +511,12 @@ test("preserves raw units and reports optional user conversion", () => {
     assert.deepEqual(report.landmarks[0].worldPosition, [0, 2, 0]);
     assert.deepEqual(report.landmarks[0].worldPositionMeters, [0, 0.02, 0]);
     assert.equal(report.units.physicalUnit, "unknown");
-    assert.equal(report.measurements[0].distanceMeters, 0.02);
+    assert.equal(report.measurements[0].distanceMeters, 0.016);
 });
 
 test("does not consider a zero landmark distance a valid measurement", () => {
     const nodes = completeNodes();
-    nodes[2] = node(topNames[2], [-1, 1.8, 0]);
+    nodes[2] = node(topNames[2], [-0.8, 1.7, 0]);
     const report = inspect({ nodes });
 
     assert.equal(report.measurements[0].distance, 0);

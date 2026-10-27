@@ -4,14 +4,177 @@ const CATEGORY_MEASUREMENTS = {
     top: [
         ["shoulderWidth", ["LHW_Shoulder_L", "LHW_Shoulder_R"]],
         ["neckToHem", ["LHW_Neck", "LHW_Hem"]],
+        ["chestToBack", ["LHW_Chest_Front", "LHW_Back_Center"]],
     ],
     bottom: [
         ["kneeWidth", ["LHW_Knee_L", "LHW_Knee_R"]],
         ["waistToCrotch", ["LHW_Waist", "LHW_Crotch"]],
         ["leftKneeToHem", ["LHW_Knee_L", "LHW_Hem_L"]],
         ["rightKneeToHem", ["LHW_Knee_R", "LHW_Hem_R"]],
+        ["waistToFront", ["LHW_Waist", "LHW_Waist_Front"]],
     ],
 };
+
+export function validateLandmarkGeometry(category, points, bounds) {
+    const errors = [];
+    const extent = Math.max(...bounds.size);
+    const verticalSpan = bounds.size[1];
+    const minimumGap = Math.max(extent * 1e-5, verticalSpan * 0.005);
+    const point = (name) => points.get(name);
+    const distance = (left, right) =>
+        Math.hypot(
+            left[0] - right[0],
+            left[1] - right[1],
+            left[2] - right[2],
+        );
+    const requireGap = (higher, lower, name) => {
+        if (higher - lower <= minimumGap) {
+            errors.push({
+                code: "incorrect-landmark-order",
+                message: `${name} must be clearly above the next landmark.`,
+            });
+        }
+    };
+    const requireProportion = (value, minimum, maximum, name) => {
+        if (!Number.isFinite(value) || value < minimum || value > maximum) {
+            errors.push({
+                code: "implausible-landmark-proportions",
+                message: `${name} is outside the accepted relative range (${minimum}-${maximum}).`,
+            });
+        }
+    };
+    if (bounds.min && bounds.max) {
+        for (const [name, position] of points) {
+            const tolerance = extent * 1e-5;
+            if (
+                position.some(
+                    (value, axis) =>
+                        value < bounds.min[axis] - tolerance ||
+                        value > bounds.max[axis] + tolerance,
+                )
+            ) {
+                errors.push({
+                    code: "landmark-outside-bounds",
+                    message: `${name} lies outside the mesh bounds.`,
+                });
+            }
+        }
+    }
+
+    if (category === "top") {
+        const neck = point("LHW_Neck");
+        const shoulderLeft = point("LHW_Shoulder_L");
+        const shoulderRight = point("LHW_Shoulder_R");
+        const hem = point("LHW_Hem");
+        const chest = point("LHW_Chest_Front");
+        const back = point("LHW_Back_Center");
+        const bodyHeight = neck[1] - hem[1];
+        requireGap(neck[1], shoulderLeft[1], "Neck and left shoulder");
+        requireGap(neck[1], shoulderRight[1], "Neck and right shoulder");
+        requireGap(shoulderLeft[1], hem[1], "Left shoulder and hem");
+        requireGap(shoulderRight[1], hem[1], "Right shoulder and hem");
+        requireGap(
+            (shoulderLeft[1] + shoulderRight[1]) / 2,
+            chest[1],
+            "Shoulders and front chest",
+        );
+        requireGap(
+            (shoulderLeft[1] + shoulderRight[1]) / 2,
+            back[1],
+            "Shoulders and back center",
+        );
+        requireGap(chest[1], hem[1], "Front chest and hem");
+        requireGap(neck[1], chest[1], "Neck and front chest");
+        requireGap(back[1], hem[1], "Back center and hem");
+        requireGap(neck[1], back[1], "Neck and back center");
+        requireProportion(
+            distance(shoulderLeft, shoulderRight) / bodyHeight,
+            0.1,
+            2.5,
+            "Shoulder width relative to neck-to-hem height",
+        );
+        requireProportion(
+            distance(chest, back) / extent,
+            1e-5,
+            1,
+            "Front-chest to back-center separation",
+        );
+        requireProportion(
+            Math.abs(chest[1] - back[1]) / bodyHeight,
+            0,
+            0.25,
+            "Front-chest and back-center vertical alignment",
+        );
+    } else if (category === "bottom") {
+        const waist = point("LHW_Waist");
+        const crotch = point("LHW_Crotch");
+        const kneeLeft = point("LHW_Knee_L");
+        const kneeRight = point("LHW_Knee_R");
+        const hemLeft = point("LHW_Hem_L");
+        const hemRight = point("LHW_Hem_R");
+        const waistFront = point("LHW_Waist_Front");
+        const kneeY = (kneeLeft[1] + kneeRight[1]) / 2;
+        const hemY = (hemLeft[1] + hemRight[1]) / 2;
+        const bodyHeight = waist[1] - hemY;
+        const kneeSide = kneeRight.map((value, index) => value - kneeLeft[index]);
+        const hemSide = hemRight.map((value, index) => value - hemLeft[index]);
+        const sideCosine =
+            kneeSide.reduce(
+                (sum, value, index) => sum + value * hemSide[index],
+                0,
+            ) /
+            (Math.hypot(...kneeSide) * Math.hypot(...hemSide));
+
+        requireGap(waist[1], crotch[1], "Waist and crotch");
+        requireGap(crotch[1], kneeLeft[1], "Crotch and left knee");
+        requireGap(crotch[1], kneeRight[1], "Crotch and right knee");
+        requireGap(kneeLeft[1], hemLeft[1], "Left knee and hem");
+        requireGap(kneeRight[1], hemRight[1], "Right knee and hem");
+        requireProportion(
+            distance(waist, waistFront) / extent,
+            1e-5,
+            1,
+            "Waist to front-waist separation",
+        );
+        requireProportion(
+            Math.abs(waist[1] - waistFront[1]) / bodyHeight,
+            0,
+            0.15,
+            "Waist and front-waist vertical alignment",
+        );
+        requireProportion(
+            Math.abs(kneeLeft[1] - kneeRight[1]) / bodyHeight,
+            0,
+            0.25,
+            "Left/right knee vertical alignment",
+        );
+        requireProportion(
+            Math.abs(hemLeft[1] - hemRight[1]) / bodyHeight,
+            0,
+            0.25,
+            "Left/right hem vertical alignment",
+        );
+        requireProportion(
+            distance(kneeLeft, kneeRight) / bodyHeight,
+            0.1,
+            2.5,
+            "Knee width relative to waist-to-hem height",
+        );
+        if (!Number.isFinite(sideCosine) || sideCosine < 0.25) {
+            errors.push({
+                code: "incorrect-landmark-order",
+                message:
+                    "Left/right knee and hem labels must follow the same garment sides.",
+            });
+        }
+    }
+
+    return {
+        valid: errors.length === 0,
+        reason: errors[0]?.code || null,
+        errors,
+    };
+}
 
 export function resolveProductGLBUrl(productId, fallbackUrl = "") {
     const normalizedId = String(productId ?? "").trim();
@@ -34,6 +197,9 @@ export function classifyGLBLoadError(error) {
     }
     if (
         /failed to fetch|networkerror|network request failed|load failed/i.test(
+            detail,
+        ) ||
+        /ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED/i.test(
             detail,
         )
     ) {
@@ -490,8 +656,20 @@ export function inspectGLBData({
               { minimumScale: 0.02, maximumScale: 50 },
           )
         : null;
-    const landmarkLayoutValid = layoutValidation
-        ? layoutValidation.ok
+    const geometryValidation = completePoints && overallBounds.valid
+        ? validateLandmarkGeometry(
+              category,
+              new Map(
+                  foundLandmarkPoints.map((landmark) => [
+                      landmark.name,
+                      landmark.worldPosition,
+                  ]),
+              ),
+              overallBounds,
+          )
+        : null;
+    const landmarkLayoutValid = layoutValidation && geometryValidation
+        ? layoutValidation.ok && geometryValidation.valid
         : configured
           ? false
           : null;
@@ -565,6 +743,7 @@ export function inspectGLBData({
                 : outsideBoundsLandmarks.length > 0
                   ? "One or more landmark origins lie outside mesh bounds."
                   : layoutValidation?.reason ||
+                    geometryValidation?.reason ||
                     "One or more landmark transforms are invalid.";
     } else if (physicalUnit === "unknown") {
         readinessStatus = "unknown-units";
@@ -595,7 +774,9 @@ export function inspectGLBData({
             landmarksComplete:
                 configured && counts.found === expectedLandmarks.length,
             landmarkLayoutValid,
-            landmarkLayoutReason: layoutValidation?.reason || null,
+            landmarkLayoutReason:
+                layoutValidation?.reason || geometryValidation?.reason || null,
+            landmarkGeometryValid: geometryValidation?.valid ?? null,
             eligibleForLandmarkAutoFit,
             note: eligibleForLandmarkAutoFit
                 ? "Landmark structure is complete; avatar fit and visual fit are not validated."
@@ -633,6 +814,7 @@ export function inspectGLBData({
         bounds: overallBounds,
         boundsMeters: convertBounds(overallBounds, scaleToMeters),
         meshBounds: meshReports,
+        landmarkGeometry: geometryValidation,
         nodes,
         landmarksConfigured: configured ? expectedLandmarks : null,
         landmarks: landmarkReports,

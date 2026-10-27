@@ -5,6 +5,7 @@ import {
     selectLandmarkFit,
     solveLandmarkSimilarity as solveLandmarkSimilarityArrays,
 } from "./lhw-landmark-solver.js";
+import { validateLandmarkGeometry } from "./lhw-glb-inspector-core.js";
 
 const viewer = document.getElementById("fittingViewer");
 const status = document.getElementById("fittingStatus");
@@ -15,8 +16,33 @@ if (!viewer || !config) {
     throw new Error("Thiếu fittingViewer hoặc LHW_FITTING_CONFIG.");
 }
 
+const catalogItemsContainer = document.getElementById("catalogItems");
+const catalogSearchInput = document.getElementById("catalogSearch");
+const catalogCategoryFilter = document.getElementById("catalogCategoryFilter");
+const catalogSceneItemsContainer = document.getElementById("catalogSceneItems");
+const catalogMessage = document.getElementById("catalogMessage");
+const clearCatalogItemsButton = document.getElementById("clearCatalogItems");
+const catalogSceneItems = new Map();
+const catalogCategoryOverrides = new Map();
+let catalogSequence = 0;
+
+const CATALOG_CATEGORIES = [
+    { value: "top", label: "Áo / áo khoác" },
+    { value: "bottom", label: "Quần / váy" },
+    { value: "shoes", label: "Giày" },
+    { value: "hat", label: "Mũ / nón" },
+    { value: "glasses", label: "Kính" },
+    { value: "necklace", label: "Vòng cổ / dây chuyền" },
+    { value: "scarf", label: "Khăn / phụ kiện cổ" },
+    { value: "bag", label: "Túi / balo" },
+    { value: "wrist", label: "Đồng hồ / vòng tay" },
+    { value: "accessory", label: "Phụ kiện khác" },
+    { value: "generic", label: "Mô hình rời / chưa phân loại" },
+];
+const CATALOG_CATEGORY_VALUES = new Set(CATALOG_CATEGORIES.map((item) => item.value));
+
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xe8e8eb);
+scene.background = new THREE.Color(0x292a24);
 const fittingStage = new THREE.Group();
 fittingStage.name = "LHW fitting stage";
 scene.add(fittingStage);
@@ -34,6 +60,8 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(viewer.clientWidth, viewer.clientHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
 viewer.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -46,7 +74,7 @@ const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
 keyLight.position.set(2, 4, 3);
 scene.add(keyLight);
 
-const floor = new THREE.GridHelper(4, 20, 0x999999, 0xcccccc);
+const floor = new THREE.GridHelper(4, 24, 0x9a7b5c, 0x655d50);
 floor.position.y = 0;
 scene.add(floor);
 
@@ -80,29 +108,7 @@ const clothing = {
     shoes: null,
 };
 
-const PRODUCT_FIT_CONFIG = {
-    13: {
-        category: "top",
-        positionOffset: [0, 0, -0.04],
-        rotationOffset: [0, 0, 0],
-        scaleMultiplier: [1, 1, 1],
-        normalization: { pivot: "bounds-center", scale: "axis" },
-    },
-    17: {
-        category: "bottom",
-        positionOffset: [0, 0, 0],
-        rotationOffset: [0, 0, 0],
-        scaleMultiplier: [1, 1, 1],
-        normalization: { pivot: "bounds-center", scale: "axis" },
-    },
-    22: {
-        category: "shoes",
-        positionOffset: [0, 0, 0],
-        rotationOffset: [0, 0, 0],
-        scaleMultiplier: [1, 1, 1],
-        normalization: { pivot: "bounds-center", scale: "axis" },
-    },
-};
+const PRODUCT_FIT_CONFIG = {};
 
 function mergeProductFitConfig(base, override = {}) {
     const { parts: baseParts = {}, ...baseValues } = base;
@@ -139,15 +145,29 @@ function mergeProductFitConfig(base, override = {}) {
     };
 }
 
+// Category defaults apply to every catalog item, regardless of its database ID.
+// ID-specific overrides are optional and only used when explicitly configured.
+const PRODUCT_FIT_CATEGORY_DEFAULTS = config.productFit?.defaults || {};
+const PRODUCT_FIT_ID_OVERRIDES = config.productFit?.overrides || {};
+const BASIC_FIT_CONFIG = {
+    positionOffset: [0, 0, 0],
+    rotationOffset: [0, 0, 0],
+    scaleMultiplier: [1, 1, 1],
+    normalization: { pivot: "bounds-center", scale: "axis" },
+};
+
+// Backwards compatibility: direct productFit entries like productFit["45"] still work.
 for (const [productId, override] of Object.entries(config.productFit || {})) {
+    if (["defaults", "overrides"].includes(productId)) continue;
     const fallback = PRODUCT_FIT_CONFIG[productId] || {
-        category: override.category || "product",
-        positionOffset: [0, 0, 0],
-        rotationOffset: [0, 0, 0],
-        scaleMultiplier: [1, 1, 1],
-        normalization: { pivot: "bounds-center", scale: "axis" },
+        ...BASIC_FIT_CONFIG,
+        category: override.category || "generic",
     };
     PRODUCT_FIT_CONFIG[productId] = mergeProductFitConfig(fallback, override);
+}
+for (const [productId, override] of Object.entries(PRODUCT_FIT_ID_OVERRIDES)) {
+    const fallback = PRODUCT_FIT_CONFIG[String(productId)] || BASIC_FIT_CONFIG;
+    PRODUCT_FIT_CONFIG[String(productId)] = mergeProductFitConfig(fallback, override);
 }
 
 const PRODUCT_FIT_DEFAULTS = Object.fromEntries(
@@ -437,6 +457,9 @@ async function loadAvatar() {
     updateAnchorHelpers();
     updateDebugPanel();
 
+    // Studio mode: retain avatar measurements/bones for fitting, but hide the avatar render.
+    avatar.visible = config.viewer?.showAvatar === true;
+
     console.log("LHW fitting avatar height:", avatarHeight);
     console.log("LHW fitting anchors:", avatarAnchors);
 }
@@ -458,14 +481,15 @@ function getTargetForCategory(category) {
             2;
 
         const pelvisY = pelvis?.y ?? avatarHeight * 0.56;
-        const topHeight = Math.max(shoulderY - pelvisY, 0.1);
-
+        // Keep the shirt hem near the pelvis instead of extending into the trousers.
+        // The target follows the shoulder-to-waist interval, with a small ease allowance.
+        const topHeight = Math.max(shoulderY - pelvisY, avatarHeight * 0.18);
         const target = {
-            center: new THREE.Vector3(0, (shoulderY + pelvisY) / 2, 0.08),
+            center: new THREE.Vector3(0, (shoulderY + pelvisY) / 2 + avatarHeight * 0.012, 0.045),
             size: new THREE.Vector3(
-                avatarHeight * 0.31,
-                topHeight * 1.22,
-                avatarHeight * 0.165,
+                avatarHeight * 0.33,
+                topHeight * 1.02,
+                avatarHeight * 0.17,
             ),
         };
 
@@ -481,12 +505,14 @@ function getTargetForCategory(category) {
         const pelvisY = pelvis?.y ?? avatarHeight * 0.56;
         const ankleY = ((ankleL?.y ?? 0.08) + (ankleR?.y ?? 0.08)) / 2;
 
+        // Align the waistband with the pelvis and keep the hem above the shoes.
+        const legLength = Math.max(pelvisY - ankleY, avatarHeight * 0.25);
         const target = {
-            center: new THREE.Vector3(0, (pelvisY + ankleY) / 2 + 0.015, 0),
+            center: new THREE.Vector3(0, (pelvisY + ankleY) / 2 - avatarHeight * 0.006, 0),
             size: new THREE.Vector3(
-                avatarHeight * 0.25,
-                (pelvisY - ankleY) * 1.15,
-                avatarHeight * 0.155,
+                avatarHeight * 0.27,
+                legLength * 0.99,
+                avatarHeight * 0.16,
             ),
         };
 
@@ -546,18 +572,19 @@ function getTargetForShoeFoot(side) {
     }
 
     const footLength = ankle.distanceTo(toe);
-    const height = avatarHeight * 0.035;
+    // Give the shoe enough room in all dimensions; uniform-contain preserves its shape.
+    // A minimum target size also helps GLBs exported at unusually small scales.
+    const shoeHeight = avatarHeight * 0.085;
+    const shoeWidth = Math.max(avatarHeight * 0.105, footLength * 0.52);
+    const shoeLength = Math.max(footLength * 2.05, avatarHeight * 0.205);
+
     return {
         center: new THREE.Vector3(
             (ankle.x + toe.x) / 2,
-            height / 2,
+            shoeHeight / 2,
             (ankle.z + toe.z) / 2,
         ),
-        size: new THREE.Vector3(
-            avatarHeight * 0.085,
-            height,
-            footLength * 1.35,
-        ),
+        size: new THREE.Vector3(shoeWidth, shoeHeight, shoeLength),
     };
 }
 
@@ -640,19 +667,16 @@ function translateRootByWorldDelta(model, worldDelta) {
 }
 
 function getProductFitConfig(productId, category) {
-    if (!PRODUCT_FIT_CONFIG[productId]) {
-        PRODUCT_FIT_CONFIG[productId] = mergeProductFitConfig({
-            category,
-            positionOffset: [0, 0, 0],
-            rotationOffset: [0, 0, 0],
-            scaleMultiplier: [1, 1, 1],
-            normalization: {
-                pivot: "bounds-center",
-                scale: "axis",
-            },
-        });
+    const key = String(productId);
+    if (!PRODUCT_FIT_CONFIG[key]) {
+        const categoryDefaults = PRODUCT_FIT_CATEGORY_DEFAULTS[category] || {};
+        const idOverride = PRODUCT_FIT_ID_OVERRIDES[key] || {};
+        PRODUCT_FIT_CONFIG[key] = mergeProductFitConfig(
+            mergeProductFitConfig({ ...BASIC_FIT_CONFIG, category }, categoryDefaults),
+            idOverride,
+        );
     }
-    return PRODUCT_FIT_CONFIG[productId];
+    return PRODUCT_FIT_CONFIG[key];
 }
 
 function fitModelToTarget(
@@ -1134,9 +1158,7 @@ function applyProductConfig(category) {
         );
     } else {
         const target = getTargetForCategory(category);
-        const autoFitEnabled =
-            config.autoFit?.enabled === true &&
-            config.autoFit?.strategy === "landmarks-first";
+        const autoFitEnabled = isLandmarkAutoFitEnabledForProduct(productId);
         if (autoFitEnabled) {
             const landmarkResult = fitModelFromLandmarksIfAvailable(
                 model,
@@ -1740,9 +1762,9 @@ function appendDebugDisplayControls(parent) {
 }
 
 function setCameraView(view) {
-    const target = new THREE.Vector3(0, avatarHeight * 0.53, 0);
-    const horizontalDistance = avatarHeight * 2.2;
-    const verticalOffset = avatarHeight * 0.15;
+    const target = new THREE.Vector3(0, avatarHeight * 0.49, 0);
+    const horizontalDistance = avatarHeight * 1.85;
+    const verticalOffset = avatarHeight * 0.12;
     const diagonalDistance = horizontalDistance / Math.sqrt(2);
     const positions = {
         front: [0, verticalOffset, horizontalDistance],
@@ -1826,10 +1848,32 @@ function exportFitConfig() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function isLandmarkAutoFitEnabledForProduct(productId) {
+    return (
+        config.autoFit?.enabled === true &&
+        config.autoFit?.strategy === "landmarks-first" &&
+        Array.isArray(config.autoFit?.verifiedProductIds) &&
+        config.autoFit.verifiedProductIds.some(
+            (verifiedId) => String(verifiedId) === String(productId),
+        )
+    );
+}
+
 function getProductAssets(productId) {
-    const configured = config.productAssets?.[String(productId)] || {};
+    const productKey = String(productId);
+    const configured = config.productAssets?.[productKey] || {};
+    // Prefer the authored GLB only for products explicitly enabled for a landmark-fit test.
+    // Product 13 has a verified authored export; other products should declare their own URL.
+    const defaultLandmarkedUrl = productKey === "13"
+        ? "/models/products/13/product.landmarked-v2.glb"
+        : null;
+    const landmarkedModelUrl = configured.landmarkedModelUrl || defaultLandmarkedUrl;
+    const useLandmarkedAsset =
+        isLandmarkAutoFitEnabledForProduct(productKey) && Boolean(landmarkedModelUrl);
+
     return {
         modelUrl:
+            (useLandmarkedAsset ? landmarkedModelUrl : null) ||
             configured.modelUrl ||
             `/models/products/${encodeURIComponent(productId)}/product.glb`,
         leftShoeUrl: configured.leftShoeUrl || null,
@@ -2011,9 +2055,7 @@ async function loadGarment(category, productId) {
 
         let report;
 
-        const autoFitEnabled =
-            config.autoFit?.enabled === true &&
-            config.autoFit?.strategy === "landmarks-first";
+        const autoFitEnabled = isLandmarkAutoFitEnabledForProduct(productId);
         let landmarkResult = null;
 
         if (autoFitEnabled) {
@@ -2165,7 +2207,42 @@ function restoreProductBaseTransform(model, productId, part = null) {
     return baseTransform;
 }
 
-function getAvatarLandmarks(category) {
+function getAvatarSurfacePointAtY(x, y, side) {
+    if (!avatar || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+    avatar.updateWorldMatrix(true, true);
+    const bounds = new THREE.Box3().setFromObject(avatar);
+    if (bounds.isEmpty()) return null;
+
+    const depth = bounds.max.z - bounds.min.z;
+    if (!Number.isFinite(depth) || depth <= 1e-5) return null;
+
+    const margin = Math.max(depth * 0.25, avatarHeight * 0.08, 0.05);
+    const fromFront = side === "front";
+    const origin = new THREE.Vector3(
+        x,
+        y,
+        fromFront ? bounds.max.z + margin : bounds.min.z - margin,
+    );
+    const direction = new THREE.Vector3(0, 0, fromFront ? -1 : 1);
+    const raycaster = new THREE.Raycaster(
+        origin,
+        direction,
+        0,
+        depth + margin * 2,
+    );
+    const hits = raycaster.intersectObject(avatar, true);
+    const hit = hits.find(
+        (intersection) =>
+            intersection.object?.isMesh &&
+            Number.isFinite(intersection.point?.x) &&
+            Number.isFinite(intersection.point?.y) &&
+            Number.isFinite(intersection.point?.z),
+    );
+    return hit ? hit.point.clone() : null;
+}
+
+function getAvatarLandmarks(category, garmentPoints = {}) {
     const points = {};
     const estimated = new Set();
     const putAnchor = (name, anchorName) => {
@@ -2181,10 +2258,70 @@ function getAvatarLandmarks(category) {
 
         const pelvis = avatarAnchors.pelvis;
         const chest = avatarAnchors.chest;
+        const neck = avatarAnchors.neck;
+        const shoulderLeft = avatarAnchors.shoulderLeft;
+        const shoulderRight = avatarAnchors.shoulderRight;
+        const garmentNeck = garmentPoints.LHW_Neck;
+        const garmentHem = garmentPoints.LHW_Hem;
+        const garmentShoulderLeft = garmentPoints.LHW_Shoulder_L;
+        const garmentShoulderRight = garmentPoints.LHW_Shoulder_R;
+
         if (pelvis && chest) {
             points.LHW_Hem = interpolate(pelvis, chest, 0.12);
             estimated.add("LHW_Hem");
         }
+
+        // Infer front/back torso points from the authored garment landmark proportions,
+        // then raycast the avatar surface at those heights. This avoids guessed fixed Z offsets.
+        const avatarHem = points.LHW_Hem;
+        const sourceVerticalSpan = garmentNeck && garmentHem
+            ? garmentNeck.y - garmentHem.y
+            : 0;
+        const sourceShoulderSpan = garmentShoulderLeft && garmentShoulderRight
+            ? garmentShoulderRight.x - garmentShoulderLeft.x
+            : 0;
+        const targetShoulderSpan = shoulderLeft && shoulderRight
+            ? shoulderRight.x - shoulderLeft.x
+            : 0;
+        const canMapHeight =
+            Boolean(avatarHem && neck && garmentNeck && garmentHem) &&
+            Number.isFinite(sourceVerticalSpan) &&
+            Math.abs(sourceVerticalSpan) > 1e-5 &&
+            Math.abs(neck.y - avatarHem.y) > 1e-5;
+        const canMapWidth =
+            Boolean(shoulderLeft && shoulderRight && garmentShoulderLeft && garmentShoulderRight) &&
+            Math.abs(sourceShoulderSpan) > 1e-5 &&
+            Math.abs(targetShoulderSpan) > 1e-5;
+
+        const inferTorsoSurfacePoint = (landmarkName, side) => {
+            const garmentPoint = garmentPoints[landmarkName];
+            if (!garmentPoint || !canMapHeight || !canMapWidth) return;
+
+            const heightRatio = (garmentPoint.y - garmentHem.y) / sourceVerticalSpan;
+            const widthRatio =
+                (garmentPoint.x - garmentShoulderLeft.x) / sourceShoulderSpan;
+            if (
+                !Number.isFinite(heightRatio) ||
+                !Number.isFinite(widthRatio) ||
+                heightRatio < -0.02 ||
+                heightRatio > 1.02 ||
+                widthRatio < -0.02 ||
+                widthRatio > 1.02
+            ) {
+                return;
+            }
+
+            const targetY = avatarHem.y + heightRatio * (neck.y - avatarHem.y);
+            const targetX = shoulderLeft.x + widthRatio * targetShoulderSpan;
+            const surfacePoint = getAvatarSurfacePointAtY(targetX, targetY, side);
+            if (surfacePoint) {
+                points[landmarkName] = surfacePoint;
+                estimated.add(landmarkName);
+            }
+        };
+
+        inferTorsoSurfacePoint("LHW_Chest_Front", "front");
+        inferTorsoSurfacePoint("LHW_Back_Center", "back");
     } else if (category === "bottom") {
         const pelvis = avatarAnchors.pelvis;
         const spine = avatarAnchors.spine;
@@ -2208,6 +2345,8 @@ function getAvatarLandmarks(category) {
         putAnchor("LHW_Knee_R", "kneeRight");
         putAnchor("LHW_Hem_L", "ankleLeft");
         putAnchor("LHW_Hem_R", "ankleRight");
+        // LHW_Waist_Front remains intentionally unsupported until a matching avatar surface
+        // point is validated; the solver will reject Auto-Fit rather than guess its position.
     }
 
     return { points, estimated };
@@ -2330,7 +2469,7 @@ function fitModelFromLandmarksIfAvailable(
     }
 
     const garment = getGarmentLandmarks(model, category);
-    const body = getAvatarLandmarks(category);
+    const body = getAvatarLandmarks(category, garment.points);
     const missingGarment = required.filter((name) => !garment.points[name]);
     const missingAvatar = required.filter((name) => !body.points[name]);
     const missing = [...new Set([...missingGarment, ...missingAvatar])];
@@ -2356,6 +2495,30 @@ function fitModelFromLandmarksIfAvailable(
             ok: false,
             reason: `missing-landmarks:${missing.join(",")}`,
             diagnostic: landmarkDiagnostic,
+        };
+    }
+    const geometryValidation = validateLandmarkGeometry(
+        category,
+        new Map(
+            required.map((name) => [
+                name,
+                garment.points[name].toArray(),
+            ]),
+        ),
+        {
+            min: sourceBounds.min.toArray(),
+            max: sourceBounds.max.toArray(),
+            size: sourceBounds.size.toArray(),
+        },
+    );
+    if (!geometryValidation.valid) {
+        return {
+            ok: false,
+            reason: `invalid-garment-landmark-geometry:${geometryValidation.reason}`,
+            diagnostic: {
+                ...landmarkDiagnostic,
+                geometryValidation,
+            },
         };
     }
 
@@ -2660,6 +2823,635 @@ function renderOutfitStatus(results) {
     status.appendChild(note);
 }
 
+function catalogCategoryLabel(value) {
+    return CATALOG_CATEGORIES.find((category) => category.value === value)?.label || "Phụ kiện khác";
+}
+
+function inferCatalogCategory(item) {
+    const given = String(item.category || "").trim().toLowerCase();
+    if (CATALOG_CATEGORY_VALUES.has(given)) return given;
+
+    const productId = String(item.productId ?? item.id ?? "");
+    if (String(config.outfit?.top ?? "") === productId) return "top";
+    if (String(config.outfit?.bottom ?? "") === productId) return "bottom";
+    if (String(config.outfit?.shoes ?? "") === productId) return "shoes";
+
+    const text = `${item.label || ""} ${item.path || ""} ${item.url || ""}`.toLowerCase();
+    if (/(glasses|eyeglass|sunglass|kinh|spectacle)/i.test(text)) return "glasses";
+    if (/(hat|cap|beanie|helmet|mu\b|non\b|headwear)/i.test(text)) return "hat";
+    if (/(necklace|necklace|pendant|scarf|tie|khăn|day-chuyen|vong-co)/i.test(text)) {
+        return /(scarf|tie|khan)/i.test(text) ? "scarf" : "necklace";
+    }
+    if (/(bag|backpack|handbag|tote|purse|tui|balo)/i.test(text)) return "bag";
+    if (/(watch|bracelet|wrist|dong-ho|vong-tay)/i.test(text)) return "wrist";
+    if (/(shoe|sneaker|boot|sandal|loafer|giay)/i.test(text)) return "shoes";
+    if (/(pant|trouser|jean|shorts|skirt|bottom|quan|vay)/i.test(text)) return "bottom";
+    if (/(shirt|t-shirt|tee|top|blouse|hoodie|jacket|coat|sweater|ao\b|polo)/i.test(text)) return "top";
+    return "generic";
+}
+
+function getCatalogSourceItems() {
+    let source = Array.isArray(config.productCatalog) ? config.productCatalog : [];
+    if (!source.length) {
+        source = Object.entries(config.productAssets || {}).map(([productId, assets]) => ({
+            id: String(productId),
+            productId: String(productId),
+            label: assets.label || assets.name || `Sản phẩm #${productId}`,
+            path: assets.modelUrl || `/models/products/${productId}/product.glb`,
+            url: assets.modelUrl || `/models/products/${productId}/product.glb`,
+            category: String(config.outfit?.top ?? "") === String(productId)
+                ? "top"
+                : String(config.outfit?.bottom ?? "") === String(productId)
+                  ? "bottom"
+                  : String(config.outfit?.shoes ?? "") === String(productId)
+                    ? "shoes"
+                    : "generic",
+        }));
+    }
+
+    const byUrl = new Map();
+    source.forEach((raw, index) => {
+        const isShoePair = Boolean(raw.leftShoeUrl && raw.rightShoeUrl);
+        const url = String(raw.url || raw.modelUrl || raw.path || "").trim();
+        if (!url || (!isShoePair && !/\.(glb|gltf)(?:[?#].*)?$/i.test(url))) return;
+        if (!isShoePair && /landmarked|\.bak\.|backup|\/avatar(?:s)?\//i.test(url)) return;
+
+        const item = {
+            id: String(raw.id ?? raw.productId ?? `asset-${index + 1}`),
+            productId: raw.productId === null || raw.productId === undefined
+                ? (raw.id ?? null)
+                : raw.productId,
+            label: String(raw.label || raw.name || raw.filename || (isShoePair ? "Giày (đôi)" : url.split("/").pop())),
+            path: String(raw.path || url),
+            url,
+            imageUrl: String(raw.imageUrl || raw.thumbnailUrl || raw.image || "").trim() || null,
+            leftShoeUrl: isShoePair ? String(raw.leftShoeUrl) : null,
+            rightShoeUrl: isShoePair ? String(raw.rightShoeUrl) : null,
+            category: String(raw.category || "").trim().toLowerCase(),
+        };
+        item.category = inferCatalogCategory(item);
+        if (!byUrl.has(url)) byUrl.set(url, item);
+    });
+    return [...byUrl.values()];
+}
+
+const catalogSourceItems = getCatalogSourceItems();
+
+function makeElement(tag, className, text) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text !== undefined && text !== null) element.textContent = String(text);
+    return element;
+}
+
+function renderProductCatalog() {
+    if (!catalogItemsContainer) return;
+    catalogItemsContainer.replaceChildren();
+
+    const query = String(catalogSearchInput?.value || "").trim().toLowerCase();
+    const typeFilter = String(catalogCategoryFilter?.value || "all");
+    const items = catalogSourceItems.filter((item) => {
+        const selectedCategory = catalogCategoryOverrides.get(item.url) || item.category;
+        const haystack = `${item.label} ${item.path} ${item.url} ${item.productId || ""}`.toLowerCase();
+        return (!query || haystack.includes(query)) &&
+            (typeFilter === "all" || selectedCategory === typeFilter);
+    });
+
+    if (!items.length) {
+        catalogItemsContainer.appendChild(makeElement(
+            "p",
+            "catalog-empty",
+            catalogSourceItems.length
+                ? "Không có model phù hợp với bộ lọc hiện tại."
+                : "Chưa tìm thấy file GLB/GLTF. Hãy kiểm tra thư mục public/models.",
+        ));
+        return;
+    }
+
+    const addedUrls = new Set([...catalogSceneItems.values()].map((entry) => entry.url));
+    for (const item of items) {
+        const card = makeElement("article", "catalog-item");
+        const media = makeElement("div", `catalog-item-media${item.imageUrl ? "" : " catalog-item-media--empty"}`);
+        media.setAttribute("aria-label", item.imageUrl ? `Ảnh ${item.label}` : `Chưa có ảnh cho ${item.label}`);
+        if (item.imageUrl) {
+            const image = document.createElement("img");
+            image.src = item.imageUrl;
+            image.alt = item.label;
+            image.loading = "lazy";
+            image.decoding = "async";
+            image.addEventListener("error", () => {
+                media.classList.add("catalog-item-media--empty");
+                media.replaceChildren(
+                    makeElement("strong", "catalog-item-placeholder-mark", "3D"),
+                    makeElement("span", "catalog-item-placeholder-note", "Ảnh chưa khả dụng"),
+                );
+            }, { once: true });
+            media.appendChild(image);
+        } else {
+            media.append(
+                makeElement("strong", "catalog-item-placeholder-mark", "3D"),
+                makeElement("span", "catalog-item-placeholder-note", "Chưa có ảnh sản phẩm"),
+            );
+        }
+
+        const content = makeElement("div", "catalog-item-content");
+        const title = makeElement("strong", "catalog-item-title", item.label);
+        const path = makeElement("small", "catalog-item-path", item.path);
+        const typeLabel = makeElement("label", "catalog-item-type-label", "Loại sản phẩm");
+        const typeSelect = document.createElement("select");
+        typeSelect.className = "catalog-item-type";
+        typeSelect.setAttribute("aria-label", `Phân loại ${item.label}`);
+
+        CATALOG_CATEGORIES.forEach((category) => {
+            const option = document.createElement("option");
+            option.value = category.value;
+            option.textContent = category.label;
+            typeSelect.appendChild(option);
+        });
+        typeSelect.value = catalogCategoryOverrides.get(item.url) || item.category;
+        typeSelect.addEventListener("change", () => {
+            catalogCategoryOverrides.set(item.url, typeSelect.value);
+            item.category = typeSelect.value;
+            renderProductCatalog();
+        });
+        typeLabel.appendChild(typeSelect);
+
+        const addButton = makeElement(
+            "button",
+            "catalog-add-button",
+            addedUrls.has(item.url) ? "Đã thêm" : "+ Thêm vào phối đồ",
+        );
+        addButton.type = "button";
+        addButton.disabled = addedUrls.has(item.url);
+        addButton.addEventListener("click", async () => {
+            addButton.disabled = true;
+            addButton.textContent = "Đang tải 3D…";
+            try {
+                await addCatalogModel(item, typeSelect.value);
+            } catch (error) {
+                console.error("[LHW Studio] Không thể thêm model:", error);
+                setStatus(`Không thêm được ${item.label}: ${error.message || error}`);
+                addButton.disabled = false;
+                addButton.textContent = "+ Thêm vào phối đồ";
+            }
+        });
+
+        content.append(title, path, typeLabel, addButton);
+        card.append(media, content);
+        catalogItemsContainer.appendChild(card);
+    }
+}
+function getBoneWorldPositionByName(pattern, fallback) {
+    const bone = Object.values(avatarBones).find((candidate) => pattern.test(candidate.name));
+    if (!bone) return fallback.clone();
+    return bone.getWorldPosition(new THREE.Vector3());
+}
+
+function getCatalogTarget(category, item = null) {
+    if (category === "top" || category === "bottom" || category === "shoes") {
+        return getTargetForCategory(category);
+    }
+
+    const h = Math.max(avatarHeight || 1.765, 0.1);
+    const neck = avatarAnchors.neck?.clone() || new THREE.Vector3(0, h * 0.84, 0);
+    const shouldersY = ((avatarAnchors.shoulderLeft?.y ?? h * 0.82) +
+        (avatarAnchors.shoulderRight?.y ?? h * 0.82)) / 2;
+    const chest = avatarAnchors.chest?.clone() || new THREE.Vector3(0, h * 0.72, 0);
+    const head = getBoneWorldPositionByName(/head(?!top)/i, new THREE.Vector3(0, h * 0.92, 0));
+    const leftHand = avatarAnchors.handLeft?.clone() || new THREE.Vector3(-h * 0.35, h * 0.62, 0);
+
+    // When the avatar is hidden, bags and unclassified objects should be staged
+    // beside the outfit instead of being placed over the shirt/trousers. Give
+    // each added piece its own slot so multiple accessories do not stack.
+    const sideCategories = new Set(["bag", "accessory", "generic"]);
+    const sideCount = [...catalogSceneItems.values()].filter((entry) => sideCategories.has(entry.category)).length;
+    const side = sideCount % 2 === 0 ? 1 : -1;
+    const row = Math.floor(sideCount / 2);
+    const sideX = side * h * (0.36 + Math.min(row, 2) * 0.11);
+    const sideY = h * (0.53 - Math.min(row, 3) * 0.14);
+    const sideZ = 0.03 + Math.min(row, 3) * 0.025;
+
+    const targets = {
+        hat: {
+            center: head.clone().add(new THREE.Vector3(0, h * 0.075, 0)),
+            size: new THREE.Vector3(h * 0.23, h * 0.13, h * 0.22),
+        },
+        glasses: {
+            center: head.clone().add(new THREE.Vector3(0, h * 0.015, h * 0.07)),
+            size: new THREE.Vector3(h * 0.17, h * 0.055, h * 0.055),
+        },
+        necklace: {
+            center: neck.clone().add(new THREE.Vector3(0, -h * 0.035, h * 0.09)),
+            size: new THREE.Vector3(h * 0.17, h * 0.085, h * 0.08),
+        },
+        scarf: {
+            center: neck.clone().add(new THREE.Vector3(0, -h * 0.055, h * 0.10)),
+            size: new THREE.Vector3(h * 0.20, h * 0.14, h * 0.09),
+        },
+        bag: {
+            // Separate display lane: avoid a handbag/bag being normalized over the top mesh.
+            center: new THREE.Vector3(sideX, sideY, sideZ),
+            size: new THREE.Vector3(h * 0.25, h * 0.27, h * 0.17),
+        },
+        wrist: {
+            center: leftHand.clone().add(new THREE.Vector3(0, -h * 0.01, h * 0.02)),
+            size: new THREE.Vector3(h * 0.075, h * 0.055, h * 0.07),
+        },
+        accessory: {
+            center: new THREE.Vector3(sideX, sideY, sideZ),
+            size: new THREE.Vector3(h * 0.17, h * 0.17, h * 0.17),
+        },
+        generic: {
+            center: new THREE.Vector3(sideX, sideY, sideZ),
+            size: new THREE.Vector3(h * 0.22, h * 0.22, h * 0.22),
+        },
+    };
+    return targets[category] || {
+        center: new THREE.Vector3(sideX, shouldersY * 0.5, sideZ),
+        size: new THREE.Vector3(h * 0.20, h * 0.20, h * 0.20),
+    };
+}
+
+function disposeCatalogModel(model) {
+    if (!model) return;
+    const geometries = new Set();
+    const materials = new Set();
+    const textures = new Set();
+    model.traverse((object) => {
+        if (object.geometry) geometries.add(object.geometry);
+        const materialList = Array.isArray(object.material)
+            ? object.material
+            : object.material ? [object.material] : [];
+        materialList.forEach((material) => {
+            materials.add(material);
+            for (const value of Object.values(material)) {
+                if (value?.isTexture) textures.add(value);
+            }
+        });
+    });
+    geometries.forEach((geometry) => geometry.dispose());
+    materials.forEach((material) => material.dispose());
+    textures.forEach((texture) => texture.dispose());
+}
+
+function removeCatalogSceneItem(sceneItemId, shouldRender = true) {
+    const entry = catalogSceneItems.get(sceneItemId);
+    if (!entry) return;
+    fittingStage.remove(entry.model);
+    disposeCatalogModel(entry.model);
+    productBaseTransforms.delete(entry.fitKey);
+    if (entry.isShoePair) {
+        productBaseTransforms.delete(`${entry.fitKey}:left`);
+        productBaseTransforms.delete(`${entry.fitKey}:right`);
+    }
+    delete PRODUCT_FIT_CONFIG[entry.fitKey];
+    catalogSceneItems.delete(sceneItemId);
+    if (shouldRender) {
+        renderCatalogSceneItems();
+        renderProductCatalog();
+        if (config.viewer?.catalogMode === true) frameCatalogScene();
+    }
+}
+
+function renderCatalogSceneItems() {
+    if (!catalogSceneItemsContainer) return;
+    catalogSceneItemsContainer.replaceChildren();
+    if (!catalogSceneItems.size) {
+        catalogSceneItemsContainer.appendChild(makeElement(
+            "p", "catalog-empty", "Chưa có sản phẩm nào trong phối đồ. Chọn model ở phía trên để thêm vào scene.",
+        ));
+        return;
+    }
+
+    for (const [sceneItemId, entry] of catalogSceneItems) {
+        const row = makeElement("div", "scene-item");
+        const info = makeElement("div", "scene-item-info");
+        info.append(
+            makeElement("strong", "scene-item-title", entry.label),
+            makeElement("small", "scene-item-meta", catalogCategoryLabel(entry.category)),
+        );
+        const removeButton = makeElement("button", "scene-item-remove", "Bỏ");
+        removeButton.type = "button";
+        removeButton.addEventListener("click", () => removeCatalogSceneItem(sceneItemId));
+        row.append(info, removeButton);
+        catalogSceneItemsContainer.appendChild(row);
+    }
+}
+
+function orientShoeModelAlongFoot(model, side) {
+    const ankleWorld = avatarAnchors[side === "left" ? "ankleLeft" : "ankleRight"];
+    const toeWorld = avatarAnchors[side === "left" ? "toeLeft" : "toeRight"];
+    if (!ankleWorld || !toeWorld) {
+        throw new Error(`Không tìm thấy hướng bàn chân ${side} để căn giày.`);
+    }
+
+    // Work in fittingStage-local coordinates because shoes become children of that stage.
+    fittingStage.updateWorldMatrix(true, false);
+    const ankle = fittingStage.worldToLocal(ankleWorld.clone());
+    const toe = fittingStage.worldToLocal(toeWorld.clone());
+    const footDirection = toe.sub(ankle);
+    if (footDirection.lengthSq() < 1e-8) {
+        footDirection.set(0, 0, 1);
+    } else {
+        footDirection.normalize();
+    }
+
+    model.updateWorldMatrix(true, true);
+    const originalBounds = computeModelBounds(model);
+    const size = originalBounds.size;
+    const axes = [
+        { name: "x", size: size.x, vector: new THREE.Vector3(1, 0, 0) },
+        { name: "y", size: size.y, vector: new THREE.Vector3(0, 1, 0) },
+        { name: "z", size: size.z, vector: new THREE.Vector3(0, 0, 1) },
+    ].sort((a, b) => b.size - a.size);
+
+    // Most shoe exports have their length along X, Y, or Z depending on the authoring tool.
+    // Align the longest model axis to the avatar ankle-to-toe direction before fitting.
+    const longestAxis = axes[0];
+    const correction = new THREE.Quaternion().setFromUnitVectors(
+        longestAxis.vector,
+        footDirection,
+    );
+    model.quaternion.premultiply(correction);
+    model.updateWorldMatrix(true, true);
+
+    return {
+        originalSize: size.toArray(),
+        longestAxis: longestAxis.name,
+        footDirection: footDirection.toArray(),
+        correctionQuaternion: correction.toArray(),
+    };
+}
+
+async function addCatalogShoePair(item) {
+    const sceneItemId = `mix-${++catalogSequence}`;
+    const fitKey = `catalog-fit-${catalogSequence}`;
+    const group = new THREE.Group();
+    group.name = `LHW shoe pair ${item.label}`;
+    const parts = [];
+    const sourceProductKey = String(item.productId ?? item.id ?? "");
+    const existingFit = mergeProductFitConfig(
+        mergeProductFitConfig(
+            PRODUCT_FIT_CATEGORY_DEFAULTS.shoes || {
+                ...BASIC_FIT_CONFIG,
+                category: "shoes",
+                normalization: { pivot: "bounds-center", scale: "uniform-contain" },
+            },
+            PRODUCT_FIT_CONFIG[sourceProductKey] || {},
+        ),
+        PRODUCT_FIT_ID_OVERRIDES[sourceProductKey] || {},
+    );
+
+    // Never distort an individual shoe independently on X/Y/Z. Keep aspect ratio and fit each foot separately.
+    PRODUCT_FIT_CONFIG[fitKey] = mergeProductFitConfig(existingFit, {
+        category: "shoes",
+        positionOffset: [0, 0, 0],
+        rotationOffset: [0, 0, 0],
+        scaleMultiplier: [1, 1, 1],
+        normalization: { pivot: "bounds-center", scale: "uniform-contain" },
+        parts: {
+            left: {
+                positionOffset: [0, 0, 0],
+                rotationOffset: [...(existingFit.parts?.left?.rotationOffset || [0, 0, 0])],
+                scaleMultiplier: [...(existingFit.parts?.left?.scaleMultiplier || [1, 1, 1])],
+                normalization: { pivot: "bounds-center", scale: "uniform-contain" },
+            },
+            right: {
+                positionOffset: [0, 0, 0],
+                rotationOffset: [...(existingFit.parts?.right?.rotationOffset || [0, 0, 0])],
+                scaleMultiplier: [...(existingFit.parts?.right?.scaleMultiplier || [1, 1, 1])],
+                normalization: { pivot: "bounds-center", scale: "uniform-contain" },
+            },
+        },
+    });
+
+    try {
+        for (const [side, url] of [["left", item.leftShoeUrl], ["right", item.rightShoeUrl]]) {
+            const shoe = await loadGLB(url);
+            shoe.name = `${item.label} — ${side === "left" ? "trái" : "phải"}`;
+            const orientation = orientShoeModelAlongFoot(shoe, side);
+            const sourceBounds = computeModelBounds(shoe);
+            // Store the auto-oriented transform as the baseline so fitting does not reset it.
+            productBaseTransforms.set(`${fitKey}:${side}`, {
+                position: shoe.position.clone(),
+                quaternion: shoe.quaternion.clone(),
+                scale: shoe.scale.clone(),
+            });
+            group.add(shoe);
+            parts.push({ side, url, model: shoe, sourceBounds, orientation, report: null });
+        }
+
+        fittingStage.add(group);
+        group.updateWorldMatrix(true, true);
+        for (const part of parts) {
+            part.report = fitModelToTarget(
+                part.model,
+                getTargetForShoeFoot(part.side),
+                fitKey,
+                "shoes",
+                part.sourceBounds,
+                part.side,
+            );
+
+            // A uniform fit may leave a small vertical gap because the target box is
+            // intentionally generous. Set the lowest point to floor Y=0 for natural placement.
+            const fittedBounds = computeModelBounds(part.model);
+            translateRootByWorldDelta(
+                part.model,
+                new THREE.Vector3(0, -fittedBounds.min.y, 0),
+            );
+            part.model.updateWorldMatrix(true, true);
+            part.report.actualBounds = computeModelBounds(part.model);
+            part.report.groundingOffset = -fittedBounds.min.y;
+        }
+
+        const sceneEntry = {
+            sceneItemId,
+            fitKey,
+            productId: item.productId,
+            label: item.label,
+            url: item.url,
+            path: item.path,
+            category: "shoes",
+            model: group,
+            parts,
+            isShoePair: true,
+            report: {
+                fitMethod: "foot-anchors + uniform-contain",
+                parts: parts.map((part) => ({
+                    side: part.side,
+                    orientation: part.orientation,
+                    target: part.report.target,
+                    actualBounds: part.report.actualBounds,
+                    groundingOffset: part.report.groundingOffset,
+                })),
+            },
+        };
+
+        // One shoe-pair slot: replacing it removes the prior pair without touching other accessories.
+        for (const [otherId, otherEntry] of [...catalogSceneItems.entries()]) {
+            if (otherEntry.category === "shoes") removeCatalogSceneItem(otherId, false);
+        }
+        catalogSceneItems.set(sceneItemId, sceneEntry);
+        renderCatalogSceneItems();
+        renderProductCatalog();
+        frameCatalogScene();
+        setStatus(`Đã thêm ${item.label}. Hai chiếc được căn riêng theo bàn chân trái/phải và giữ nguyên tỉ lệ.`);
+        console.info("[LHW Studio] Shoe pair fit:", sceneEntry.report);
+        return sceneEntry;
+    } catch (error) {
+        fittingStage.remove(group);
+        disposeCatalogModel(group);
+        for (const part of parts) productBaseTransforms.delete(`${fitKey}:${part.side}`);
+        delete PRODUCT_FIT_CONFIG[fitKey];
+        throw error;
+    }
+}
+
+async function addCatalogModel(item, category) {
+    if (!avatar) throw new Error("Avatar ẩn dùng làm mốc kích thước chưa sẵn sàng.");
+    const bodyCategories = new Set(["top", "bottom", "shoes"]);
+    const slotCategory = bodyCategories.has(category) ? category : null;
+    const existingEntry = [...catalogSceneItems.values()].find((entry) => entry.url === item.url);
+    if (existingEntry) {
+        setStatus(`${item.label} đã có trong phối đồ.`);
+        return;
+    }
+
+    if (category === "shoes" && item.leftShoeUrl && item.rightShoeUrl) {
+        setStatus(`Đang tải đôi giày: ${item.label}…`);
+        return addCatalogShoePair(item);
+    }
+
+    setStatus(`Đang tải model 3D: ${item.label}…`);
+    const model = await loadGLB(item.url);
+    const sceneItemId = `mix-${++catalogSequence}`;
+    const fitKey = `catalog-fit-${catalogSequence}`;
+    const sourceProductKey = String(item.productId ?? item.id ?? "");
+    const categoryDefaults = PRODUCT_FIT_CATEGORY_DEFAULTS[category] || {};
+    const legacyOrExplicitFit = PRODUCT_FIT_CONFIG[sourceProductKey] || {};
+    const idOverride = PRODUCT_FIT_ID_OVERRIDES[sourceProductKey] || {};
+    const categoryFallback = {
+        ...BASIC_FIT_CONFIG,
+        category,
+        normalization: {
+            pivot: "bounds-center",
+            scale: category === "shoes" ? "uniform-contain" :
+                (bodyCategories.has(category) ? "axis" : "uniform-contain"),
+        },
+    };
+    const sourceFit = mergeProductFitConfig(
+        mergeProductFitConfig(
+            mergeProductFitConfig(categoryFallback, categoryDefaults),
+            legacyOrExplicitFit,
+        ),
+        idOverride,
+    );
+    PRODUCT_FIT_CONFIG[fitKey] = mergeProductFitConfig(sourceFit, {
+        category,
+        positionOffset: [...(item.positionOffset || sourceFit.positionOffset || [0, 0, 0])],
+        rotationOffset: [...(item.rotationOffset || sourceFit.rotationOffset || [0, 0, 0])],
+        scaleMultiplier: [...(item.scaleMultiplier || sourceFit.scaleMultiplier || [1, 1, 1])],
+        normalization: {
+            ...(sourceFit.normalization || {}),
+            pivot: "bounds-center",
+            scale: category === "shoes" ? "uniform-contain" : (bodyCategories.has(category) ? (sourceFit.normalization?.scale || "axis") : "uniform-contain"),
+        },
+    });
+
+    try {
+        model.name = `LHW Mix ${item.label}`;
+        fittingStage.add(model);
+        const sourceBounds = computeModelBounds(model);
+        productBaseTransforms.set(fitKey, {
+            position: model.position.clone(),
+            quaternion: model.quaternion.clone(),
+            scale: model.scale.clone(),
+        });
+        const target = getCatalogTarget(category, item);
+        const report = fitModelToTarget(model, target, fitKey, category, sourceBounds);
+
+        // Only one main garment per body slot; accessories can be layered together.
+        if (slotCategory) {
+            for (const [otherId, otherEntry] of [...catalogSceneItems.entries()]) {
+                if (otherEntry.category === slotCategory) removeCatalogSceneItem(otherId, false);
+            }
+        }
+
+        catalogSceneItems.set(sceneItemId, {
+            sceneItemId,
+            fitKey,
+            productId: item.productId,
+            label: item.label,
+            url: item.url,
+            path: item.path,
+            category,
+            model,
+            report,
+        });
+
+        renderCatalogSceneItems();
+        renderProductCatalog();
+        frameCatalogScene();
+        setStatus(`Đã thêm ${item.label} vào phối đồ 3D. Đang có ${catalogSceneItems.size} mô hình.`);
+        console.log("[LHW Studio] Catalog model fitted:", {
+            label: item.label,
+            url: item.url,
+            category,
+            target,
+            actualBounds: report.actualBounds,
+            scale: model.scale.toArray(),
+        });
+    } catch (error) {
+        fittingStage.remove(model);
+        disposeCatalogModel(model);
+        productBaseTransforms.delete(fitKey);
+        delete PRODUCT_FIT_CONFIG[fitKey];
+        throw error;
+    }
+}
+
+function frameCatalogScene({ animate = false } = {}) {
+    if (!catalogSceneItems.size) {
+        setCameraView("front");
+        return;
+    }
+
+    fittingStage.updateWorldMatrix(true, true);
+    const bounds = new THREE.Box3();
+    for (const entry of catalogSceneItems.values()) {
+        if (entry.model) bounds.union(new THREE.Box3().setFromObject(entry.model));
+    }
+    if (bounds.isEmpty()) return;
+
+    const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+    const target = sphere.center.clone();
+    const aspect = Math.max(viewer.clientWidth / Math.max(viewer.clientHeight, 1), 0.35);
+    const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
+    const limitingFov = Math.max(THREE.MathUtils.degToRad(12), Math.min(verticalFov, horizontalFov));
+    const radius = Math.max(sphere.radius, avatarHeight * 0.18);
+    const distance = (radius / Math.sin(limitingFov / 2)) * 1.22;
+    const direction = new THREE.Vector3(0.08, 0.10, 1).normalize();
+
+    controls.target.copy(target);
+    camera.position.copy(target).addScaledVector(direction, distance);
+    camera.near = Math.max(0.01, distance / 1000);
+    camera.far = Math.max(100, distance * 10);
+    camera.updateProjectionMatrix();
+    controls.update();
+}
+
+function clearCatalogScene() {
+    for (const sceneItemId of [...catalogSceneItems.keys()]) {
+        removeCatalogSceneItem(sceneItemId, false);
+    }
+    renderCatalogSceneItems();
+    renderProductCatalog();
+    setCameraView("front");
+    setStatus("Đã xóa toàn bộ mô hình khỏi phối đồ 3D.");
+}
+
 async function loadOutfit() {
     if (outfitLoadInProgress) return;
     outfitLoadInProgress = true;
@@ -2696,12 +3488,27 @@ document.getElementById("reloadOutfit").addEventListener("click", () => {
     fittingStage.rotation.y = 0;
     fittingStage.updateWorldMatrix(true, true);
     updateAnchors();
-    loadOutfit();
+    if (config.viewer?.catalogMode === true) {
+        clearCatalogScene();
+    } else {
+        loadOutfit();
+    }
 });
 
 document.getElementById("resetCamera").addEventListener("click", () => {
-    setCameraView("front");
+    if (config.viewer?.catalogMode === true) frameCatalogScene();
+    else setCameraView("front");
 });
+
+if (catalogSearchInput) {
+    catalogSearchInput.addEventListener("input", renderProductCatalog);
+}
+if (catalogCategoryFilter) {
+    catalogCategoryFilter.addEventListener("change", renderProductCatalog);
+}
+if (clearCatalogItemsButton) {
+    clearCatalogItemsButton.addEventListener("click", clearCatalogScene);
+}
 
 function resizeRenderer() {
     const width = viewer.clientWidth;
@@ -2748,7 +3555,20 @@ function animate(timestamp = 0) {
 async function start() {
     try {
         await loadAvatar();
-        await loadOutfit();
+        if (config.viewer?.catalogMode === true) {
+            // Avatar is used only as an invisible reference for garment placement.
+            if (avatar) avatar.visible = false;
+            const reloadButton = document.getElementById("reloadOutfit");
+            if (reloadButton) reloadButton.textContent = "Xóa phối đồ";
+            const rotateButton = document.getElementById("rotateAvatar");
+            if (rotateButton) rotateButton.textContent = "Bật/tắt xoay mô hình";
+            if (debugPanel) debugPanel.hidden = true;
+            renderProductCatalog();
+            renderCatalogSceneItems();
+            setStatus(`Đã ẩn avatar. Tìm thấy ${catalogSourceItems.length} file 3D có thể thêm vào phối đồ.`);
+        } else {
+            await loadOutfit();
+        }
     } catch (error) {
         console.error(error);
         setStatus(`Lỗi khởi tạo: ${error.message}`);
@@ -2784,6 +3604,23 @@ window.LHWFittingDebug = {
         return fittingStage;
     },
 
+    get catalogItems() {
+        return [...catalogSceneItems.values()].map(({ model, ...entry }) => entry);
+    },
+
+    addCatalogItem(url, category = "generic", label = url) {
+        const existing = catalogSourceItems.find((item) => item.url === url) || {
+            id: `console-${catalogSequence + 1}`,
+            productId: null,
+            label,
+            path: url,
+            url,
+            category,
+        };
+        return addCatalogModel(existing, category);
+    },
+
+    clearCatalogItems: clearCatalogScene,
     setCameraView,
 
     get debugVisibility() {

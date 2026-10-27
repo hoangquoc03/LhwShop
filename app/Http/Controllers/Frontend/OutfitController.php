@@ -8,6 +8,7 @@ use App\Services\EmbeddingService;
 use App\Services\OllamaService;
 use App\Services\QdrantService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class OutfitController extends Controller
 {
@@ -1227,5 +1228,72 @@ class OutfitController extends Controller
         }
 
         return 'Outfit được lựa chọn dựa trên yêu cầu của bạn.';
+    }
+    /**
+     * Chuyển đường dẫn ảnh trong database thành URL có thể hiển thị.
+     */
+    private function resolveProductImageUrl(mixed $image): ?string
+    {
+        if (!is_string($image) || trim($image) === '') {
+            return null;
+        }
+
+        $image = trim($image);
+
+        // Ảnh dùng URL đầy đủ.
+        if (Str::startsWith($image, ['http://', 'https://', 'data:'])) {
+            return $image;
+        }
+
+        $image = ltrim($image, '/');
+
+        // Ví dụ: storage/uploads/products/ao.jpg
+        if (Str::startsWith($image, 'storage/')) {
+            return asset($image);
+        }
+
+        // Ví dụ: uploads/products/ao.jpg
+        if (Str::startsWith($image, 'uploads/products/')) {
+            return asset('storage/' . $image);
+        }
+
+        // Ví dụ: ao.jpg — theo cấu trúc ảnh hiện tại của dự án.
+        return asset('storage/uploads/products/' . $image);
+    }
+
+    /**
+     * Chuẩn hóa URL model 3D.
+     */
+    private function resolveProductModelUrl(
+        mixed $modelPath,
+        int $productId
+    ): ?string {
+        if (is_string($modelPath) && trim($modelPath) !== '') {
+            $modelPath = trim($modelPath);
+
+            if (Str::startsWith($modelPath, ['http://', 'https://'])) {
+                return $modelPath;
+            }
+
+            $modelPath = ltrim($modelPath, '/');
+
+            if (
+                Str::startsWith($modelPath, 'models/') ||
+                Str::startsWith($modelPath, 'storage/')
+            ) {
+                return asset($modelPath);
+            }
+
+            return asset('storage/' . $modelPath);
+        }
+
+        // Fallback theo cấu trúc model đang dùng trong dự án.
+        $relativePath = "models/products/{$productId}/product.glb";
+
+        if (is_file(public_path($relativePath))) {
+            return asset($relativePath);
+        }
+
+        return null;
     }
 }
