@@ -5,12 +5,30 @@ import {
     selectLandmarkFit,
     solveLandmarkSimilarity as solveLandmarkSimilarityArrays,
 } from "./lhw-landmark-solver.js";
-import { validateLandmarkGeometry } from "./lhw-glb-inspector-core.js";
+import { validateLandmarkGeometry } from "./lhw-fitting-landmark-geometry.js";
 
 const viewer = document.getElementById("fittingViewer");
 const status = document.getElementById("fittingStatus");
 const debugPanel = document.getElementById("fittingDebug");
 const config = window.LHW_FITTING_CONFIG;
+
+// Early diagnostic handle: proves the module executed before WebGL/GLB setup.
+window.LHWFittingDebug = {
+    moduleState: "loading",
+    getCatalogSummary() {
+        const rows = Array.isArray(config?.productCatalog) ? config.productCatalog : [];
+        return rows.map((item) => ({
+            id: item.id ?? item.productId ?? null,
+            productId: item.productId ?? null,
+            label: item.label ?? item.name ?? "(no name)",
+            category: item.category ?? "generic",
+            url: item.url ?? item.modelUrl ?? item.path ?? null,
+        }));
+    },
+    getCatalogSceneSummary() {
+        return { ready: false, items: [], note: "Three.js engine is initializing." };
+    },
+};
 
 if (!viewer || !config) {
     throw new Error("Thiếu fittingViewer hoặc LHW_FITTING_CONFIG.");
@@ -85,6 +103,19 @@ let avatarBones = {};
 let avatarAnchors = {};
 let avatarHeight = 1.765;
 let avatarBox = null;
+// A single shared promise prevents a product click from racing loadAvatar().
+// Every add-to-outfit request waits for this promise instead of failing early.
+let avatarInitializationPromise = null;
+
+function isAvatarReadyForFitting() {
+    return Boolean(
+        avatar &&
+        Number.isFinite(avatarHeight) &&
+        avatarHeight > 0 &&
+        avatarAnchors &&
+        avatarAnchors.pelvis
+    );
+}
 let isRotating = false;
 let debugSelection = "top";
 const productFitMetadata = new Map();
@@ -460,8 +491,51 @@ async function loadAvatar() {
     // Studio mode: retain avatar measurements/bones for fitting, but hide the avatar render.
     avatar.visible = config.viewer?.showAvatar === true;
 
+    if (!isAvatarReadyForFitting()) {
+        throw new Error("Avatar đã tải nhưng chưa tạo được anchors dùng để căn chỉnh trang phục.");
+    }
+
     console.log("LHW fitting avatar height:", avatarHeight);
     console.log("LHW fitting anchors:", avatarAnchors);
+    return avatar;
+}
+
+/**
+ * Ensure avatar geometry, measurements and fitting anchors are ready.
+ * The promise is shared by page startup and every product-add click, so a
+ * click made during avatar.glb loading waits rather than throwing a race error.
+ */
+function ensureAvatarReady() {
+    if (isAvatarReadyForFitting()) return Promise.resolve(avatar);
+
+    if (!avatarInitializationPromise) {
+        setStatus("Đang chuẩn bị avatar và điểm đo để căn chỉnh trang phục...");
+        avatarInitializationPromise = loadAvatar()
+            .then((loadedAvatar) => {
+                if (!isAvatarReadyForFitting()) {
+                    throw new Error("Avatar chưa sẵn sàng: thiếu chiều cao hoặc điểm neo pelvis.");
+                }
+                if (window.LHWFittingDebug) {
+                    window.LHWFittingDebug.moduleState = "ready";
+                    window.LHWFittingDebug.moduleError = null;
+                }
+                window.dispatchEvent(new CustomEvent("lhw:avatar-ready", {
+                    detail: { height: avatarHeight, anchors: Object.keys(avatarAnchors) },
+                }));
+                return loadedAvatar || avatar;
+            })
+            .catch((error) => {
+                if (window.LHWFittingDebug) {
+                    window.LHWFittingDebug.moduleState = "avatar-error";
+                    window.LHWFittingDebug.moduleError = error?.message || String(error);
+                }
+                // Keep the rejected promise so simultaneous/future clicks get
+                // the same truthful failure; a page reload retries initialization.
+                throw error;
+            });
+    }
+
+    return avatarInitializationPromise;
 }
 
 // Ước lượng vùng đặt trang phục.
@@ -2829,6 +2903,16 @@ function catalogCategoryLabel(value) {
 
 function inferCatalogCategory(item) {
     const given = String(item.category || "").trim().toLowerCase();
+    const text = `${item.label || ""} ${item.path || ""} ${item.url || ""}`.toLowerCase();
+
+    // Product titles are more specific than supplier-level categories. In
+    // particular, "Áo khoác denim" must be a top, not trousers just because
+    // the word "denim" or a supplier code was previously mapped to bottom.
+    const clearlyTop = /(áo\s*(?:khoác|sơ\s*mi)|ao[-_\s]*khoac|\b(?:jacket|coat|hoodie|sweater|shirt|t-shirt|tee|blouse|polo)\b)/i.test(text);
+    const clearlyBottom = /(quần|\b(?:pants?|trousers?|jeans?|jean|shorts?|skirt)\b|váy|vay)/i.test(text);
+    if (clearlyTop && !clearlyBottom) return "top";
+    if (clearlyBottom && !clearlyTop) return "bottom";
+
     if (CATALOG_CATEGORY_VALUES.has(given)) return given;
 
     const productId = String(item.productId ?? item.id ?? "");
@@ -2836,16 +2920,15 @@ function inferCatalogCategory(item) {
     if (String(config.outfit?.bottom ?? "") === productId) return "bottom";
     if (String(config.outfit?.shoes ?? "") === productId) return "shoes";
 
-    const text = `${item.label || ""} ${item.path || ""} ${item.url || ""}`.toLowerCase();
     if (/(glasses|eyeglass|sunglass|kinh|spectacle)/i.test(text)) return "glasses";
     if (/(hat|cap|beanie|helmet|mu\b|non\b|headwear)/i.test(text)) return "hat";
-    if (/(necklace|necklace|pendant|scarf|tie|khăn|day-chuyen|vong-co)/i.test(text)) {
+    if (/(necklace|pendant|scarf|tie|khăn|day-chuyen|vong-co)/i.test(text)) {
         return /(scarf|tie|khan)/i.test(text) ? "scarf" : "necklace";
     }
     if (/(bag|backpack|handbag|tote|purse|tui|balo)/i.test(text)) return "bag";
     if (/(watch|bracelet|wrist|dong-ho|vong-tay)/i.test(text)) return "wrist";
     if (/(shoe|sneaker|boot|sandal|loafer|giay)/i.test(text)) return "shoes";
-    if (/(pant|trouser|jean|shorts|skirt|bottom|quan|vay)/i.test(text)) return "bottom";
+    if (/(quần|quan\b|pant|trouser|jean|shorts|skirt|bottom|váy|vay)/i.test(text)) return "bottom";
     if (/(shirt|t-shirt|tee|top|blouse|hoodie|jacket|coat|sweater|ao\b|polo)/i.test(text)) return "top";
     return "generic";
 }
@@ -3309,7 +3392,16 @@ async function addCatalogShoePair(item) {
 }
 
 async function addCatalogModel(item, category) {
-    if (!avatar) throw new Error("Avatar ẩn dùng làm mốc kích thước chưa sẵn sàng.");
+    // Do not reject an early click: wait for the same avatar load that page
+    // startup is performing. This also covers calls through LHWFittingDebug.
+    if (!isAvatarReadyForFitting()) {
+        setStatus(`Đang chờ avatar sẵn sàng để thêm ${item.label}...`);
+        await ensureAvatarReady();
+    }
+    if (!isAvatarReadyForFitting()) {
+        throw new Error("Avatar chưa sẵn sàng để căn chỉnh sản phẩm. Kiểm tra /models/avatar/avatar.glb.");
+    }
+
     const bodyCategories = new Set(["top", "bottom", "shoes"]);
     const slotCategory = bodyCategories.has(category) ? category : null;
     const existingEntry = [...catalogSceneItems.values()].find((entry) => entry.url === item.url);
@@ -3553,10 +3645,23 @@ function animate(timestamp = 0) {
 }
 
 async function start() {
+    const catalogMode = config.viewer?.catalogMode === true;
+
+    // Render the product library immediately. Do not make the catalog wait for
+    // avatar.glb; in catalog mode the avatar is only a hidden fitting reference.
+    if (catalogMode) {
+        renderProductCatalog();
+        renderCatalogSceneItems();
+        setStatus(`Đã hiển thị ${catalogSourceItems.length} model. Đang chuẩn bị avatar để căn chỉnh 3D...`);
+    }
+
     try {
-        await loadAvatar();
-        if (config.viewer?.catalogMode === true) {
-            // Avatar is used only as an invisible reference for garment placement.
+        await ensureAvatarReady();
+        if (window.LHWFittingDebug) {
+            window.LHWFittingDebug.moduleState = "ready";
+            window.LHWFittingDebug.moduleError = null;
+        }
+        if (catalogMode) {
             if (avatar) avatar.visible = false;
             const reloadButton = document.getElementById("reloadOutfit");
             if (reloadButton) reloadButton.textContent = "Xóa phối đồ";
@@ -3565,19 +3670,71 @@ async function start() {
             if (debugPanel) debugPanel.hidden = true;
             renderProductCatalog();
             renderCatalogSceneItems();
-            setStatus(`Đã ẩn avatar. Tìm thấy ${catalogSourceItems.length} file 3D có thể thêm vào phối đồ.`);
+            setStatus(`Studio sẵn sàng. Tìm thấy ${catalogSourceItems.length} model 3D có thể thêm vào phối đồ.`);
         } else {
             await loadOutfit();
         }
     } catch (error) {
-        console.error(error);
-        setStatus(`Lỗi khởi tạo: ${error.message}`);
+        if (window.LHWFittingDebug) {
+            window.LHWFittingDebug.moduleState = "avatar-error";
+            window.LHWFittingDebug.moduleError = error?.message || String(error);
+        }
+        console.error("[LHW Fitting] Lỗi khởi tạo:", error);
+        if (catalogMode) {
+            // Keep the catalog visible even if avatar.glb fails. Adding a model
+            // still requires a valid avatar for fitting, and reports that clearly.
+            renderProductCatalog();
+            renderCatalogSceneItems();
+            setStatus(`Danh mục vẫn hiển thị (${catalogSourceItems.length} model), nhưng avatar không tải được: ${error.message}. Kiểm tra /models/avatar/avatar.glb trong Network.`);
+        } else {
+            setStatus(`Lỗi khởi tạo: ${error.message}`);
+        }
     }
 }
 
 window.LHWFittingDebug = {
+    // The engine API exists now; avatar readiness is set by start() after loadAvatar().
+    moduleState: "engine-ready",
+    moduleError: null,
+
+    getCatalogSummary() {
+        return catalogSourceItems.map((item) => ({
+            id: item.id,
+            productId: item.productId,
+            label: item.label,
+            category: item.category,
+            url: item.url,
+            imageUrl: item.imageUrl,
+        }));
+    },
+
+    getCatalogSceneSummary() {
+        return [...catalogSceneItems.values()].map((entry) => {
+            let meshCount = 0;
+            entry.model?.traverse((object) => {
+                if (object.isMesh) meshCount += 1;
+            });
+            return {
+                sceneItemId: entry.sceneItemId,
+                productId: entry.productId,
+                label: entry.label,
+                category: entry.category,
+                url: entry.url,
+                meshCount,
+            };
+        });
+    },
+
     get avatar() {
         return avatar;
+    },
+
+    get avatarReady() {
+        return isAvatarReadyForFitting();
+    },
+
+    waitForAvatarReady() {
+        return ensureAvatarReady();
     },
 
     get clothing() {

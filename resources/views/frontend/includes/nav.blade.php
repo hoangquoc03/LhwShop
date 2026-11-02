@@ -127,6 +127,14 @@
                         Gợi ý
                     </button>
                 </li>
+                <!-- Phối đồ 3D -->
+                <li class="nav-item mr-3">
+                    <a href="{{ url('/fitting-room') }}" class="btn btn-3d-fashion position-relative">
+                        <i class="ti-shirt"></i>
+                        <span>Phối đồ 3D</span>
+                        <span class="badge-3d">3D</span>
+                    </a>
+                </li>
 
 
 
@@ -285,6 +293,43 @@
 </nav>
 
 <style>
+    .btn-3d-fashion {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 9px 15px;
+        border: 1px solid #9a744d;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #292820, #514431);
+        color: #fff !important;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none !important;
+        transition: all .25s ease;
+    }
+
+    .btn-3d-fashion:hover {
+        background: linear-gradient(135deg, #806344, #a57c50);
+        border-color: #a57c50;
+        color: #fff !important;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(80, 60, 35, .2);
+    }
+
+    .btn-3d-fashion i {
+        font-size: 17px;
+    }
+
+    .badge-3d {
+        padding: 3px 5px;
+        border-radius: 4px;
+        background: #d8b58d;
+        color: #292820;
+        font-size: 9px;
+        font-weight: 800;
+    }
+
     .product-card {
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
@@ -780,6 +825,7 @@
 
         });
 </script>
+
 <script>
     let currentAiOutfit = null;
     let selectedAvatar = null;
@@ -1167,9 +1213,9 @@
 
 
                             const productName =
-                                product.name ??
                                 product.product_name ??
-                                'Sản phẩm';
+                                product.name ??
+                                'Sản phẩm #' + productId;
 
 
                             const category =
@@ -1188,7 +1234,9 @@
 
 
                             const image =
+                                product.image_url ??
                                 product.image ??
+                                product.image_path ??
                                 '';
 
 
@@ -1601,70 +1649,146 @@
         // });
 
 
-        document.addEventListener('click', function(e) {
+        /*
+         * =====================================================
+         * MẶC THỬ CẢ OUTFIT
+         * Chuyển thẳng đến /fitting-room và truyền ID sản phẩm.
+         * Không còn mở Avatar Modal ở luồng này.
+         * =====================================================
+         */
 
-            const button =
-                e.target.closest('#tryWholeOutfitBtn');
+        function classifyFittingRole(product) {
+            const role = String(product.role || '').trim().toLowerCase();
+            const category = String(product.category || '').trim().toLowerCase();
+            const name = String(
+                product.product_name || product.name || ''
+            ).trim().toLowerCase();
+            const text = `${role} ${category} ${name}`;
 
-            if (!button) {
-                return;
+            if (/(giày|shoes?|sneaker|boots?|sandals?)/i.test(text)) return 'shoes';
+            if (/(quần|pants?|trousers?|jeans?|shorts?|váy|skirt|bottom)/i.test(text)) return 'bottom';
+            if (/(áo|shirt|t-shirt|tee|polo|hoodie|jacket|coat|blouse|outerwear|top)/i.test(text)) return 'top';
+            if (/(đầm|dress)/i.test(text)) return 'dress';
+            if (/(túi|bag|backpack|handbag|tote)/i.test(text)) return 'bag';
+            if (/(mũ|nón|hat|cap|beanie)/i.test(text)) return 'hat';
+            if (/(kính|glasses|eyewear|sunglasses)/i.test(text)) return 'glasses';
+            if (/(đồng hồ|watch|vòng tay|bracelet)/i.test(text)) return 'wrist';
+            if (/(dây chuyền|vòng cổ|necklace|pendant)/i.test(text)) return 'necklace';
+            if (/(khăn|cà vạt|scarf|tie|cravat)/i.test(text)) return 'scarf';
+
+            return role || category || 'accessory';
+        }
+
+        function buildFittingRoomUrl(outfit) {
+            const products = Array.isArray(outfit?.products) ?
+                outfit.products : [];
+
+            const normalizedItems = products
+                .map(function(product) {
+                    const rawId = product.product_id ?? product.id ?? null;
+                    const id = Number(rawId);
+
+                    if (!Number.isSafeInteger(id) || id <= 0) {
+                        return null;
+                    }
+
+                    return {
+                        id: id,
+                        role: classifyFittingRole(product),
+                        name: String(
+                            product.product_name ||
+                            product.name ||
+                            `Sản phẩm #${id}`
+                        ),
+                    };
+                })
+                .filter(Boolean);
+
+            // Loại ID trùng nhưng vẫn giữ nguyên thứ tự gợi ý.
+            const seen = new Set();
+            const items = normalizedItems.filter(function(item) {
+                if (seen.has(item.id)) return false;
+                seen.add(item.id);
+                return true;
+            });
+
+            if (!items.length) {
+                throw new Error(
+                    'Outfit chưa có product_id hợp lệ. Hãy kiểm tra dữ liệu trả về từ OutfitController.'
+                );
             }
 
-            console.log('CLICK MẶC THỬ CẢ OUTFIT');
+            const url = new URL(@json(url('/fitting-room')), window.location.origin);
+            const productIds = items.map(item => item.id);
 
-            const outfit =
-                window.currentAiOutfit;
+            // Danh sách tổng hợp để phòng thử đồ tải đầy đủ tất cả món.
+            url.searchParams.set('products', productIds.join(','));
 
-            if (
-                !outfit ||
-                !outfit.products ||
-                outfit.products.length === 0
-            ) {
+            // Laravel nhận được mảng product_ids.
+            productIds.forEach(function(id) {
+                url.searchParams.append('product_ids[]', String(id));
+            });
+
+            // Gửi role để phân biệt áo, quần, giày và phụ kiện.
+            url.searchParams.set('items', JSON.stringify(items));
+
+            // Các ID chính để trang fitting-room có thể nạp nhanh theo slot.
+            const firstByRole = function(role) {
+                const found = items.find(item => item.role === role);
+                return found ? found.id : null;
+            };
+
+            const topId = firstByRole('top');
+            const bottomId = firstByRole('bottom');
+            const shoesId = firstByRole('shoes');
+            const dressId = firstByRole('dress');
+
+            if (topId) url.searchParams.set('top_id', String(topId));
+            if (bottomId) url.searchParams.set('bottom_id', String(bottomId));
+            if (shoesId) url.searchParams.set('shoes_id', String(shoesId));
+            if (dressId) url.searchParams.set('dress_id', String(dressId));
+
+            if (outfit.outfit_name) {
+                url.searchParams.set('outfit_name', String(outfit.outfit_name));
+            }
+            if (outfit.style) {
+                url.searchParams.set('style', String(outfit.style));
+            }
+            if (outfit.occasion) {
+                url.searchParams.set('occasion', String(outfit.occasion));
+            }
+
+            url.searchParams.set('source', 'ai-outfit');
+            return url;
+        }
+
+        document.addEventListener('click', function(e) {
+            const button = e.target.closest('#tryWholeOutfitBtn');
+            if (!button) return;
+
+            const outfit = window.currentAiOutfit || currentAiOutfit;
+
+            if (!outfit || !Array.isArray(outfit.products) || !outfit.products.length) {
                 alert('Chưa có outfit để thử.');
                 return;
             }
 
-            /*
-             * Hiển thị outfit
-             */
+            try {
+                const fittingUrl = buildFittingRoomUrl(outfit);
 
-            updateSelectedOutfitPreview();
+                console.log('[LHW] Chuyển outfit AI sang phòng thử đồ:', {
+                    url: fittingUrl.toString(),
+                    products: outfit.products
+                });
 
-
-            /*
-             * Đóng AI modal
-             */
-
-            const aiModal =
-                document.getElementById('aiModal');
-
-            if (aiModal) {
-                aiModal.style.display = 'none';
+                button.disabled = true;
+                button.textContent = 'Đang mở phòng thử đồ…';
+                window.location.assign(fittingUrl.toString());
+            } catch (error) {
+                console.error('[LHW] Không thể mở outfit:', error);
+                alert(error.message || 'Không thể mở phòng thử đồ.');
+                button.disabled = false;
             }
-
-
-            /*
-             * Mở Avatar Modal
-             */
-
-            const avatarModal =
-                document.getElementById('avatarSelectModal');
-
-            if (!avatarModal) {
-
-                console.error(
-                    'Không tìm thấy #avatarSelectModal'
-                );
-
-                return;
-            }
-
-            avatarModal.style.display = 'flex';
-
-            console.log(
-                'Đã mở Avatar Modal'
-            );
-
         });
 
 
@@ -2170,6 +2294,8 @@
 
     });
 </script>
+
+
 <script>
     function updateCartCount(count) {
         const cartBadge = document.querySelector('.cart-count');

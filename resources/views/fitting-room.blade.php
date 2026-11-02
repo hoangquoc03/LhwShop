@@ -49,425 +49,424 @@
         }
 
         // Resolve paths stored on Laravel's public disk.
-    if ($relative !== '' && is_file(storage_path('app/public/' . $relative))) {
-        return $lhwEncodePath('storage/' . $relative);
-    }
-
-    // This project stores product photos at storage/uploads/products/{image}.
-    if (!str_contains($relative, '/')) {
-        foreach (
-            [
-                'storage/uploads/products/' . $relative,
-                'storage/products/' . $relative,
-                'storage/images/products/' . $relative,
-                'images/products/' . $relative,
-                'images/' . $relative,
-                'uploads/products/' . $relative,
-            ]
-            as $candidate
-        ) {
-            if (is_file(public_path($candidate))) {
-                return $lhwEncodePath($candidate);
-            }
-            if (
-                str_starts_with($candidate, 'storage/') &&
-                is_file(storage_path('app/public/' . substr($candidate, 8)))
-            ) {
-                return $lhwEncodePath($candidate);
-            }
+        if ($relative !== '' && is_file(storage_path('app/public/' . $relative))) {
+            return $lhwEncodePath('storage/' . $relative);
         }
-        // Keep the known project convention as a useful fallback for a symlinked storage disk.
-        return $lhwEncodePath('storage/uploads/products/' . $relative);
-    }
 
-    if (preg_match('#^(uploads/products|products|product-images)/#i', $relative)) {
-        return $lhwEncodePath('storage/' . $relative);
-    }
-    if (preg_match('#^(images|image|assets)/#i', $relative)) {
-        return $lhwEncodePath($relative);
-    }
+        // This project stores product photos at storage/uploads/products/{image}.
+        if (!str_contains($relative, '/')) {
+            foreach (
+                [
+                    'storage/uploads/products/' . $relative,
+                    'storage/products/' . $relative,
+                    'storage/images/products/' . $relative,
+                    'images/products/' . $relative,
+                    'images/' . $relative,
+                    'uploads/products/' . $relative,
+                ]
+                as $candidate
+            ) {
+                if (is_file(public_path($candidate))) {
+                    return $lhwEncodePath($candidate);
+                }
+                if (
+                    str_starts_with($candidate, 'storage/') &&
+                    is_file(storage_path('app/public/' . substr($candidate, 8)))
+                ) {
+                    return $lhwEncodePath($candidate);
+                }
+            }
+            // Keep the known project convention as a useful fallback for a symlinked storage disk.
+            return $lhwEncodePath('storage/uploads/products/' . $relative);
+        }
 
-    return null;
-};
+        if (preg_match('#^(uploads/products|products|product-images)/#i', $relative)) {
+            return $lhwEncodePath('storage/' . $relative);
+        }
+        if (preg_match('#^(images|image|assets)/#i', $relative)) {
+            return $lhwEncodePath($relative);
+        }
 
-$lhwResolveImageValue = null;
-$lhwResolveImageValue = static function ($value) use (&$lhwResolveImageValue, $lhwNormalizeImagePath) {
-    if (is_array($value)) {
-        foreach (['url', 'src', 'path', 'image', 'image_url', 'thumbnail', 'thumb', 'original'] as $key) {
-            if (array_key_exists($key, $value)) {
-                $resolved = $lhwResolveImageValue($value[$key]);
+        return null;
+    };
+
+    $lhwResolveImageValue = null;
+    $lhwResolveImageValue = static function ($value) use (&$lhwResolveImageValue, $lhwNormalizeImagePath) {
+        if (is_array($value)) {
+            foreach (['url', 'src', 'path', 'image', 'image_url', 'thumbnail', 'thumb', 'original'] as $key) {
+                if (array_key_exists($key, $value)) {
+                    $resolved = $lhwResolveImageValue($value[$key]);
+                    if ($resolved) {
+                        return $resolved;
+                    }
+                }
+            }
+            foreach ($value as $part) {
+                $resolved = $lhwResolveImageValue($part);
                 if ($resolved) {
                     return $resolved;
                 }
             }
+            return null;
         }
-        foreach ($value as $part) {
-            $resolved = $lhwResolveImageValue($part);
-            if ($resolved) {
-                return $resolved;
-            }
+        if (!is_string($value)) {
+            return null;
         }
-        return null;
-    }
-    if (!is_string($value)) {
-        return null;
-    }
-    $value = trim($value);
-    if ($value === '') {
-        return null;
-    }
-    $decoded = json_decode($value, true);
-    if (is_array($decoded)) {
-        return $lhwResolveImageValue($decoded);
-    }
-    return $lhwNormalizeImagePath($value);
-};
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+        $decoded = json_decode($value, true);
+        if (is_array($decoded)) {
+            return $lhwResolveImageValue($decoded);
+        }
+        return $lhwNormalizeImagePath($value);
+    };
 
-$lhwFindLocalProductImage = static function ($productId, $modelRelativePath) use (
-    $lhwImageExtensions,
-    $lhwNormalizeImagePath,
-) {
-    $id = $productId !== null ? (string) $productId : null;
-    $modelDirectoryRelative = dirname(str_replace('\\', '/', $modelRelativePath));
-    $modelDirectoryAbsolute = public_path($modelDirectoryRelative);
-    $modelBasename = pathinfo($modelRelativePath, PATHINFO_FILENAME);
-    $candidateRelativePaths = [];
-
-    foreach (
-        array_unique([
-            $modelBasename,
-            'thumbnail',
-            'thumb',
-            'preview',
-            'cover',
-            'main',
-            'front',
-            'image',
-            'photo',
-            'product',
-        ])
-        as $name
+    $lhwFindLocalProductImage = static function ($productId, $modelRelativePath) use (
+        $lhwImageExtensions,
+        $lhwNormalizeImagePath,
     ) {
-        foreach ($lhwImageExtensions as $extension) {
-            $candidateRelativePaths[] = $modelDirectoryRelative . '/' . $name . '.' . $extension;
-        }
-    }
-    if ($id !== null && $id !== '') {
+        $id = $productId !== null ? (string) $productId : null;
+        $modelDirectoryRelative = dirname(str_replace('\\', '/', $modelRelativePath));
+        $modelDirectoryAbsolute = public_path($modelDirectoryRelative);
+        $modelBasename = pathinfo($modelRelativePath, PATHINFO_FILENAME);
+        $candidateRelativePaths = [];
+
         foreach (
-            [
-                'images/products',
-                'image/products',
-                'storage/products',
-                'storage/images/products',
-                'storage/uploads/products',
-                'uploads/products',
-                'product-images',
-                'images',
-            ]
-            as $directory
+            array_unique([
+                $modelBasename,
+                'thumbnail',
+                'thumb',
+                'preview',
+                'cover',
+                'main',
+                'front',
+                'image',
+                'photo',
+                'product',
+            ])
+            as $name
         ) {
-            foreach ([$id, 'product-' . $id, 'product_' . $id, 'product' . $id, 'item-' . $id] as $name) {
-                foreach ($lhwImageExtensions as $extension) {
-                    $candidateRelativePaths[] = $directory . '/' . $name . '.' . $extension;
-                }
+            foreach ($lhwImageExtensions as $extension) {
+                $candidateRelativePaths[] = $modelDirectoryRelative . '/' . $name . '.' . $extension;
             }
-            foreach (['products/' . $id, 'products/product-' . $id, 'products/product_' . $id] as $nested) {
-                foreach (['thumbnail', 'thumb', 'preview', 'cover', 'main', 'front', 'image', 'product'] as $name) {
+        }
+        if ($id !== null && $id !== '') {
+            foreach (
+                [
+                    'images/products',
+                    'image/products',
+                    'storage/products',
+                    'storage/images/products',
+                    'storage/uploads/products',
+                    'uploads/products',
+                    'product-images',
+                    'images',
+                ]
+                as $directory
+            ) {
+                foreach ([$id, 'product-' . $id, 'product_' . $id, 'product' . $id, 'item-' . $id] as $name) {
                     foreach ($lhwImageExtensions as $extension) {
-                        $candidateRelativePaths[] = $directory . '/' . $nested . '/' . $name . '.' . $extension;
+                        $candidateRelativePaths[] = $directory . '/' . $name . '.' . $extension;
+                    }
+                }
+                foreach (['products/' . $id, 'products/product-' . $id, 'products/product_' . $id] as $nested) {
+                    foreach (['thumbnail', 'thumb', 'preview', 'cover', 'main', 'front', 'image', 'product'] as $name) {
+                        foreach ($lhwImageExtensions as $extension) {
+                            $candidateRelativePaths[] = $directory . '/' . $nested . '/' . $name . '.' . $extension;
+                        }
                     }
                 }
             }
         }
-    }
 
-    foreach (array_unique($candidateRelativePaths) as $candidate) {
-        $resolved = $lhwNormalizeImagePath($candidate);
-        if ($resolved && (is_file(public_path(ltrim($resolved, '/'))) || str_contains($resolved, '/storage/'))) {
-            return $resolved;
+        foreach (array_unique($candidateRelativePaths) as $candidate) {
+            $resolved = $lhwNormalizeImagePath($candidate);
+            if ($resolved && (is_file(public_path(ltrim($resolved, '/'))) || str_contains($resolved, '/storage/'))) {
+                return $resolved;
+            }
+        }
+
+        if (is_dir($modelDirectoryAbsolute)) {
+            try {
+                $nearby = [];
+                foreach (new \FilesystemIterator($modelDirectoryAbsolute, \FilesystemIterator::SKIP_DOTS) as $file) {
+                    if (!$file->isFile() || !in_array(strtolower($file->getExtension()), $lhwImageExtensions, true)) {
+                        continue;
+                    }
+                    $base = strtolower(pathinfo($file->getFilename(), PATHINFO_FILENAME));
+                    $score = 0;
+                    if (preg_match('/thumbnail|preview|cover|main|front|product|image|photo/', $base)) {
+                        $score += 10;
+                    }
+                    if ($id && preg_match('/(^|[^0-9])' . preg_quote($id, '/') . '([^0-9]|$)/', $base)) {
+                        $score += 4;
+                    }
+                    $nearby[] = [
+                        'path' => str_replace(
+                            '\\',
+                            '/',
+                            substr(
+                                $file->getPathname(),
+                                strlen(rtrim(str_replace('\\', '/', public_path()), '/') . '/'),
+                            ),
+                        ),
+                        'score' => $score,
+                    ];
+                }
+                usort($nearby, static fn($a, $b) => $b['score'] <=> $a['score']);
+                if (!empty($nearby[0]['path'])) {
+                    return $lhwNormalizeImagePath($nearby[0]['path']);
+                }
+            } catch (\Throwable $e) {
+                // Optional preview images must never stop the catalog from rendering.
+            }
+        }
+        return null;
+    };
+
+    if (is_dir($lhwModelsRoot)) {
+        $lhwIterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($lhwModelsRoot, \FilesystemIterator::SKIP_DOTS),
+        );
+        foreach ($lhwIterator as $lhwFile) {
+            if (!$lhwFile->isFile()) {
+                continue;
+            }
+            $lhwExtension = strtolower($lhwFile->getExtension());
+            if (!in_array($lhwExtension, ['glb', 'gltf'], true)) {
+                continue;
+            }
+
+            $lhwAbsolutePath = str_replace('\\', '/', $lhwFile->getPathname());
+            $lhwRelativePath = ltrim(substr($lhwAbsolutePath, strlen($lhwPublicRoot)), '/');
+            $lhwBaseName = basename($lhwRelativePath);
+            if (preg_match('#(^|/)models/avatar(s)?/#i', $lhwRelativePath)) {
+                continue;
+            }
+            if (preg_match('/landmarked|backup|\.bak\.|test-export|debug-export/i', $lhwBaseName)) {
+                continue;
+            }
+
+            $lhwProductId = null;
+            if (preg_match('#^models/products/(\d+)/#i', $lhwRelativePath, $lhwMatches)) {
+                $lhwProductId = $lhwMatches[1];
+            }
+
+            $lhwPathLower = strtolower($lhwRelativePath);
+            $lhwCategory = '';
+            if ($lhwProductId === '13') {
+                $lhwCategory = 'top';
+            } elseif ($lhwProductId === '17') {
+                $lhwCategory = 'bottom';
+            } elseif ($lhwProductId === '22') {
+                $lhwCategory = 'shoes';
+            } elseif (preg_match('/(glasses|eyeglass|sunglass|spectacle|kinh)/i', $lhwPathLower)) {
+                $lhwCategory = 'glasses';
+            } elseif (preg_match('/(hat|cap|beanie|helmet|headwear|mu-non)/i', $lhwPathLower)) {
+                $lhwCategory = 'hat';
+            } elseif (preg_match('/(necklace|pendant|day-chuyen|vong-co)/i', $lhwPathLower)) {
+                $lhwCategory = 'necklace';
+            } elseif (preg_match('/(scarf|tie|khan|caravat|cravat)/i', $lhwPathLower)) {
+                $lhwCategory = 'scarf';
+            } elseif (preg_match('/(bag|backpack|handbag|tote|purse|balo|tui)/i', $lhwPathLower)) {
+                $lhwCategory = 'bag';
+            } elseif (preg_match('/(watch|bracelet|wrist|dong-ho|vong-tay)/i', $lhwPathLower)) {
+                $lhwCategory = 'wrist';
+            } elseif (
+                preg_match('/(left[-_ ]shoe|right[-_ ]shoe|shoe|sneaker|boot|sandal|loafer|giay)/i', $lhwPathLower)
+            ) {
+                $lhwCategory = 'shoes';
+            } elseif (preg_match('/(pant|trouser|jean|shorts|skirt|bottom|quan|vay)/i', $lhwPathLower)) {
+                $lhwCategory = 'bottom';
+            } elseif (
+                preg_match('/(shirt|t-shirt|tee|top|blouse|hoodie|jacket|coat|sweater|polo|ao-)/i', $lhwPathLower)
+            ) {
+                $lhwCategory = 'top';
+            }
+
+            $lhwLabel = pathinfo($lhwBaseName, PATHINFO_FILENAME);
+            if (in_array(strtolower($lhwBaseName), ['product.glb', 'product.gltf'], true)) {
+                $lhwLabel = $lhwProductId ? 'Sản phẩm #' . $lhwProductId : 'Mô hình 3D · ' . dirname($lhwRelativePath);
+            }
+            $lhw3dCatalog[] = [
+                'id' => $lhwRelativePath,
+                'productId' => $lhwProductId,
+                'label' => $lhwLabel,
+                'path' => $lhwRelativePath,
+                'url' => $lhwEncodePath($lhwRelativePath),
+                'category' => $lhwCategory,
+                'imageUrl' => null,
+            ];
         }
     }
 
-    if (is_dir($modelDirectoryAbsolute)) {
+    // Use the actual ShopProduct Eloquent model. This avoids assuming the table is named `products`.
+    $lhwProductIds = array_values(
+        array_unique(array_filter(array_map(static fn($item) => $item['productId'] ?? null, $lhw3dCatalog))),
+    );
+    $lhwProductInfo = [];
+    if ($lhwProductIds) {
         try {
-            $nearby = [];
-            foreach (new \FilesystemIterator($modelDirectoryAbsolute, \FilesystemIterator::SKIP_DOTS) as $file) {
-                if (!$file->isFile() || !in_array(strtolower($file->getExtension()), $lhwImageExtensions, true)) {
-                    continue;
-                }
-                $base = strtolower(pathinfo($file->getFilename(), PATHINFO_FILENAME));
-                $score = 0;
-                if (preg_match('/thumbnail|preview|cover|main|front|product|image|photo/', $base)) {
-                    $score += 10;
-                }
-                if ($id && preg_match('/(^|[^0-9])' . preg_quote($id, '/') . '([^0-9]|$)/', $base)) {
-                    $score += 4;
-                }
-                $nearby[] = [
-                    'path' => str_replace(
-                        '\\',
-                        '/',
-                        substr(
-                            $file->getPathname(),
-                            strlen(rtrim(str_replace('\\', '/', public_path()), '/') . '/'),
-                        ),
-                    ),
-                    'score' => $score,
+            $lhwShopProducts = \App\Models\ShopProduct::query()->whereIn('id', $lhwProductIds)->get();
+            foreach ($lhwShopProducts as $lhwProduct) {
+                $lhwId = (string) $lhwProduct->getKey();
+                $lhwImageRaw = $lhwProduct->getAttribute('image');
+                $lhwInfo = [
+                    'name' => trim((string) ($lhwProduct->getAttribute('product_name') ?? '')) ?: null,
+                    'imageUrl' => $lhwResolveImageValue($lhwImageRaw),
+                    'categoryText' => '',
+                    'supplierCode' => '',
+                    'supplierText' => '',
                 ];
-            }
-            usort($nearby, static fn($a, $b) => $b['score'] <=> $a['score']);
-            if (!empty($nearby[0]['path'])) {
-                return $lhwNormalizeImagePath($nearby[0]['path']);
+                try {
+                    $lhwInfo['categoryText'] = (string) ($lhwProduct->category?->categories_text ?? '');
+                } catch (\Throwable $e) {
+                }
+                try {
+                    $lhwInfo['supplierCode'] = strtoupper((string) ($lhwProduct->supplier?->supplier_code ?? ''));
+                    $lhwInfo['supplierText'] = (string) ($lhwProduct->supplier?->supplier_text ?? '');
+                } catch (\Throwable $e) {
+                }
+                $lhwProductInfo[$lhwId] = $lhwInfo;
             }
         } catch (\Throwable $e) {
-            // Optional preview images must never stop the catalog from rendering.
+            // Keep the local filesystem catalog available if the product schema differs.
         }
     }
-    return null;
-};
 
-if (is_dir($lhwModelsRoot)) {
-    $lhwIterator = new \RecursiveIteratorIterator(
-        new \RecursiveDirectoryIterator($lhwModelsRoot, \FilesystemIterator::SKIP_DOTS),
-    );
-    foreach ($lhwIterator as $lhwFile) {
-        if (!$lhwFile->isFile()) {
-            continue;
-        }
-        $lhwExtension = strtolower($lhwFile->getExtension());
-        if (!in_array($lhwExtension, ['glb', 'gltf'], true)) {
-            continue;
-        }
+    $lhwGuessCategory = static function (string $text, string $supplierCode = ''): string {
+        $text = mb_strtolower($text);
 
-        $lhwAbsolutePath = str_replace('\\', '/', $lhwFile->getPathname());
-        $lhwRelativePath = ltrim(substr($lhwAbsolutePath, strlen($lhwPublicRoot)), '/');
-        $lhwBaseName = basename($lhwRelativePath);
-        if (preg_match('#(^|/)models/avatar(s)?/#i', $lhwRelativePath)) {
-            continue;
+        // Resolve explicit product descriptions before supplier defaults.
+        // "Denim" is a material and can describe either jeans or a jacket.
+        if (preg_match('/(glasses|eyeglass|sunglass|spectacle|kính mắt|kính râm|kinh)/u', $text)) {
+            return 'glasses';
         }
-        if (preg_match('/landmarked|backup|\.bak\.|test-export|debug-export/i', $lhwBaseName)) {
-            continue;
+        if (preg_match('/(hat|cap|beanie|headwear|mũ|nón|mu-non)/u', $text)) {
+            return 'hat';
         }
-
-        $lhwProductId = null;
-        if (preg_match('#^models/products/(\d+)/#i', $lhwRelativePath, $lhwMatches)) {
-            $lhwProductId = $lhwMatches[1];
+        if (preg_match('/(necklace|pendant|chain|dây chuyền|vòng cổ|trang sức cổ|day-chuyen|vong-co)/u', $text)) {
+            return 'necklace';
+        }
+        if (preg_match('/(scarf|tie|cravat|khăn|cà vạt|caravat)/u', $text)) {
+            return 'scarf';
+        }
+        if (preg_match('/(bag|backpack|handbag|tote|purse|balo|túi|tui)/u', $text)) {
+            return 'bag';
+        }
+        if (preg_match('/(watch|bracelet|wrist|đồng hồ|vòng tay|dong-ho|vong-tay)/u', $text)) {
+            return 'wrist';
+        }
+        if (preg_match('/(left[-_ ]shoe|right[-_ ]shoe|sneaker|shoe|boot|sandal|loafer|giày|giay|cao gót)/u', $text)) {
+            return 'shoes';
         }
 
-        $lhwPathLower = strtolower($lhwRelativePath);
-        $lhwCategory = '';
-        if ($lhwProductId === '13') {
-            $lhwCategory = 'top';
-        } elseif ($lhwProductId === '17') {
-            $lhwCategory = 'bottom';
-        } elseif ($lhwProductId === '22') {
-            $lhwCategory = 'shoes';
-        } elseif (preg_match('/(glasses|eyeglass|sunglass|spectacle|kinh)/i', $lhwPathLower)) {
-            $lhwCategory = 'glasses';
-        } elseif (preg_match('/(hat|cap|beanie|helmet|headwear|mu-non)/i', $lhwPathLower)) {
-            $lhwCategory = 'hat';
-        } elseif (preg_match('/(necklace|pendant|day-chuyen|vong-co)/i', $lhwPathLower)) {
-            $lhwCategory = 'necklace';
-        } elseif (preg_match('/(scarf|tie|khan|caravat|cravat)/i', $lhwPathLower)) {
-            $lhwCategory = 'scarf';
-        } elseif (preg_match('/(bag|backpack|handbag|tote|purse|balo|tui)/i', $lhwPathLower)) {
-            $lhwCategory = 'bag';
-        } elseif (preg_match('/(watch|bracelet|wrist|dong-ho|vong-tay)/i', $lhwPathLower)) {
-            $lhwCategory = 'wrist';
-        } elseif (
-            preg_match('/(left[-_ ]shoe|right[-_ ]shoe|shoe|sneaker|boot|sandal|loafer|giay)/i', $lhwPathLower)
-        ) {
-            $lhwCategory = 'shoes';
-        } elseif (preg_match('/(pant|trouser|jean|shorts|skirt|bottom|quan|vay)/i', $lhwPathLower)) {
-            $lhwCategory = 'bottom';
-        } elseif (
-            preg_match('/(shirt|t-shirt|tee|top|blouse|hoodie|jacket|coat|sweater|polo|ao-)/i', $lhwPathLower)
-        ) {
-            $lhwCategory = 'top';
+        // Jacket/top terms have priority over the fabric word "denim".
+        if (preg_match('/(áo\s*(khoác|sơ mi)|ao[-_ ]?khoac|jacket|coat|hoodie|sweater|shirt|t-shirt|tee|blouse|polo|sơ mi|somi)/u', $text)) {
+            return 'top';
+        }
+        if (preg_match('/(quần|pants|trousers|jeans?|shorts|skirt|váy|vay|bottom|denim\s+(pants|jeans|trousers))/u', $text)) {
+            return 'bottom';
         }
 
-        $lhwLabel = pathinfo($lhwBaseName, PATHINFO_FILENAME);
-        if (in_array(strtolower($lhwBaseName), ['product.glb', 'product.gltf'], true)) {
-            $lhwLabel = $lhwProductId ? 'Sản phẩm #' . $lhwProductId : 'Mô hình 3D · ' . dirname($lhwRelativePath);
-        }
-        $lhw3dCatalog[] = [
-            'id' => $lhwRelativePath,
-            'productId' => $lhwProductId,
-            'label' => $lhwLabel,
-            'path' => $lhwRelativePath,
-            'url' => $lhwEncodePath($lhwRelativePath),
-            'category' => $lhwCategory,
-            'imageUrl' => null,
-        ];
-    }
-}
+        // Supplier codes are only fallbacks when the product description is
+        // not specific enough to identify the garment category.
+        if ($supplierCode === 'NCC4') return 'shoes';
+        if ($supplierCode === 'NCC1') return 'bottom';
+        if (in_array($supplierCode, ['NCC2', 'NCC3', 'NCC6'], true)) return 'top';
+        if ($supplierCode === 'DHTM') return 'wrist';
+        if ($supplierCode === 'DDD') return 'necklace';
 
-// Use the actual ShopProduct Eloquent model. This avoids assuming the table is named `products`.
-$lhwProductIds = array_values(
-    array_unique(array_filter(array_map(static fn($item) => $item['productId'] ?? null, $lhw3dCatalog))),
-);
-$lhwProductInfo = [];
-if ($lhwProductIds) {
-    try {
-        $lhwShopProducts = \App\Models\ShopProduct::query()->whereIn('id', $lhwProductIds)->get();
-        foreach ($lhwShopProducts as $lhwProduct) {
-            $lhwId = (string) $lhwProduct->getKey();
-            $lhwImageRaw = $lhwProduct->getAttribute('image');
-            $lhwInfo = [
-                'name' => trim((string) ($lhwProduct->getAttribute('product_name') ?? '')) ?: null,
-                'imageUrl' => $lhwResolveImageValue($lhwImageRaw),
-                'categoryText' => '',
-                'supplierCode' => '',
-                'supplierText' => '',
-            ];
-            try {
-                $lhwInfo['categoryText'] = (string) ($lhwProduct->category?->categories_text ?? '');
-            } catch (\Throwable $e) {
-            }
-            try {
-                $lhwInfo['supplierCode'] = strtoupper((string) ($lhwProduct->supplier?->supplier_code ?? ''));
-                $lhwInfo['supplierText'] = (string) ($lhwProduct->supplier?->supplier_text ?? '');
-            } catch (\Throwable $e) {
-            }
-            $lhwProductInfo[$lhwId] = $lhwInfo;
+        if (preg_match('/(đồ nam|đồ nữ|menswear|womenswear)/u', $text)) {
+            return 'generic';
         }
-    } catch (\Throwable $e) {
-        // Keep the local filesystem catalog available if the product schema differs.
-    }
-}
-
-$lhwGuessCategory = static function (string $text, string $supplierCode = ''): string {
-    $text = mb_strtolower($text);
-    if (preg_match('/(glasses|eyeglass|sunglass|spectacle|kính mắt|kính râm|kinh)/u', $text)) {
-        return 'glasses';
-    }
-    if (preg_match('/(hat|cap|beanie|headwear|mũ|nón|mu-non)/u', $text)) {
-        return 'hat';
-    }
-    if (preg_match('/(necklace|pendant|chain|dây chuyền|vòng cổ|trang sức cổ|day-chuyen|vong-co)/u', $text)) {
-        return 'necklace';
-    }
-    if (preg_match('/(scarf|tie|cravat|khăn|cà vạt|caravat)/u', $text)) {
-        return 'scarf';
-    }
-    if (preg_match('/(bag|backpack|handbag|tote|purse|balo|túi|tui)/u', $text)) {
-        return 'bag';
-    }
-    if (preg_match('/(watch|bracelet|wrist|đồng hồ|vòng tay|dong-ho|vong-tay)/u', $text)) {
-        return 'wrist';
-    }
-    if (
-        preg_match('/(left[-_ ]shoe|right[-_ ]shoe|sneaker|shoe|boot|sandal|loafer|giày|giay|cao gót)/u', $text) ||
-        $supplierCode === 'NCC4'
-    ) {
-        return 'shoes';
-    }
-    if (
-        preg_match('/(quần|pants|trousers|jean|denim|shorts|skirt|váy|vay|bottom)/u', $text) ||
-        $supplierCode === 'NCC1'
-    ) {
-        return 'bottom';
-    }
-    if (
-        preg_match('/(áo|shirt|t-shirt|tee|blouse|hoodie|jacket|coat|sweater|polo|sơ mi|somi|ao khoac)/u', $text) ||
-        in_array($supplierCode, ['NCC2', 'NCC3', 'NCC6'], true)
-    ) {
-        return 'top';
-    }
-    if (preg_match('/(đồng hồ|watch)/u', $text) || $supplierCode === 'DHTM') {
-        return 'wrist';
-    }
-    if (preg_match('/(trang sức|jewelry|jewellery)/u', $text) || $supplierCode === 'DDD') {
-        return 'necklace';
-    }
-    if (preg_match('/(đồ nam|đồ nữ|menswear|womenswear)/u', $text)) {
         return 'generic';
-    }
-    return 'generic';
-};
+    };
 
-foreach ($lhw3dCatalog as &$lhwItem) {
-    $lhwId = isset($lhwItem['productId']) ? (string) $lhwItem['productId'] : null;
-    $lhwRecord = $lhwId !== null ? $lhwProductInfo[$lhwId] ?? null : null;
-    if ($lhwRecord) {
-        if (!empty($lhwRecord['name']) && preg_match('/^Sản phẩm #\d+$/u', $lhwItem['label'])) {
-            $lhwItem['label'] = $lhwRecord['name'];
+    foreach ($lhw3dCatalog as &$lhwItem) {
+        $lhwId = isset($lhwItem['productId']) ? (string) $lhwItem['productId'] : null;
+        $lhwRecord = $lhwId !== null ? $lhwProductInfo[$lhwId] ?? null : null;
+        if ($lhwRecord) {
+            if (!empty($lhwRecord['name']) && preg_match('/^Sản phẩm #\d+$/u', $lhwItem['label'])) {
+                $lhwItem['label'] = $lhwRecord['name'];
+            }
+            if (empty($lhwItem['category'])) {
+                $lhwItem['category'] = $lhwGuessCategory(
+                    ($lhwRecord['name'] ?? '') .
+                        ' ' .
+                        ($lhwRecord['categoryText'] ?? '') .
+                        ' ' .
+                        ($lhwRecord['supplierText'] ?? ''),
+                    $lhwRecord['supplierCode'] ?? '',
+                );
+            }
         }
         if (empty($lhwItem['category'])) {
-            $lhwItem['category'] = $lhwGuessCategory(
-                ($lhwRecord['name'] ?? '') .
-                    ' ' .
-                    ($lhwRecord['categoryText'] ?? '') .
-                    ' ' .
-                    ($lhwRecord['supplierText'] ?? ''),
-                $lhwRecord['supplierCode'] ?? '',
-            );
+            $lhwItem['category'] = 'generic';
+        }
+        $lhwItem['imageUrl'] = $lhwRecord['imageUrl'] ?? null ?: $lhwFindLocalProductImage($lhwId, $lhwItem['path']);
+    }
+    unset($lhwItem);
+
+    // Pair left/right shoe GLBs into one choice and do not list them individually.
+    $lhwShoeParts = [];
+    foreach ($lhw3dCatalog as $lhwItem) {
+        if (
+            preg_match(
+                '#^models/products/(\d+)/(?:.*/)?(left|right)[-_ ]shoe\.(glb|gltf)$#i',
+                $lhwItem['path'],
+                $lhwMatch,
+            )
+        ) {
+            $lhwShoeParts[$lhwMatch[1]][strtolower($lhwMatch[2])] = $lhwItem;
         }
     }
-    if (empty($lhwItem['category'])) {
-        $lhwItem['category'] = 'generic';
+    $lhwCompleteShoePairs = [];
+    foreach ($lhwShoeParts as $lhwId => $lhwParts) {
+        if (!empty($lhwParts['left']) && !empty($lhwParts['right'])) {
+            $lhwCompleteShoePairs[$lhwId] = $lhwParts;
+        }
     }
-    $lhwItem['imageUrl'] = $lhwRecord['imageUrl'] ?? null ?: $lhwFindLocalProductImage($lhwId, $lhwItem['path']);
-}
-unset($lhwItem);
-
-// Pair left/right shoe GLBs into one choice and do not list them individually.
-$lhwShoeParts = [];
-foreach ($lhw3dCatalog as $lhwItem) {
-    if (
-        preg_match(
-            '#^models/products/(\d+)/(?:.*/)?(left|right)[-_ ]shoe\.(glb|gltf)$#i',
-            $lhwItem['path'],
-            $lhwMatch,
-        )
-    ) {
-        $lhwShoeParts[$lhwMatch[1]][strtolower($lhwMatch[2])] = $lhwItem;
-    }
-}
-$lhwCompleteShoePairs = [];
-foreach ($lhwShoeParts as $lhwId => $lhwParts) {
-    if (!empty($lhwParts['left']) && !empty($lhwParts['right'])) {
-        $lhwCompleteShoePairs[$lhwId] = $lhwParts;
-    }
-}
-if ($lhwCompleteShoePairs) {
-    $lhw3dCatalog = array_values(
-        array_filter($lhw3dCatalog, static function ($lhwItem) use ($lhwCompleteShoePairs) {
-            $path = $lhwItem['path'];
-            foreach ($lhwCompleteShoePairs as $lhwId => $parts) {
-                if ($path === $parts['left']['path'] || $path === $parts['right']['path']) {
-                    return false;
+    if ($lhwCompleteShoePairs) {
+        $lhw3dCatalog = array_values(
+            array_filter($lhw3dCatalog, static function ($lhwItem) use ($lhwCompleteShoePairs) {
+                $path = $lhwItem['path'];
+                foreach ($lhwCompleteShoePairs as $lhwId => $parts) {
+                    if ($path === $parts['left']['path'] || $path === $parts['right']['path']) {
+                        return false;
+                    }
+                    if (
+                        ($lhwItem['productId'] ?? null) === (string) $lhwId &&
+                        preg_match('#/product\.(glb|gltf)$#i', $path)
+                    ) {
+                        return false;
+                    }
                 }
-                if (
-                    ($lhwItem['productId'] ?? null) === (string) $lhwId &&
-                    preg_match('#/product\.(glb|gltf)$#i', $path)
-                ) {
-                    return false;
-                }
+                return true;
+            }),
+        );
+        foreach ($lhwCompleteShoePairs as $lhwId => $lhwParts) {
+            $lhwImage = $lhwProductInfo[(string) $lhwId]['imageUrl'] ?? null;
+            if (!$lhwImage) {
+                $lhwImage = $lhwFindLocalProductImage((string) $lhwId, $lhwParts['left']['path']);
             }
-            return true;
-        }),
-    );
-    foreach ($lhwCompleteShoePairs as $lhwId => $lhwParts) {
-        $lhwImage = $lhwProductInfo[(string) $lhwId]['imageUrl'] ?? null;
-        if (!$lhwImage) {
-            $lhwImage = $lhwFindLocalProductImage((string) $lhwId, $lhwParts['left']['path']);
+            $lhw3dCatalog[] = [
+                'id' => 'shoe-pair-' . $lhwId,
+                'productId' => (string) $lhwId,
+                'label' => ($lhwProductInfo[(string) $lhwId]['name'] ?? null ?: 'Giày') . ' · cả đôi',
+                'path' => $lhwParts['left']['path'] . ' + ' . $lhwParts['right']['path'],
+                'url' => 'pair:shoes:' . $lhwId,
+                'category' => 'shoes',
+                'imageUrl' => $lhwImage,
+                'leftShoeUrl' => $lhwParts['left']['url'],
+                'rightShoeUrl' => $lhwParts['right']['url'],
+            ];
         }
-        $lhw3dCatalog[] = [
-            'id' => 'shoe-pair-' . $lhwId,
-            'productId' => (string) $lhwId,
-            'label' => ($lhwProductInfo[(string) $lhwId]['name'] ?? null ?: 'Giày') . ' · cả đôi',
-            'path' => $lhwParts['left']['path'] . ' + ' . $lhwParts['right']['path'],
-            'url' => 'pair:shoes:' . $lhwId,
-            'category' => 'shoes',
-            'imageUrl' => $lhwImage,
-            'leftShoeUrl' => $lhwParts['left']['url'],
-            'rightShoeUrl' => $lhwParts['right']['url'],
-        ];
     }
-}
 
-usort($lhw3dCatalog, static fn($a, $b) => strnatcasecmp($a['label'], $b['label']));
+    usort($lhw3dCatalog, static fn($a, $b) => strnatcasecmp($a['label'], $b['label']));
 @endphp
 <!DOCTYPE html>
 <html lang="vi">
@@ -478,6 +477,54 @@ usort($lhw3dCatalog, static fn($a, $b) => strnatcasecmp($a['label'], $b['label']
     <meta name="theme-color" content="#171713" />
     <title>LHW Studio — 3D Mix Studio</title>
     <style>
+        .home-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 9px 15px;
+            border: 1px solid rgba(220, 190, 145, 0.45);
+            border-radius: 8px;
+            color: #e4c99f;
+            background: rgba(220, 190, 145, 0.08);
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all .25s ease;
+            white-space: nowrap;
+        }
+
+        .home-link span:first-child {
+            font-size: 19px;
+            line-height: 1;
+        }
+
+        .home-link:hover {
+            color: #292820;
+            background: #d8b58d;
+            border-color: #d8b58d;
+            text-decoration: none;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .15);
+        }
+
+        @media (max-width: 576px) {
+            .topbar {
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .topbar-right {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .home-link {
+                padding: 8px 11px;
+                font-size: 12px;
+            }
+        }
+
         :root {
             color-scheme: light;
             --ink: #24251f;
@@ -1515,87 +1562,167 @@ usort($lhw3dCatalog, static fn($a, $b) => strnatcasecmp($a['label'], $b['label']
             --dark: #171713;
             --radius: 20px;
         }
+
         body {
             background:
-                radial-gradient(ellipse at 8% 0%, rgba(193,139,88,.10), transparent 28rem),
+                radial-gradient(ellipse at 8% 0%, rgba(193, 139, 88, .10), transparent 28rem),
                 linear-gradient(180deg, #f8f6f1 0%, #efede7 100%);
         }
-        .app-shell { max-width: 1900px; padding-top: 26px; }
-        .topbar { margin-bottom: 26px; }
-        .brand-mark {
-            box-shadow: 0 10px 24px rgba(23,23,19,.18);
-            border: 1px solid rgba(255,255,255,.12);
+
+        .app-shell {
+            max-width: 1900px;
+            padding-top: 26px;
         }
+
+        .topbar {
+            margin-bottom: 26px;
+        }
+
+        .brand-mark {
+            box-shadow: 0 10px 24px rgba(23, 23, 19, .18);
+            border: 1px solid rgba(255, 255, 255, .12);
+        }
+
         .hero-strip {
-            border: 1px solid rgba(255,255,255,.08);
-            box-shadow: 0 22px 60px rgba(29,28,22,.16);
+            border: 1px solid rgba(255, 255, 255, .08);
+            box-shadow: 0 22px 60px rgba(29, 28, 22, .16);
             background:
-                radial-gradient(ellipse at 82% 12%, rgba(208,158,105,.42), transparent 32%),
-                radial-gradient(ellipse at 15% 100%, rgba(111,119,91,.24), transparent 40%),
+                radial-gradient(ellipse at 82% 12%, rgba(208, 158, 105, .42), transparent 32%),
+                radial-gradient(ellipse at 15% 100%, rgba(111, 119, 91, .24), transparent 40%),
                 linear-gradient(118deg, #292a23, #171813 70%);
         }
-        .studio-layout { grid-template-columns: minmax(320px, 410px) minmax(0, 1fr); gap: 22px; }
-        .product-catalog, .studio-main, .catalog-scene-panel {
-            border-color: rgba(142,126,103,.20);
-            box-shadow: 0 16px 44px rgba(48,43,32,.07);
+
+        .studio-layout {
+            grid-template-columns: minmax(320px, 410px) minmax(0, 1fr);
+            gap: 22px;
         }
-        .product-catalog { padding: 20px; background: rgba(255,254,250,.88); backdrop-filter: blur(16px); }
-        .studio-main { overflow: hidden; border-radius: 22px; }
+
+        .product-catalog,
+        .studio-main,
+        .catalog-scene-panel {
+            border-color: rgba(142, 126, 103, .20);
+            box-shadow: 0 16px 44px rgba(48, 43, 32, .07);
+        }
+
+        .product-catalog {
+            padding: 20px;
+            background: rgba(255, 254, 250, .88);
+            backdrop-filter: blur(16px);
+        }
+
+        .studio-main {
+            overflow: hidden;
+            border-radius: 22px;
+        }
+
         #fittingViewer {
             height: min(82vh, 1040px);
             min-height: 600px;
             background:
-                radial-gradient(ellipse at 50% 22%, rgba(255,255,255,.16), transparent 42%),
+                radial-gradient(ellipse at 50% 22%, rgba(255, 255, 255, .16), transparent 42%),
                 linear-gradient(145deg, #3b3c34 0%, #24251f 58%, #171813 100%);
         }
+
         #fittingViewer:before {
             opacity: .25;
             background-size: 42px 42px;
         }
+
         .catalog-item {
-            border: 1px solid rgba(125,111,89,.16);
+            border: 1px solid rgba(125, 111, 89, .16);
             border-radius: 16px;
             overflow: hidden;
             background: linear-gradient(145deg, #fffefa, #f8f5ef);
-            box-shadow: 0 4px 14px rgba(34,35,27,.035);
+            box-shadow: 0 4px 14px rgba(34, 35, 27, .035);
             transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
         }
+
         .catalog-item:hover {
             transform: translateY(-3px);
-            border-color: rgba(193,139,88,.55);
-            box-shadow: 0 14px 30px rgba(48,43,32,.10);
+            border-color: rgba(193, 139, 88, .55);
+            box-shadow: 0 14px 30px rgba(48, 43, 32, .10);
         }
-        .catalog-item-media { background: linear-gradient(145deg, #f0ede5, #e3dfd4); }
-        .catalog-add-button, button {
+
+        .catalog-item-media {
+            background: linear-gradient(145deg, #f0ede5, #e3dfd4);
+        }
+
+        .catalog-add-button,
+        button {
             transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
         }
-        .catalog-add-button:hover, button:hover:not(:disabled) {
-            box-shadow: 0 7px 18px rgba(33,32,26,.10);
+
+        .catalog-add-button:hover,
+        button:hover:not(:disabled) {
+            box-shadow: 0 7px 18px rgba(33, 32, 26, .10);
         }
-        .catalog-add-button:active, button:active:not(:disabled) { transform: translateY(1px); }
-        input, select {
+
+        .catalog-add-button:active,
+        button:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        input,
+        select {
             border-color: #ded7ca;
             border-radius: 11px;
         }
-        input:focus, select:focus {
+
+        input:focus,
+        select:focus {
             outline: none;
             border-color: #bd8957;
-            box-shadow: 0 0 0 3px rgba(193,139,88,.15);
+            box-shadow: 0 0 0 3px rgba(193, 139, 88, .15);
         }
-        .status-pill { box-shadow: 0 3px 12px rgba(33,32,26,.04); }
-        .page-footer { padding-top: 22px; }
+
+        .status-pill {
+            box-shadow: 0 3px 12px rgba(33, 32, 26, .04);
+        }
+
+        .page-footer {
+            padding-top: 22px;
+        }
+
         @media (max-width: 980px) {
-            .studio-layout { grid-template-columns: minmax(0, 1fr); }
-            .product-catalog { order: 2; }
-            .studio-main { order: 1; }
-            #fittingViewer { height: min(72vh, 820px); min-height: 480px; }
+            .studio-layout {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .product-catalog {
+                order: 2;
+            }
+
+            .studio-main {
+                order: 1;
+            }
+
+            #fittingViewer {
+                height: min(72vh, 820px);
+                min-height: 480px;
+            }
         }
+
         @media (max-width: 600px) {
-            .app-shell { padding: 14px 12px 22px; }
-            .hero-strip { border-radius: 18px; }
-            .studio-layout { gap: 14px; }
-            .product-catalog { padding: 13px; }
-            #fittingViewer { min-height: 420px; height: 62vh; }
+            .app-shell {
+                padding: 14px 12px 22px;
+            }
+
+            .hero-strip {
+                border-radius: 18px;
+            }
+
+            .studio-layout {
+                gap: 14px;
+            }
+
+            .product-catalog {
+                padding: 13px;
+            }
+
+            #fittingViewer {
+                min-height: 420px;
+                height: 62vh;
+            }
         }
     </style>
 </head>
@@ -1613,6 +1740,22 @@ usort($lhw3dCatalog, static fn($a, $b) => strnatcasecmp($a['label'], $b['label']
             <div class="topbar-right">
                 <span class="status-pill"><span class="status-dot"></span> 3D workspace</span>
                 <span class="status-pill">{{ count($lhw3dCatalog) }} model 3D</span>
+            </div>
+            <div class="topbar-right">
+                <!-- Quay lại trang chủ -->
+                <a href="{{ url('/') }}" class="home-link" title="Quay lại trang chủ">
+                    <span aria-hidden="true">←</span>
+                    <span>Về trang chủ</span>
+                </a>
+
+                <span class="status-pill">
+                    <span class="status-dot"></span>
+                    3D workspace
+                </span>
+
+                <span class="status-pill">
+                    {{ count($lhw3dCatalog) }} model 3D
+                </span>
             </div>
         </header>
 
@@ -1663,6 +1806,42 @@ usort($lhw3dCatalog, static fn($a, $b) => strnatcasecmp($a['label'], $b['label']
                     @if (empty($lhw3dCatalog))
                         <p class="catalog-empty">Chưa tìm thấy model GLB/GLTF trong <code>public/models</code>. Hãy kiểm
                             tra thư mục model và quyền đọc file.</p>
+                    @else
+                        {{-- Server-rendered fallback: cards remain visible even if the ES module fails to load. --}}
+                        @foreach ($lhw3dCatalog as $lhwItem)
+                            <article class="catalog-item" data-lhw-static-card>
+                                <div class="catalog-item-media{{ !empty($lhwItem['imageUrl']) ? '' : ' catalog-item-media--empty' }}">
+                                    @if (!empty($lhwItem['imageUrl']))
+                                        <img src="{{ $lhwItem['imageUrl'] }}" alt="{{ $lhwItem['label'] }}" loading="lazy" decoding="async">
+                                    @else
+                                        <strong class="catalog-item-placeholder-mark">3D</strong>
+                                        <span class="catalog-item-placeholder-note">Chưa có ảnh sản phẩm</span>
+                                    @endif
+                                </div>
+                                <div class="catalog-item-content">
+                                    <strong class="catalog-item-title">{{ $lhwItem['label'] }}</strong>
+                                    <small class="catalog-item-path">{{ $lhwItem['path'] }}</small>
+                                    <label class="catalog-item-type-label">
+                                        Loại sản phẩm
+                                        <select class="catalog-item-type" data-lhw-static-category aria-label="Phân loại {{ $lhwItem['label'] }}">
+                                            @foreach ([
+                                                'top' => 'Áo / áo khoác', 'bottom' => 'Quần / váy', 'shoes' => 'Giày',
+                                                'hat' => 'Mũ / nón', 'glasses' => 'Kính', 'necklace' => 'Vòng cổ / dây chuyền',
+                                                'scarf' => 'Khăn / phụ kiện cổ', 'bag' => 'Túi / balo', 'wrist' => 'Đồng hồ / vòng tay',
+                                                'accessory' => 'Phụ kiện khác', 'generic' => 'Mô hình rời / chưa phân loại'
+                                            ] as $value => $label)
+                                                <option value="{{ $value }}" @selected(($lhwItem['category'] ?? 'generic') === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <button type="button" class="catalog-add-button" data-lhw-static-add
+                                        data-url="{{ $lhwItem['url'] }}" data-label="{{ $lhwItem['label'] }}"
+                                        data-product-id="{{ $lhwItem['productId'] ?? '' }}"
+                                        data-left-shoe="{{ $lhwItem['leftShoeUrl'] ?? '' }}"
+                                        data-right-shoe="{{ $lhwItem['rightShoeUrl'] ?? '' }}">+ Thêm vào phối đồ</button>
+                                </div>
+                            </article>
+                        @endforeach
                     @endif
                 </div>
                 <p class="catalog-footnote">Ảnh không có sẵn sẽ dùng ô giữ chỗ trung tính. Túi và mô hình chưa phân loại
@@ -1781,63 +1960,112 @@ usort($lhw3dCatalog, static fn($a, $b) => strnatcasecmp($a['label'], $b['label']
                         positionOffset: [0, 0, 0],
                         rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'axis' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'axis'
+                        },
                     },
                     bottom: {
                         positionOffset: [0, 0, 0],
                         rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'axis' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'axis'
+                        },
                     },
                     shoes: {
                         positionOffset: [0, 0, 0],
                         rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'uniform-contain' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'uniform-contain'
+                        },
                         parts: {
-                            left: { positionOffset: [0, 0, 0], rotationOffset: [0, 0, 0], scaleMultiplier: [1, 1, 1] },
-                            right: { positionOffset: [0, 0, 0], rotationOffset: [0, 0, 0], scaleMultiplier: [1, 1, 1] },
+                            left: {
+                                positionOffset: [0, 0, 0],
+                                rotationOffset: [0, 0, 0],
+                                scaleMultiplier: [1, 1, 1]
+                            },
+                            right: {
+                                positionOffset: [0, 0, 0],
+                                rotationOffset: [0, 0, 0],
+                                scaleMultiplier: [1, 1, 1]
+                            },
                         },
                     },
                     bag: {
-                        positionOffset: [0, 0, 0], rotationOffset: [0, 0, 0],
+                        positionOffset: [0, 0, 0],
+                        rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'uniform-contain' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'uniform-contain'
+                        },
                     },
                     hat: {
-                        positionOffset: [0, 0, 0], rotationOffset: [0, 0, 0],
+                        positionOffset: [0, 0, 0],
+                        rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'uniform-contain' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'uniform-contain'
+                        },
                     },
                     glasses: {
-                        positionOffset: [0, 0, 0], rotationOffset: [0, 0, 0],
+                        positionOffset: [0, 0, 0],
+                        rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'uniform-contain' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'uniform-contain'
+                        },
                     },
                     necklace: {
-                        positionOffset: [0, 0, 0], rotationOffset: [0, 0, 0],
+                        positionOffset: [0, 0, 0],
+                        rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'uniform-contain' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'uniform-contain'
+                        },
                     },
                     scarf: {
-                        positionOffset: [0, 0, 0], rotationOffset: [0, 0, 0],
+                        positionOffset: [0, 0, 0],
+                        rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'uniform-contain' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'uniform-contain'
+                        },
                     },
                     wrist: {
-                        positionOffset: [0, 0, 0], rotationOffset: [0, 0, 0],
+                        positionOffset: [0, 0, 0],
+                        rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'uniform-contain' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'uniform-contain'
+                        },
                     },
                     accessory: {
-                        positionOffset: [0, 0, 0], rotationOffset: [0, 0, 0],
+                        positionOffset: [0, 0, 0],
+                        rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'uniform-contain' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'uniform-contain'
+                        },
                     },
                     generic: {
-                        positionOffset: [0, 0, 0], rotationOffset: [0, 0, 0],
+                        positionOffset: [0, 0, 0],
+                        rotationOffset: [0, 0, 0],
                         scaleMultiplier: [1, 1, 1],
-                        normalization: { pivot: 'bounds-center', scale: 'uniform-contain' },
+                        normalization: {
+                            pivot: 'bounds-center',
+                            scale: 'uniform-contain'
+                        },
                     },
                 },
                 // Chỉ thêm ID tại đây nếu muốn hiệu chỉnh riêng một sản phẩm cụ thể.
@@ -1847,36 +2075,186 @@ usort($lhw3dCatalog, static fn($a, $b) => strnatcasecmp($a['label'], $b['label']
             },
         };
     </script>
+
+    <!-- THREE.JS IMPORT MAP -->
     <script type="importmap">
-        {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
-    </script>
-    <script type="module" src="/js/lhw-fitting-room.js"></script>
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+}
+</script>
+
+    <!-- AI OUTFIT BRIDGE -->
+    <script src="{{ asset('js/lhw-ai-outfit-bridge.js') }}?v=4"></script>
+
+    <!-- LHW FITTING ENGINE: dynamic import through the verified same-origin module URL -->
     <script>
-        // Small, optional enhancement that does not replace the fitting engine's own behavior.
-        document.addEventListener('DOMContentLoaded', () => {
+        (() => {
+            if (window.__LHW_FITTING_BOOTSTRAP_STARTED__) return;
+            window.__LHW_FITTING_BOOTSTRAP_STARTED__ = true;
+
             const catalog = document.getElementById('catalogItems');
+            const status = document.getElementById('fittingStatus');
+            // Use a root-relative same-origin URL, matching the successful Console import. Avoid APP_URL / asset() host mismatches.
+            const engineBaseUrl = '/js/lhw-fitting-room.js?v=import-fix-1';
+
+            let engineError = null;
+            let enginePromise = null;
+            let engineAttempt = 0;
+
+            function setStatus(message) {
+                if (status) status.textContent = message;
+            }
+
+            function getApi() {
+                const api = window.LHWFittingDebug;
+                return typeof api?.addCatalogItem === 'function' ? api : null;
+            }
+
+            function loadFittingModule() {
+                const readyApi = getApi();
+                if (readyApi) return Promise.resolve(readyApi);
+                if (enginePromise) return enginePromise;
+
+                engineAttempt += 1;
+                const attemptUrl = engineAttempt === 1
+                    ? engineBaseUrl
+                    : `${engineBaseUrl}${engineBaseUrl.includes('?') ? '&' : '?'}attempt=${engineAttempt}`;
+
+                setStatus('Đang nạp fitting engine…');
+                enginePromise = import(attemptUrl)
+                    .then(() => {
+                        const api = getApi();
+                        if (!api) {
+                            throw new Error('Module đã import nhưng chưa tạo LHWFittingDebug.addCatalogItem. Kiểm tra lỗi khởi tạo JavaScript trong Console.');
+                        }
+                        engineError = null;
+                        window.LHW_FITTING_MODULE_ERROR = null;
+                        console.info('[LHW Boot] Fitting engine đã import; đang chờ avatar và anchors.');
+                        return api;
+                    })
+                    .catch((error) => {
+                        engineError = error?.stack || error?.message || String(error);
+                        window.LHW_FITTING_MODULE_ERROR = engineError;
+                        console.error(`[LHW Boot] Import fitting engine lần ${engineAttempt} thất bại:`, error);
+                        window.dispatchEvent(new CustomEvent('lhw:fitting-module-error', {
+                            detail: { message: engineError, url: attemptUrl, attempt: engineAttempt },
+                        }));
+                        // Allow the next user click to retry with a fresh module URL.
+                        enginePromise = null;
+                        throw error;
+                    });
+
+                window.LHW_FITTING_ENGINE_PROMISE = enginePromise;
+                return enginePromise;
+            }
+
+            function waitForFittingEngine(timeoutMs = 90000) {
+                const startedAt = Date.now();
+                return new Promise((resolve, reject) => {
+                    const poll = () => {
+                        const api = getApi();
+                        const hasAvatar = Boolean(api?.avatarReady && api?.avatar && api?.anchors?.pelvis);
+
+                        if (api?.moduleState === 'avatar-error') {
+                            reject(new Error(`Avatar không tải hoặc không tạo được anchors: ${api.moduleError || 'Không rõ nguyên nhân'}`));
+                            return;
+                        }
+                        if (api?.moduleState === 'load-error') {
+                            reject(new Error(api.moduleError || engineError || 'Fitting engine không khởi tạo được.'));
+                            return;
+                        }
+                        if (api && hasAvatar && api.moduleState === 'ready') {
+                            resolve(api);
+                            return;
+                        }
+                        if (Date.now() - startedAt >= timeoutMs) {
+                            const state = api?.moduleState || 'module chưa thực thi';
+                            reject(new Error(`Fitting engine chưa sẵn sàng sau ${Math.round(timeoutMs / 1000)} giây (trạng thái: ${state}). ${engineError || api?.moduleError || 'Kiểm tra /models/avatar/avatar.glb và Network.'}`));
+                            return;
+                        }
+                        window.setTimeout(poll, 150);
+                    };
+                    poll();
+                });
+            }
+
+            if (catalog) {
+                catalog.addEventListener('click', async (event) => {
+                    const target = event.target;
+                    const button = target instanceof Element ? target.closest('[data-lhw-static-add]') : null;
+                    if (!button || button.disabled) return;
+                    event.preventDefault();
+
+                    const select = button.closest('.catalog-item')?.querySelector('[data-lhw-static-category]');
+                    const category = select?.value || 'generic';
+                    const originalText = button.textContent;
+                    button.disabled = true;
+                    button.textContent = 'Đang chuẩn bị avatar…';
+                    try {
+                        await loadFittingModule();
+                        const api = await waitForFittingEngine();
+                        button.textContent = 'Đang tải model 3D…';
+                        await api.addCatalogItem(button.dataset.url, category, button.dataset.label || button.dataset.url);
+                        button.textContent = 'Đã thêm vào phối đồ';
+                        window.setTimeout(() => {
+                            button.disabled = false;
+                            button.textContent = originalText || '+ Thêm vào phối đồ';
+                        }, 1200);
+                    } catch (error) {
+                        console.error('[LHW Boot] Không thêm được model:', error);
+                        button.disabled = false;
+                        button.textContent = originalText || '+ Thêm vào phối đồ';
+                        setStatus(error?.message || String(error));
+                    }
+                });
+            }
+
+            window.LHW_FITTING_MODULE_URL = engineBaseUrl;
+            window.LHW_FITTING_LOADER_DEBUG = {
+                engineUrl: engineBaseUrl,
+                get error() { return engineError; },
+                get attempt() { return engineAttempt; },
+                get state() {
+                    const api = getApi();
+                    if (api?.moduleState) return api.moduleState;
+                    return engineError ? 'load-error' : 'loading';
+                },
+                get api() { return getApi(); },
+            };
+
+            // Start once on page load; clicking an item shares this same import promise.
+            loadFittingModule().catch(() => {});
+        })();
+    </script>
+
+    <!-- MIX COUNTER -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
             const sceneItems = document.getElementById('catalogSceneItems');
             const count = document.getElementById('mixCount');
+
+            if (!sceneItems || !count) return;
+
             const syncCount = () => {
-                if (!count || !sceneItems) return;
-                const items = sceneItems.querySelectorAll('.scene-item');
-                count.textContent = String(items.length);
+                count.textContent = String(
+                    sceneItems.querySelectorAll('.scene-item').length
+                );
             };
-            if (catalog && window.MutationObserver) {
-                new MutationObserver(syncCount).observe(catalog, {
-                    childList: true,
-                    subtree: true
-                });
-            }
-            if (sceneItems && window.MutationObserver) {
-                new MutationObserver(syncCount).observe(sceneItems, {
-                    childList: true,
-                    subtree: true
-                });
-            }
+
+            new MutationObserver(syncCount).observe(sceneItems, {
+                childList: true,
+                subtree: true
+            });
+
             syncCount();
         });
     </script>
+
+
+
 </body>
 
 </html>
